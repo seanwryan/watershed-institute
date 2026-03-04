@@ -1,0 +1,5233 @@
+Executive Summary — 30 yr StreamWatch Data Analysis.xlsx
+1. Scope and Structure
+
+The workbook contains longitudinal surface water monitoring data spanning ~30 years (early 1990s–2020). It is organized into:
+
+Raw sampling data by time block
+
+00–04 → 2,508 records
+
+05–09 → 2,990 records
+
+10–14 → 1,535 records
+
+Earlier 1990s data (partial sheet)
+
+Master compiled dataset (Sheet1)
+
+12,441 rows
+
+Water temperature indexed by date, month, year
+
+Analytical/summary sheets
+
+Descriptive statistics
+
+Time graphs
+
+Parameter graphs
+
+Max/min graphs
+
+Exceedance graphs
+
+Integrated Report (IR) status changes
+
+Total raw monitoring entries across decade sheets exceed 7,000 structured field records, plus additional historical entries.
+
+2. Core Parameters Measured
+
+Each sampling record (46 variables per row) includes:
+
+Field Conditions
+
+Date, time, site ID
+
+Sampler names
+
+Air temperature
+
+Water temperature
+
+Nutrients
+
+Nitrate (including dilution-adjusted values)
+
+Phosphates
+
+Physical/Chemical Indicators
+
+pH
+
+Turbidity
+
+Dissolved oxygen (multiple readings + average)
+
+Biological/Observational Indicators
+
+Algal bloom index
+
+Aquatic vegetation index
+
+Wildlife observations
+
+Floatables observations
+
+Free-text comments
+
+The dataset is structured for both quantitative trend analysis and qualitative ecological context.
+
+3. Statistical & Regulatory Analysis
+
+The workbook includes:
+
+Descriptive Statistics
+
+Counts by year and site
+
+Total samples per monitoring station
+
+Long-term aggregation (1992 onward)
+
+Exceedance Benchmarks
+
+Includes state surface water standards, such as:
+
+Water temperature: must not exceed 31 °C
+
+Nitrate (drinking standard): must not exceed 10 ppm
+
+This enables regulatory compliance assessment.
+
+IR (Integrated Report) Changes
+
+Tracks designated use support categories:
+
+Full Support
+
+Non Support
+
+Insufficient Data
+
+Across use classes:
+
+Recreation
+
+Water Supply
+
+Shellfish
+
+Fish Consumption
+
+Trend comparisons are shown across 2012, 2014, 2016, and 2018/2020 cycles.
+
+4. Long-Term Monitoring Characteristics
+
+Sampling frequency appears biweekly to monthly.
+
+Dissolved oxygen values generally range ~5–12 mg/L.
+
+Winter readings show higher DO and lower water temperature.
+
+Wildlife observations are consistent and recurring (geese, mallards, deer tracks, fish).
+
+Some entries flag unusually high nitrate or fish mortality events.
+
+5. Data Quality Observations
+
+Structure is consistent across decades.
+
+Some unused or placeholder columns exist in graph sheets.
+
+Comments field contains valuable contextual anomaly notes.
+
+Certain sheets (e.g., Max & Min Graphs) are empty.
+
+
+
+Executive Summary — 2024 TWI WQX Submission.xlsx
+1. Purpose and Structure
+
+This workbook is a WQX-formatted submission dataset prepared for regulatory upload (EPA Water Quality Exchange). It consolidates:
+
+Field measurements
+
+Habitat assessments
+
+Biological (macroinvertebrate) data
+
+Index scores and regulatory determinations
+
+Primary data years: 2021–2024, covering:
+
+TWI Tier 3.2 (2021–2023)
+
+TWI Tier 3.3 (2023–2026)
+
+2. Sheet-Level Breakdown
+A. Field & Habitat Observations
+
+(~58 columns)
+
+Includes:
+
+Activity Metadata
+
+Project ID
+
+WQX Site ID
+
+Activity ID
+
+Activity type (Field Measurement/Observation)
+
+Date, time, time zone
+
+Water & Air Parameters
+
+Water temperature
+
+Air temperature
+
+Stream flow
+
+Turbidity
+
+Velocity
+
+Depth profiles
+
+Wetted width
+
+Habitat Metrics
+
+Riffle/run/pool %
+
+Substrate composition (silt, sand, gravel, cobble, boulder, bedrock)
+
+Woody debris
+
+In-stream structures
+
+Tree canopy coverage
+
+Land use within ¼ mile
+
+Bank vegetation types
+
+Litter concentration
+
+Algae and vegetation amount/type
+
+This section is primarily physical and habitat condition data.
+
+B. WQX Habitat & Physical (Full Submission Format)
+
+Rows: 1,169
+Columns: 89
+
+Structured in strict WQX schema format, including:
+
+Monitoring Location ID
+
+Sampling component hierarchy
+
+Gear, collection methods
+
+Characteristic name
+
+Result value + unit
+
+Detection limits
+
+Biological intent
+
+Analytical method metadata
+
+This is a regulatory-compliant upload dataset, not just raw monitoring data.
+
+C. WQX Biological (2023–2024)
+
+Rows: 475
+Columns: 89
+
+Macroinvertebrate data including:
+
+Taxonomic identification
+
+Functional feeding group
+
+Pollution tolerance
+
+Trophic level
+
+Taxon habit
+
+Taxon voltinism
+
+Group summary count
+
+Proportion of sample processed
+
+Laboratory: Normandeau Inc.
+
+Activity type: Composite biological samples (BM)
+
+This is taxonomically detailed and structured for index calculation.
+
+D. Taxa Count Table (2023–2024)
+
+Rows: 475
+
+Contains:
+
+Site
+
+Activity ID
+
+Taxon rank
+
+Taxon name
+
+Count
+
+Proportion of sample
+
+Index type
+
+Project ID
+
+Example:
+
+Cheumatopsyche (Genus) – 26 individuals (25% of sample)
+
+Used for index derivation and audit traceability.
+
+E. Index Summary Table (2023–2024)
+
+Rows: 25
+
+Includes:
+
+Site
+
+Date
+
+Index Type (CPMI or HGMI)
+
+Index Score
+
+Assessment Category
+
+Regulatory Threshold
+
+Total taxa
+
+Total specimens
+
+Example results:
+
+Site	Index	Score	Assessment	Regulatory Status
+TWI-AC5	CPMI	10	Fair	Non-attainment
+TWI-DP3	CPMI	4	Poor	Non-attainment
+TWI-SW1	HGMI	42	Good	Full Attainment
+
+Indicates mixed attainment outcomes across sites.
+
+3. Key Observations
+
+Biological index results show both full attainment and non-attainment sites.
+
+CPMI sites trend toward lower scores (several “Poor”).
+
+HGMI sites include “Good” classifications.
+
+Total taxa per site typically range 11–21 taxa.
+
+Specimen counts ~90–110 per composite sample.
+
+Data is formatted to satisfy WQX upload schema requirements.
+
+Strong traceability from raw taxa counts → index score → regulatory classification.
+
+4. Overall Assessment
+
+This file is:
+
+A regulatory submission package
+
+Fully structured for EPA WQX
+
+Integrating habitat, physical, and biological datasets
+
+Supporting index-based attainment decisions
+
+It is not exploratory analysis; it is compliance-ready data.
+
+
+
+Executive Summary — 2025 BACT Analysis.xlsx
+1. Purpose and Structure
+
+This workbook is a 2025 season water quality scoring and dashboard dataset.
+It consolidates weekly sampling results (May–August 2025) and converts them into BACT-style performance scores per site.
+
+It is structured as a site-by-parameter compliance scoring system, not raw monitoring logs.
+
+Monitoring window:
+
+May 18 – August 24, 2025
+
+Weekly sampling cadence
+
+2. Core Parameters Evaluated
+
+Each parameter has:
+
+Site-level average (mean or geometric mean)
+
+Weekly values by date
+
+Count of exceedances
+
+Final qualitative score
+
+Parameters include:
+
+A. Turbidity
+
+Geo mean calculated
+
+Count of samples:
+
+15 NTU
+
+≥50 NTU
+
+Final score (e.g., Excellent, Good)
+
+Example:
+
+Most sites: 0 exceedances → Excellent
+
+Some isolated >15 NTU events → Good
+
+B. Chloride
+
+Average chloride (mg/L)
+
+Counts:
+
+100 mg/L
+
+≥230 mg/L
+
+Scoring result
+
+Observed condition:
+
+Multiple sites averaging 800–1000 mg/L
+
+Frequent exceedances of 230 mg/L
+
+Widespread Poor ratings
+
+Chloride is the dominant impairment driver in this dataset.
+
+C. Phosphate
+
+Average concentration
+
+Counts:
+
+0.05 mg/L
+
+≥0.1 mg/L
+
+Many sites exceed 0.1 mg/L repeatedly
+
+Scores largely Poor
+
+Indicates sustained nutrient loading.
+
+D. Nitrate
+
+Average nitrate
+
+Counts:
+
+1.5 mg/L
+
+3.0 mg/L
+
+Most values low or zero
+
+Scores frequently Excellent
+
+Nitrate is not a major issue relative to phosphate.
+
+E. Phycocyanin (HAB Indicator)
+
+Cyanobacteria proxy
+
+HAB status column present
+
+Sparse data in current file
+
+No major HAB flags evident in preview
+
+F. Temperature & E. coli (Dashboard sheet only)
+
+Geometric means and scoring included
+
+Most sites scoring Excellent
+
+Integrated into final dashboard output
+
+3. Dashboard Sheet (Primary Output Layer)
+
+Rows: 103
+Columns: 125
+
+This is the consolidated scoring interface including:
+
+Site
+
+Waterbody
+
+Last sample date
+
+Number of samples
+
+Avg values per parameter
+
+Weekly data columns
+
+Final scores
+
+HAB status
+
+Latitude/Longitude
+
+This sheet is designed for:
+
+Public-facing reporting
+
+Summary exports
+
+Visual dashboard integration
+
+4. Site-Level Pattern Observations
+Strengths
+
+Temperature: Generally Excellent
+
+Turbidity: Mostly Excellent
+
+Nitrate: Strong performance
+
+Weaknesses
+
+Chloride: Consistently high across many sites
+
+Phosphate: Elevated and recurrent exceedances
+
+Nutrient/salt-driven impairment evident
+
+5. Overall Assessment
+
+This file is:
+
+A scoring and condition assessment model
+
+Focused on the 2025 monitoring season
+
+Designed for comparative site ranking
+
+Structured for dashboard/report outputs
+
+It translates raw chemistry into categorical performance ratings.
+
+Bottom Line
+
+2025 condition summary:
+
+Physical clarity (turbidity) → generally good
+
+Temperature → acceptable
+
+Nitrate → low concern
+
+Chloride → severe and widespread impairment
+
+Phosphate → persistent nutrient problem
+
+
+
+Executive Summary — 2025 StreamWatch Locations.xlsx
+1. Purpose
+
+This file is a site inventory and program management database for 2025 StreamWatch monitoring locations.
+
+It is not chemistry data.
+It is operational metadata used for:
+
+Site tracking
+
+Access logistics
+
+Program prioritization
+
+Status management (CAT, BAT, BACT)
+
+Primary sheet: SWSites_2024
+Total sites listed: 168
+
+2. Core Data Categories
+A. Site Identification
+
+SiteCode (e.g., AC1, ABM4)
+
+WaterBody
+
+Subwatershed
+
+Description
+
+Drainage area
+
+Provides watershed context and unique site identifiers.
+
+B. Geographic Data
+
+Latitude
+
+Longitude
+
+Drainage Area
+
+Enables GIS integration and spatial analysis.
+
+C. Access & Field Logistics
+
+Type of property (Public/Other)
+
+Permission status
+
+Walk time
+
+Walk distance
+
+Walk gradient
+
+Water access description
+
+Parking details
+
+Walking directions
+
+Environmental hazards
+
+Additional comments
+
+This is field crew operational data.
+
+D. Monitoring Program Tracking
+
+Includes status and priority for:
+
+CAT (likely chemical assessment tier)
+
+BAT (biological assessment tier)
+
+BACT (best available condition tracking)
+
+For each:
+
+Priority ranking (e.g., “1 – Primary”)
+
+Status (Active, Inactive)
+
+Last sample date (where applicable)
+
+Example:
+
+AC1 → Active CAT, high priority
+
+Many sites → BACT marked Inactive
+
+E. Groundtruthing Management
+
+Groundtruthing priority
+
+Groundtruthing status (e.g., Done)
+
+isActive flag
+
+Indicates whether sites have been verified and are currently monitored.
+
+3. Observed Structure & Use Case
+
+This file functions as:
+
+A master registry of StreamWatch sites
+
+A prioritization and workflow tool
+
+A GIS-ready spatial dataset
+
+A tracking interface for multi-tier monitoring programs
+
+It likely feeds:
+
+Sampling schedules
+
+Dashboard reporting
+
+Resource allocation decisions
+
+Regulatory planning
+
+4. Operational Observations
+
+168 total listed sites
+
+Mix of HUC-scale and target-scale sites
+
+Some missing drainage area values
+
+Many BACT entries marked inactive
+
+Several sites marked “1 – Primary” for CAT/BAT
+
+This suggests an active prioritization framework but selective tier deployment.
+
+Bottom Line
+
+This file is the infrastructure layer of the monitoring program.
+
+It does not contain water quality results.
+It defines:
+
+Where sampling occurs
+
+How accessible it is
+
+Which program tier applies
+
+What priority it holds
+
+
+
+Executive Summary — All StreamWatch Data.xlsx
+1. Purpose
+
+This workbook is the master historical StreamWatch dataset, organized by watershed.
+It consolidates multi-decade chemical, biological, and habitat data into watershed-specific sheets.
+
+It functions as the central analytical archive for the entire monitoring program.
+
+2. Structure
+
+Each watershed has its own sheet. Examples include:
+
+Millstone River (2,534 records)
+
+Rocky Brook (649 records)
+
+Pike Run (298 records)
+
+Miry Run (106 records)
+
+Moore Creek (21 records)
+
+Additional watershed sheets (similar format)
+
+Each sheet contains 44 standardized columns.
+
+3. Core Data Fields (Consistent Across Watersheds)
+A. Sampling Metadata
+
+Data Condition (Provisional, Unchecked, Flagged)
+
+Notes
+
+Method (LaMotte, BACT, etc.)
+
+Site
+
+Date
+
+Time
+
+B. Physical & Chemical Parameters
+
+Air temperature
+
+Water temperature
+
+Nitrate
+
+Phosphates
+
+pH
+
+Turbidity
+
+Dissolved oxygen (ppm and %)
+
+Conductivity
+
+Chloride (mg/L)
+
+E. coli
+
+These are standard water quality indicators collected longitudinally.
+
+C. Biological & Index Metrics
+
+N.bat (biological assessment count)
+
+NJIS
+
+HGMI (Family and Genus)
+
+CPMI
+
+FBI (Family Biotic Index)
+
+These support biological integrity scoring and impairment assessment.
+
+D. Habitat Assessment Metrics
+
+Embeddedness (High Gradient)
+
+Pool substrate characterization (Low Gradient)
+
+Velocity/depth combinations
+
+Sediment deposition
+
+Channel alteration
+
+Channel flow status
+
+Frequency of riffles
+
+Channel sinuosity
+
+Bank stability (left/right)
+
+Bank vegetative protection (left/right)
+
+Riparian vegetative zone (left/right)
+
+This aligns with EPA-style rapid bioassessment protocols.
+
+4. Temporal Coverage
+
+Records extend back to at least 1992 (Millstone River sheet).
+
+Includes early LaMotte chemical monitoring era.
+
+Includes more recent BACT program entries (2021+).
+
+Mix of provisional, flagged, and unchecked statuses.
+
+This represents 30+ years of watershed monitoring.
+
+5. Data Characteristics
+
+Watershed-specific segmentation
+
+Standardized 44-field schema
+
+Mixed monitoring methods across decades
+
+Biological indices integrated alongside chemistry
+
+Habitat scoring included in later program phases
+
+The dataset combines:
+
+Volunteer chemistry
+
+Biological indices
+
+Habitat scoring
+
+BACT program entries
+
+6. Overall Assessment
+
+This file is:
+
+The primary longitudinal dataset
+
+The most analytically valuable file provided so far
+
+Suitable for:
+
+Long-term trend analysis
+
+Watershed-to-watershed comparison
+
+Index trajectory modeling
+
+Impairment evolution tracking
+
+Climate-related parameter shifts (temperature, DO)
+
+Bottom Line
+
+This is the core analytical backbone of StreamWatch.
+
+It integrates:
+
+Chemistry
+
+Biology
+
+Habitat
+
+Multi-decade temporal data
+
+Multiple watersheds
+
+
+
+Executive Summary — BACT and HAB 2025 Data.xlsx
+1. Purpose
+
+This workbook is the raw operational data backbone for the 2025 BACT and HAB monitoring season.
+
+It consolidates:
+
+Field survey submissions (Survey123)
+
+Laboratory chemistry results (Gallery)
+
+E. coli IDEXX results
+
+Turbidity bench measurements
+
+HAB (phycocyanin) screening
+
+Site GPS references
+
+Audit metadata
+
+This is the pre-processed data layer that feeds the 2025 scoring and dashboard files summarized earlier.
+
+2. Sheet Breakdown
+A. METADATA (84 rows)
+
+Internal audit log:
+
+Date of edits
+
+Sheet modified
+
+User
+
+Notes on data imports and changes
+
+Functions as version control and QA documentation.
+
+B. SURVEY123 (623 rows)
+
+Field submission data from volunteers.
+
+Includes:
+
+Sample code
+
+Volunteer name/email
+
+Monitoring site ID
+
+Weather conditions
+
+Observations (odor, color, turbidity, surface coating)
+
+Algal bloom presence
+
+Field water temperature
+
+Chemistry inputs (phosphate, chloride, nitrate)
+
+Turbidity (NTU)
+
+HAB status
+
+GPS coordinates
+
+This is the field data capture layer.
+
+C. IDEXX (695 rows)
+
+E. coli lab data using Quanti-Tray/2000.
+
+Includes:
+
+Sample code
+
+Date collected
+
+Total coliform (MPN)
+
+E. coli (MPN)
+
+Holding time/temperature flags
+
+Data condition notes
+
+Some samples flagged for:
+
+Exceeded holding time (>8 hours)
+
+Exceeded holding temperature (>12°C)
+
+This is the bacterial compliance dataset.
+
+D. GALLERY (2,724 rows)
+
+Automated chemistry analyzer output.
+
+Includes:
+
+Nitrite
+
+Phosphate (PO4 Low)
+
+Result units
+
+Absorbance values
+
+Calibration metadata
+
+Sample identifiers
+
+This is the primary nutrient chemistry lab dataset.
+
+E. TURBIDITY (796 rows)
+
+Bench turbidimeter readings:
+
+Multiple replicate readings
+
+Final reading value
+
+Sample code/date
+
+Used to validate field turbidity entries.
+
+F. PHYCOCYANIN (154 rows)
+
+HAB screening data.
+
+Includes:
+
+Fluorometer readings (replicates + median)
+
+pH
+
+DO (% and ppm)
+
+Conductivity
+
+TDS
+
+Temperature
+
+Atmospheric pressure
+
+HAB status
+
+Whether reported to DEP
+
+Latitude/Longitude
+
+Site description
+
+Some sites marked:
+
+Elevated Phycocyanin
+
+e.g., Honey Brook
+
+Wargo Pond
+
+This is the cyanobacteria early warning dataset.
+
+G. Site_GPS-Coordinates (160 rows)
+
+Reference table:
+
+Site ID
+
+Latitude
+
+Longitude
+
+Waterbody
+
+Description
+
+Used for mapping and spatial linkage.
+
+H. IDEXX MPN Table
+
+Reference conversion matrix for:
+
+Large wells positive
+
+Small wells positive
+
+Corresponding MPN per 100 mL
+
+Used to calculate E. coli concentrations.
+
+3. Data Flow Architecture
+
+The workbook reflects a clear workflow:
+
+Field entry (Survey123)
+
+Lab chemistry (Gallery)
+
+Bacteria processing (IDEXX)
+
+Turbidity validation
+
+HAB screening
+
+QA documentation (Metadata)
+
+Site geolocation mapping
+
+Export to BACT scoring model
+
+This is a structured multi-source integration file.
+
+4. Observations
+
+~600+ field events
+
+~700 E. coli lab records
+
+~2,700 chemistry test records
+
+~800 turbidity measurements
+
+150+ HAB screenings
+
+Elevated phycocyanin events present at select sites.
+
+Chloride and phosphate values align with impairment patterns seen in the 2025 scoring file.
+
+QA flags present for bacteria sample handling in some cases.
+
+Bottom Line
+
+This is the raw laboratory + field integration file for 2025.
+
+It contains:
+
+All primary data
+
+QA tracking
+
+HAB early warning data
+
+Spatial references
+
+Inputs feeding the BACT 2025 dashboard
+
+It is operational and analytical, not summary-level.
+
+
+
+Executive Summary — BAT Data Consolidation and Recount – Lily Raphael.xlsx
+1. Purpose
+
+This workbook is a biological assessment consolidation and recalculation file for BAT (Biological Assessment Tier) monitoring.
+
+It integrates:
+
+Historical macroinvertebrate counts
+
+Genus- and family-level taxonomic breakdowns
+
+Metric recalculations
+
+NJIS and HGMI scoring
+
+Recount adjustments
+
+This is a metric derivation and validation file, not raw field chemistry.
+
+2. Overall Structure
+
+The workbook contains:
+
+Site-level summary sheets (e.g., SB5, SM1, TM1, SBA)
+
+Genus-level recalculation tables
+
+Historical family-level datasets
+
+Master bug reference table
+
+Site drainage size reference
+
+It spans multiple years (at least 1997–2022).
+
+3. Site-Level Summary Sheets (e.g., SB5, SM1, TM1)
+
+Each site sheet includes ~39 calculated fields per sampling event.
+
+Core Metrics:
+
+Community Structure
+
+Total number of organisms
+
+Total taxa richness
+
+EPT taxa richness
+
+% EPT taxa
+
+% dominance
+
+Dominant taxon
+
+Tolerance / Pollution Metrics
+
+FBI (Family Biotic Index)
+
+HBI (Hilsenhoff Biotic Index)
+
+FTV-based metrics
+
+NJIS (New Jersey Impairment Score)
+
+NJIS score
+
+NJIS water quality rating
+
+families (NJIS)
+
+% dominance (NJIS)
+
+HGMI (High Gradient Macroinvertebrate Index)
+
+Genus-level HGMI
+
+Family-level HGMI
+
+Water quality score (Fair, Good, Poor)
+
+Scraper genera/family counts
+
+Sensitive EPT %
+
+These sheets are the final calculated biological assessment outputs.
+
+Observed ratings include:
+
+Fair
+
+Good
+
+Poor
+
+4. DATA_WITH_GENUS_NEW (98 rows)
+
+Recount table for genus-level recalculations.
+
+Includes:
+
+Order, Family, Genus
+
+Amount
+
+Percent
+
+100-organism subsample normalization
+
+EPT classification
+
+Tolerance values
+
+Functional feeding group flags
+
+Scraper/clinger flags
+
+TALU attributes
+
+Product FTV calculations
+
+This is used to recompute:
+
+HGMI genus metrics
+
+HBI
+
+Sensitive EPT percentages
+
+5. DATA_WITH_GENUS_OLD (1,279 rows)
+
+Historical genus-level biological data.
+
+Contains:
+
+SampleCode
+
+GenusSpecies
+
+Counts
+
+EPT designation
+
+FTV
+
+Product totals
+
+Used for:
+
+Legacy index recalculation
+
+Comparison against new recounts
+
+6. DATA_WITHOUT_GENUS (2,359 rows)
+
+Family-level historical dataset (older era, pre-genus resolution).
+
+Includes:
+
+Site code
+
+Order
+
+Family
+
+Count
+
+EPT designation
+
+FTV
+
+Scraper and sensitivity flags
+
+Represents early biological assessment data (e.g., 1997).
+
+7. BugList (1,625 rows)
+
+Master taxonomic reference library.
+
+Includes:
+
+BugID
+
+Order/Class
+
+Family
+
+Genus
+
+EPT designation
+
+Tolerance values
+
+Functional feeding group
+
+Habit
+
+TALU attribute
+
+TSN (Taxonomic Serial Number)
+
+This is the taxonomy authority file feeding metric calculations.
+
+8. SiteSize (20 rows)
+
+Reference table:
+
+High gradient site
+
+Drainage area (sq km)
+
+Likely used for:
+
+Index applicability (HGMI applies to high-gradient streams)
+
+Site classification
+
+9. Data Characteristics
+
+Multi-year biological dataset (1997–2022+)
+
+Mixed family and genus resolution
+
+100-organism subsample normalization approach
+
+Explicit recalculation workflow
+
+Separate genus-level and family-level HGMI scoring
+
+Direct integration with NJIS methodology
+
+Some sheets contain incomplete rows or placeholder records.
+
+10. Overall Assessment
+
+This file is:
+
+A biological metric recalculation and validation workbook
+
+Used to reconcile historical counts with current index methodology
+
+Supporting NJIS and HGMI impairment determinations
+
+Structured for audit traceability
+
+It is central to:
+
+Biological impairment status
+
+Trend evaluation
+
+Tiered assessment justification
+
+Bottom Line
+
+This workbook is the biological integrity computation engine behind BAT assessments.
+
+It contains:
+
+Raw counts (family + genus)
+
+Recount corrections
+
+Tolerance scoring
+
+NJIS calculation
+
+HGMI scoring
+
+Taxonomic reference data
+
+
+
+Executive Summary — BATSITES COLLECTED.xlsx
+1. Purpose
+
+This workbook is a historical biological sampling inventory and organism count archive for BAT (Biological Assessment Tier) sites.
+
+It contains:
+
+Site-level sampling records
+
+Picker (collector) attribution
+
+Organism subsample counts
+
+Raw macroinvertebrate family-level counts
+
+This is pre-metric biological data, prior to NJIS/HGMI computation.
+
+2. Sheet: BATSITES COLLECTED (639 rows)
+Core Fields
+
+Data_Code (unique sampling identifier)
+
+Site
+
+Date
+
+SampleCode
+
+LastName1 / LastName2 (collectors)
+
+TotalOrgPicked (total organisms processed)
+
+#Squares (subsampling effort)
+
+Habitat_Assessment
+
+FBI (Family Biotic Index)
+
+Temporal Coverage
+
+Records extend as far back as:
+
+1948
+
+1949
+
+1996+
+
+Continuing into modern BAT years
+
+This suggests:
+
+Legacy biological archives incorporated into BAT tracking.
+
+Data Characteristics
+
+Early records have FBI = 0 (likely placeholder or not calculated)
+
+Later records include FBI values
+
+Habitat assessment column present but often zero
+
+Total organisms typically ~80–150 per event
+
+This sheet is a sampling event registry.
+
+3. Sheet: BUGSPICKED (7,339 rows)
+
+This is the raw organism count table.
+
+Core Fields
+
+BUGID#
+
+DataCode (links to sampling event)
+
+SampleCode
+
+Order
+
+Family
+
+Number (count)
+
+Represents:
+
+Family-level macroinvertebrate counts
+
+Per-sample organism abundance
+
+Source data for:
+
+FBI
+
+EPT richness
+
+Dominance calculations
+
+NJIS inputs
+
+Some rows contain zero values, likely placeholders or standardized taxa list entries.
+
+4. Data Architecture
+
+The structure is straightforward:
+
+BATSITES COLLECTED
+
+One row per biological sampling event
+
+BUGSPICKED
+
+Multiple rows per sampling event
+
+Organism counts by taxon
+
+Relationship:
+
+Data_Code / SampleCode is the linking key
+
+This is a classic one-to-many biological dataset.
+
+5. Observations
+
+~7,300 organism-level records
+
+~639 sampling events
+
+Multi-decade coverage
+
+Family-level resolution (not genus-level)
+
+Includes early historical biological monitoring
+
+No index recalculations included here — this is raw input data.
+
+6. Analytical Role in Overall Program
+
+Relative to other files:
+
+This is the foundational biological count file
+
+Feeds into:
+
+BAT Data Consolidation workbook
+
+NJIS/HGMI calculation sheets
+
+Represents the earliest stage of biological assessment workflow
+
+It sits upstream of:
+
+Tolerance scoring
+
+EPT calculations
+
+Water quality rating assignments
+
+Bottom Line
+
+This workbook is the raw macroinvertebrate sampling archive for BAT sites.
+
+It contains:
+
+Event registry (who, when, where)
+
+Total organisms processed
+
+Family-level taxonomic counts
+
+Historical coverage back to the 1940s
+
+It does not contain:
+
+Calculated indices
+
+Impairment ratings
+
+HGMI scores
+
+Those occur in downstream consolidation files.
+
+
+
+Executive Summary — CAT Meter Tracking v.1.xlsx
+1. Purpose
+
+This workbook is an equipment management and quality assurance tracking system for CAT (Chemical Assessment Tier) meters.
+
+It tracks:
+
+Meter inventory
+
+Volunteer assignments
+
+Sensor maintenance
+
+Calibration/testing results
+
+Failure rates
+
+Multi-year QA documentation
+
+This is infrastructure-level operational data — not water quality results.
+
+2. Sheet-Level Overview
+A. Sheet2 (25 rows)
+
+Basic assignment reference:
+
+Meter ID (e.g., TWI001–TWI025)
+
+Assigned volunteer(s)
+
+This is a quick lookup table.
+
+B. Assignments (44 rows)
+
+Core inventory sheet.
+
+Includes:
+
+Meter ID
+
+Serial number (SN)
+
+Probe ID
+
+Volunteer(s)
+
+Type (Staff vs Multi-Site)
+
+Assigned sites (Site1, Site2, Site3, etc.)
+
+Site priority designations (e.g., 1 – Priority, 2 – Secondary)
+
+Retired/inactive status markers
+
+This defines which meters serve which monitoring locations.
+
+C. Sensors (26 rows)
+
+Sensor replacement log.
+
+Tracks:
+
+Meter ID
+
+Serial number
+
+Date last changed for:
+
+DO sensor
+
+pH sensor
+
+EC (conductivity) sensor
+
+Used to monitor maintenance cycles and aging sensors.
+
+D. Tracking (105 rows)
+
+Failure tracking and quarterly status log.
+
+Includes:
+
+Rate of Failure (by parameter)
+
+Parameter type (DO, pH, EC)
+
+Quarterly status for:
+
+2024
+
+2025
+
+2026
+
+Status codes appear to include:
+
+P1, P2 (Pass levels)
+
+F1, F2, F3 (Failure levels)
+
+C-F (Calibration failure)
+
+This sheet monitors reliability trends over time.
+
+E. 2024 / 2025 / 2026 Testing (150+ rows each)
+
+Detailed calibration and performance testing logs.
+
+Each year includes:
+
+Testing rounds (Round 1–4)
+
+Test dates
+
+Standards used:
+
+pH
+
+DO %
+
+DO ppm
+
+Conductivity
+
+Water temperature (in 2024)
+
+Acceptable tolerances (e.g., ±1% conductivity)
+
+Actual meter readings
+
+Includes troubleshooting notes and procedures.
+
+This is formal QA documentation.
+
+3. Operational Structure
+
+The workbook supports:
+
+Equipment inventory control
+
+Volunteer assignment tracking
+
+Preventative maintenance scheduling
+
+Calibration validation
+
+Performance audit tracking
+
+Multi-year failure rate monitoring
+
+It is essentially a meter QA management database.
+
+4. Observations
+
+~25 active meters tracked
+
+Multi-site deployment common
+
+Explicit retirement/inactive markers
+
+Quarterly failure tracking across 3 years
+
+Structured calibration rounds annually
+
+Defined tolerance thresholds for validation
+
+Failure rate column suggests analytical review of reliability.
+
+5. Role in Overall Program
+
+Relative to other files:
+
+This supports CAT chemistry reliability.
+
+It ensures field meter data quality.
+
+It underpins defensibility of chemical results in:
+
+BACT scoring
+
+Regulatory submissions
+
+Public reporting
+
+Without this, chemical datasets would lack QA credibility.
+
+Bottom Line
+
+This file is the quality control backbone for CAT meters.
+
+It contains:
+
+Equipment assignments
+
+Sensor replacement history
+
+Calibration results
+
+Failure rate tracking
+
+Annual testing documentation
+
+It does not contain environmental data; it ensures the environmental data is defensible.
+
+
+
+Executive Summary — Database Project Plan.xlsx
+1. Purpose
+
+This workbook is a project management and scheduling document for the StreamWatch Database Project.
+
+It is structured as a Gantt-style task planning sheet covering project execution for 2024.
+
+This file contains no environmental data. It governs database development workflow.
+
+2. Structure
+
+Primary sheet: “2024”
+
+178 rows
+
+87 columns
+
+Layout indicates:
+
+Project header information
+
+Task breakdown
+
+Timeline tracking
+
+Percent completion tracking
+
+Month-by-month schedule view (September–December and beyond)
+
+The sheet appears designed for visual project planning inside Excel.
+
+3. Core Fields Identified
+Project Metadata
+
+Project Title
+
+Project Managers
+
+Company Name
+
+Date
+
+Task Management Columns
+
+Task Number
+
+Task Title
+
+Start Date
+
+Due Date
+
+Duration
+
+% of Task Complete
+
+Timeline Columns
+
+Calendar-based columns spanning months (e.g., September, October, November, December).
+
+These likely:
+
+Display task progress visually
+
+Support timeline tracking
+
+Function as a Gantt chart grid
+
+4. Observed Use Case
+
+This file likely supports:
+
+Database migration planning
+
+Schema redesign
+
+Data consolidation
+
+Integration of:
+
+Historical StreamWatch data
+
+BAT data
+
+CAT data
+
+BACT scoring outputs
+
+WQX submission formats
+
+Given the surrounding ecosystem of files, this project plan likely addresses:
+
+Unifying legacy datasets
+
+Standardizing biological and chemical data structures
+
+Improving QA tracking
+
+Centralizing site metadata
+
+Creating reporting dashboards
+
+5. Data Characteristics
+
+Highly formatted spreadsheet
+
+Many blank or layout-specific columns
+
+Primarily scheduling and planning content
+
+Not normalized tabular data
+
+Likely optimized for visual tracking rather than analytics
+
+6. Role in Overall System
+
+Relative to other files:
+
+This is governance-level documentation.
+
+It coordinates the transition from:
+
+Multi-file Excel system
+
+Manual recalculation workflows
+
+Separate QA tracking sheets
+→ Toward an integrated database system.
+
+It sits above:
+
+Raw data files
+
+Meter tracking
+
+Biological recalculations
+
+BACT dashboards
+
+Bottom Line
+
+This file is the execution plan for modernizing and centralizing the StreamWatch data infrastructure.
+
+It contains:
+
+Task sequencing
+
+Timeline scheduling
+
+Completion tracking
+
+Project governance metadata
+
+It does not contain:
+
+Monitoring data
+
+Biological counts
+
+Chemical measurements
+
+Regulatory outputs
+
+
+
+Executive Summary — tblSampleDates.xlsx
+1. Purpose
+
+This workbook is a relational-format biological dataset, structured as a database-ready schema for macroinvertebrate sampling.
+
+It contains:
+
+Sample event registry
+
+Raw organism counts
+
+100-organism subsample dataset (RBP method)
+
+Taxonomic reference table
+
+This is a normalized database structure — not a reporting spreadsheet.
+
+2. Table: tblSampleDates (109 rows)
+Fields:
+
+SampleID (primary key)
+
+Station
+
+SampleDate
+
+SampleCode
+
+Represents:
+
+One row per biological sampling event
+
+Appears to cover primarily 2014 sampling events (based on preview)
+
+Forms the parent table for relational joins
+
+This is the event metadata table.
+
+3. Table: tblBugResults (1,326 rows)
+Fields:
+
+SampleID (foreign key)
+
+SampleCode
+
+BugID
+
+Family
+
+GenusSpecies
+
+Exclude (boolean)
+
+Amount
+
+Represents:
+
+Raw organism counts per sample
+
+Full count before 100-organism normalization
+
+Includes exclusion flag for QA filtering
+
+This is the complete biological count dataset.
+
+4. Table: tblRBP100Bugs (1,260 rows)
+Fields:
+
+RBP_ID
+
+SampleID
+
+SampleCode
+
+BugID
+
+Family
+
+GenusSpecies
+
+Amount
+
+Represents:
+
+100-organism subsample used for:
+
+NJIS
+
+HGMI
+
+FBI
+
+Derived from raw count table
+
+This is the standardized RBP analytical dataset.
+
+5. Table: BugList (1,625 rows)
+
+Master taxonomic reference table.
+
+Includes:
+
+BugID (primary key)
+
+Order/Class
+
+Family
+
+GenusSpecies
+
+EPT designation
+
+Functional feeding group
+
+Tolerance values (FTV, NYTolVal)
+
+Sensitivity flags
+
+Scraper/clinger attributes
+
+TALU attribute
+
+TSN
+
+This is the biological metric computation authority table.
+
+6. Data Architecture
+
+The workbook follows a proper relational model:
+
+tblSampleDates (1) 
+        ↓
+tblBugResults (many)
+        ↓
+tblRBP100Bugs (subset)
+        ↓
+BugList (lookup)
+
+Keys:
+
+SampleID links sampling event to organisms
+
+BugID links organism record to taxonomic attributes
+
+This structure is consistent with:
+
+Access database exports
+
+SQL-ready biological schema
+
+NJIS/HGMI calculation workflows
+
+7. Observations
+
+~109 sampling events
+
+~1,300 raw organism records
+
+~1,260 standardized 100-count records
+
+1,625 taxa in master list
+
+Clear separation between:
+
+Raw counts
+
+Analytical subsample
+
+Taxonomic attributes
+
+Unlike earlier consolidation files, this is cleanly normalized.
+
+8. Role in Overall Program
+
+Relative to other files reviewed:
+
+This is the most database-ready biological file.
+
+It is likely an export from the emerging centralized system.
+
+It supports:
+
+Automated index calculation
+
+QA filtering via Exclude flag
+
+Taxonomic updates without altering historical records
+
+It represents a step toward database modernization.
+
+Bottom Line
+
+This workbook is a structured biological database export containing:
+
+Sampling event metadata
+
+Raw organism counts
+
+RBP 100-count dataset
+
+Full taxonomic lookup table
+
+It is suitable for:
+
+Direct SQL ingestion
+
+Automated NJIS/HGMI computation
+
+Trend analysis
+
+Data normalization across legacy files
+
+
+
+Executive Summary — Volunteer_Tracking.xlsm
+1. Purpose
+
+This workbook is the central volunteer management and accreditation system for the StreamWatch program.
+
+It tracks:
+
+Volunteer contact and status information
+
+Training completion and expiration
+
+Site assignments
+
+Program tier participation (CAT, BAT, BACT)
+
+Active vs inactive engagement
+
+It functions as a relational volunteer database embedded in Excel with macros.
+
+2. Core Tables
+A. Volunteers (431 rows)
+
+Primary volunteer registry.
+
+Key Fields:
+
+VolunteerID (primary key)
+
+FirstName / LastName
+
+Email / Phone
+
+Address (Street, City, State, Zip)
+
+StartDate
+
+Under 16? / Parent ID
+
+Active CAT
+
+Active BAT
+
+Active BACT
+
+Status (Active, Inactive, Parent)
+
+FullName
+
+DPID (likely internal identifier)
+
+This is the master personnel table.
+
+B. Trainings (58 rows)
+
+Training event catalog.
+
+Fields:
+
+TrainingID
+
+TrainingType (e.g., BACT Online Module, BAT Accreditation)
+
+TrainingDate
+
+Trainer
+
+Location
+
+Notes
+
+Total Attendees
+
+Defines formal training sessions.
+
+C. TrainingLog (185 rows)
+
+Attendance and credential tracking.
+
+Fields:
+
+AttendanceID
+
+TrainingID (foreign key)
+
+VolunteerID (foreign key)
+
+TrainingType
+
+FullName
+
+Status (Passed, Not Started, etc.)
+
+ExpirationDate
+
+This governs certification validity.
+
+D. Assignments (~active rows within 1M-row sheet)
+
+Volunteer-to-site deployment table.
+
+Fields:
+
+AssignmentID
+
+VolunteerID
+
+SiteID
+
+FullName
+
+StartDate
+
+EndDate
+
+Role (CAT, BAT, BACT)
+
+Defines who is assigned where and in what capacity.
+
+The sheet is preformatted to Excel’s max row limit but contains far fewer active records.
+
+E. Sites_Live (168 rows)
+
+Site metadata mirror (matches earlier site inventory file).
+
+Includes:
+
+SiteCode
+
+WaterBody
+
+Subwatershed
+
+GPS coordinates
+
+CAT/BAT/BACT priority & status
+
+Groundtruthing status
+
+Drainage area
+
+This allows volunteer assignments to link to active sites.
+
+F. LookUps (12 rows)
+
+Reference data.
+
+Includes:
+
+Training types
+
+Role definitions
+
+Volunteer metrics summary
+
+Metrics include:
+
+Total Volunteers: 428
+
+Active Volunteers: 142
+
+CATs: 72
+
+BATs: 32
+
+G. DASHBOARD (Empty via data read)
+
+Likely macro-driven summary view.
+
+3. Data Architecture
+
+Relational structure:
+
+Volunteers (1)
+     ↓
+TrainingLog (many)
+     ↓
+Trainings (lookup)
+
+Volunteers (1)
+     ↓
+Assignments (many)
+     ↓
+Sites_Live (lookup)
+
+This is effectively a lightweight volunteer CRM.
+
+4. Functional Coverage
+
+The system supports:
+
+Volunteer onboarding
+
+Certification tracking
+
+Expiration management
+
+Site deployment planning
+
+Tier eligibility control
+
+Youth volunteer oversight (Parent ID)
+
+Program capacity metrics
+
+It integrates directly with:
+
+CAT monitoring
+
+BAT biological assessments
+
+BACT advanced scoring
+
+5. Observations
+
+428 total volunteers recorded
+
+142 marked active
+
+Explicit tier differentiation (CAT vs BAT vs BACT)
+
+Training expiration dates enforced
+
+Role-based site assignments
+
+Macro-enabled (automation likely embedded)
+
+This is mature program management infrastructure.
+
+Bottom Line
+
+This file is the operational control center for volunteer deployment and credentialing.
+
+It contains:
+
+Volunteer master registry
+
+Training accreditation tracking
+
+Site assignments
+
+Tier participation flags
+
+Program metrics
+
+It does not contain monitoring results, but it governs who is authorized to collect them.
+
+
+
+Executive Summary — 2025 Data Questions.docx
+
+File: 
+
+2025 Data Questions
+
+1. Purpose
+
+This document is a data governance and quality control policy draft for the StreamWatch program.
+
+It outlines:
+
+Parameter flagging thresholds
+
+Meter QA decision logic
+
+Volunteer data reliability handling
+
+Data lifecycle status definitions
+
+Flag taxonomy framework
+
+It is not analytical data. It is a decision rules framework for managing data integrity.
+
+2. Core Sections
+A. General Flagging Thresholds
+
+Calls for defined numeric ranges for:
+
+pH (e.g., upper bound questions like >10? >14?)
+
+Other chemistry parameters (not yet specified)
+
+Indicates need for formalized validation thresholds across parameters.
+
+B. Laboratory-Specific QA Rules
+Gallery (Automated Analyzer)
+
+Define acceptable ranges
+
+Define blank controls and flag criteria
+
+LaMotte (Field Chemistry)
+
+Policy for handling “questionable” volunteers
+
+Retrospective scope (how far back to review?)
+
+This section highlights inconsistency risk between lab and volunteer chemistry streams.
+
+C. Meter Decision Logic
+
+Most detailed section.
+
+Addresses conditional handling for:
+
+Failed meter testing
+
+Timing of calibration relative to sampling
+
+Minor vs major test failure
+
+Missing meter ID
+
+Volunteer-reported calibration issues
+
+Protocol deviation
+
+Missing maintenance return
+
+This is effectively a decision tree for data admissibility.
+
+It raises critical questions:
+
+Should data be flagged?
+
+Should data be invalidated?
+
+Should temporal buffers apply (before/after failure)?
+
+Is deviation magnitude relevant?
+
+This is the backbone of defensible QA policy.
+
+D. Scoring & Analytics
+
+Brief placeholder section.
+
+Implies need to align:
+
+Flagging logic
+
+Index scoring
+
+Public reporting
+
+Analytical exclusion criteria
+
+3. Proposed Data Flag Framework
+
+The document proposes a structured flag taxonomy in three domains:
+
+3.1 Data Quality & Verification Status
+
+Lifecycle progression:
+
+Raw
+
+Provisional
+
+Unchecked
+
+Validated
+
+Approved
+
+Certified
+
+This supports audit traceability.
+
+3.2 Issues & Anomalies
+
+Potential Issues
+
+Suspect
+
+Flagged
+
+Outlier
+
+Known Issues
+
+Erroneous
+
+Corrupted
+
+Incomplete
+
+Resolved Issues
+
+Corrected
+
+Interpolated
+
+This separates suspicion from confirmation.
+
+3.3 Processing & Use Modifiers
+
+Derived
+
+Estimated
+
+Adjusted
+
+Suppressed
+
+These describe transformation state, not quality.
+
+3.4 Acceptable vs Non-Acceptable Deviation
+
+The document ends with an unresolved governance question:
+
+Where is the line between tolerable variance and data rejection?
+
+This is a policy threshold issue requiring:
+
+Statistical tolerance definition
+
+Instrument specification alignment
+
+Regulatory defensibility standards
+
+4. Observations
+
+This is a working policy draft.
+
+No numeric thresholds defined yet.
+
+No explicit decision matrix yet.
+
+Focus is operational and QA-heavy.
+
+Strong awareness of meter reliability risk.
+
+Explicit differentiation between suspicion and confirmation states.
+
+This file represents a move toward formalized data governance.
+
+5. Role in the Overall Ecosystem
+
+Relative to other reviewed files:
+
+Connects directly to:
+
+CAT Meter Tracking (QA enforcement)
+
+BACT scoring (flag propagation)
+
+WQX submission (regulatory defensibility)
+
+Database modernization (status fields)
+
+This is the missing governance layer tying all datasets together.
+
+Bottom Line
+
+This document is a data integrity policy framework under development.
+
+It addresses:
+
+When to flag
+
+When to invalidate
+
+How to classify
+
+How to treat deviations
+
+How to track lifecycle status
+
+It is essential for:
+
+Regulatory defensibility
+
+Long-term data credibility
+
+Automated database flag logic
+
+Consistent volunteer oversight
+
+
+
+Executive Summary — BugCountsInfo.docx
+
+File: 
+
+BugCountsInfo
+
+1. Purpose
+
+This document is the technical specification and formula manual for calculating:
+
+HGMI (Genus)
+
+HGMI (Family)
+
+CPMI (Genus – placeholder)
+
+NJIS
+
+100-organism subsampling logic
+
+Dominant taxon calculations
+
+It defines:
+
+Metric adjustments
+
+Scoring transformations
+
+Watershed-area corrections
+
+Excel formula implementations
+
+Data source lineage by year
+
+This is the biological index computation rulebook behind BAT scoring.
+
+2. HGMI (Genus-Level)
+Base Metrics (7 total)
+
+Total Number of Genera
+
+% Not Insect Taxa
+
+% Sensitive EPT
+
+HBI
+
+Scraper Genera
+
+Attribute 2 Genera
+
+Attribute 3 Genera
+
+Four metrics are area-adjusted using log(area_sq_km):
+
+Total Genera
+
+% Sensitive EPT
+
+HBI
+
+Scraper Genera
+
+These use watershed size correction equations.
+
+Scoring Transformation
+
+Each adjusted metric is converted to a 0–100 scale via linear formulas, e.g.:
+
+=100*METRIC/31
+
+=100*(7.2-METRIC)/4.6
+
+Final HGMI score:
+
+Average of 7 standardized metrics
+
+Classification:
+
+Excellent
+
+Good
+
+Fair
+
+Poor
+(Thresholds not yet defined)
+
+3. HGMI (Family-Level)
+Base Metrics (5 total)
+
+Number of Families
+
+% Not Insect Families
+
+% Sensitive EPT (area-adjusted)
+
+FBI (area-adjusted)
+
+Scraper Genera
+
+Scoring formulas again convert to 0–100 scale.
+
+Final HGMI = Average of standardized values.
+
+Note: Text states division by seven, but family version lists five metrics — inconsistency present.
+
+4. Data Sheet Architecture
+
+The document defines the biological computation ecosystem:
+
+Raw Data Sources
+Sheet	Years	Resolution
+DATA_WITH_GENUS_NEW	2022–2024	Genus
+DATA_WITH_GENUS_OLD	2014–2017, 2021	Genus
+DATA_WITHOUT_GENUS	1996–2014, 2018–2019	Family
+BugList	All	Taxonomic reference
+SiteSize	All	Watershed area
+5. 100-Organism Subsample Method
+
+Implements proportional subsampling:
+
+Calculate percentage of total count
+
+Take integer portion
+
+Rank fractional remainders
+
+Increment highest remainders until total = 100
+
+Rounding formula ensures exact 100 count.
+
+Manual adjustment required if rounding does not sum correctly.
+
+Any manual change:
+
+Highlight in orange.
+
+This is a deterministic rounding allocation system.
+
+6. Dominant Taxon Logic
+
+Handles duplicate genera within same family:
+
+Uses conditional SUMIF to aggregate family-level dominance when genera split.
+
+Prevents dominance underestimation due to genus fragmentation.
+
+7. Formula Variants by Data Era
+
+Each raw data sheet uses slightly different Excel formulas depending on:
+
+Genus vs family resolution
+
+Year range
+
+Column layout
+
+The logic is consistent, but sheet references change.
+
+This introduces fragility and duplication.
+
+8. Known Issues
+
+EPT Taxa Richness counts duplicates (explicitly marked “TO BE FIXED”).
+
+Formulas rely heavily on manual range definitions.
+
+Orange and purple highlighting denote formula variability.
+
+Area correction uses log(area_sq_km) but assumes consistent units.
+
+Some classification thresholds undefined.
+
+CPMI section incomplete.
+
+9. Next Steps Identified in Document
+
+Consolidate raw data into single sheet
+
+Reduce manual range edits
+
+Consolidate high-gradient sites
+
+Consolidate low-gradient sites
+
+Improve data entry method
+
+This confirms recognition of structural inefficiency.
+
+10. Overall Assessment
+
+This document is:
+
+A detailed computational blueprint
+
+A hybrid of biological science and Excel engineering
+
+Semi-manual, partially automated
+
+Vulnerable to range errors
+
+Highly dependent on sheet naming conventions
+
+It is not policy — it is execution logic.
+
+Bottom Line
+
+This file defines the mathematical engine behind biological scoring.
+
+It contains:
+
+Watershed size correction equations
+
+Metric standardization formulas
+
+Subsample rounding algorithm
+
+Dominance logic
+
+Data lineage mapping
+
+Known computational defects
+
+It is critical to BAT index defensibility.
+
+
+
+Executive Summary — Database Structure Plan.docx
+
+File: 
+
+Database Structure Plan
+
+1. Purpose
+
+This document is the architectural blueprint for the StreamWatch database system, including:
+
+Conceptual data model
+
+Table relationships
+
+Forms and reporting design
+
+QA/QC integration
+
+Operational workflows
+
+Migration plan (Access → PostgreSQL)
+
+It is a comprehensive data infrastructure master plan, not a dataset.
+
+2. Core Data Flow Model
+
+The system follows a structured lifecycle:
+
+Sites + Volunteers
+        ↓
+Assignments & Training
+        ↓
+Sampling Visits
+        ↓
+Field/Lab Results
+        ↓
+Reporting & QA
+
+Data originates at sites and volunteers, flows through visits, and culminates in chemical, bacterial, habitat, and biological results.
+
+3. Core Tables
+A. Foundational Entities
+
+SITEtbl
+
+VISITtbl
+
+VOLUNTEERtbl
+
+EQUIPMENTtbl
+
+B. Monitoring Data Tables
+
+Chemicaltbl
+
+Bacteriatbl
+
+HabAssesstbl
+
+juncBugCount
+
+MacroAnalysistbl
+
+C. Junction Tables
+
+juncAssignments (Volunteer ↔ Site)
+
+juncAttendance (Volunteer ↔ Visit)
+
+D. Spatial & Lookup Tables
+
+tblHUC13, tblHUC14
+
+tblMUNI
+
+tblWATERBODY
+
+tblBUGS
+
+tblLandUse
+
+tblMicroHabitat
+
+This is a properly normalized relational schema.
+
+4. Missing / Planned Tables
+
+The document explicitly identifies structural gaps:
+
+Data Governance
+
+Data Conditions / Flags table
+
+Validation tracking table
+
+Equipment Tracking
+
+Calibration logs
+
+Maintenance round records
+
+Sensor replacement logs
+
+Meter-volunteer-site assignment history
+
+Methods Metadata
+
+Official method name
+
+Analytical limits
+
+Detection limits
+
+Special Projects Tagging
+
+Project identification table
+
+Filtering and reporting capability
+
+This reflects awareness of QA and traceability needs.
+
+5. Relationship Design
+
+Mostly one-to-many relationships, with referential integrity enforced.
+
+Examples:
+
+SITE → VISIT
+
+VISIT → Chemical / Bacteria / Habitat
+
+VOLUNTEER → Assignments
+
+BUGS → BugCount
+
+Watershed hierarchy nested via HUC13 → HUC14
+
+Uses junction tables for many-to-many relationships.
+
+This is sound relational design.
+
+6. Forms Strategy (Operational Layer)
+
+Forms serve as structured interfaces:
+
+Data Entry Forms
+
+Site Entry
+
+Volunteer Entry
+
+Visit Data
+
+Chemical Subform
+
+Bacteria Subform
+
+Habitat Assessment
+
+Macroinvertebrate Entry
+
+Equipment Management
+
+QA/QC Review
+
+Administrative Forms
+
+Lookup editor
+
+Volunteer assignment
+
+Training log
+
+Dashboard
+
+Forms replace direct table editing to enforce validation.
+
+7. Reporting Strategy
+
+Two broad categories:
+
+Operational Reports
+
+Site summary
+
+Volunteer activity
+
+Equipment inventory
+
+Visit summary
+
+Chemical / bacteria results
+
+Data validation
+
+Quarterly summary
+
+QA & Program Management Reports
+
+Training compliance
+
+Data completeness
+
+QA/QC log
+
+Maintenance due
+
+Annual summary
+
+Reports are positioned as the output layer of the system.
+
+8. Common Operational Tasks Identified
+
+Weekly bacteria scoring
+
+Quarterly meter maintenance
+
+Annual report card analysis
+
+Bug score entry
+
+Habitat entry
+
+Volunteer QA sessions
+
+Calibration logging
+
+Special data requests
+
+Volunteer recognition tracking
+
+The design attempts to support recurring operational cycles.
+
+9. Migration Plan: Access → PostgreSQL
+
+Clear modernization strategy:
+
+Structural Changes
+
+Lowercase, underscore naming convention
+
+Explicit primary/foreign keys
+
+Strict data typing
+
+Cascading updates/deletes
+
+Workflow Changes
+
+Replace Access forms with:
+
+SQL interfaces
+
+Web-based forms
+
+CSV imports
+
+Replace Access reports with:
+
+Views
+
+Materialized views
+
+Direct R/Power BI connections
+
+Automation Gains
+
+Role-based access control
+
+Triggers
+
+Stored procedures
+
+Scheduled backups
+
+Index optimization
+
+This is a serious architectural upgrade.
+
+10. Strengths
+
+Clear entity hierarchy
+
+Proper normalization
+
+Junction table usage
+
+QA integration awareness
+
+Equipment traceability emphasis
+
+Migration roadmap defined
+
+11. Structural Risks / Weaknesses
+
+Flagging system not yet formalized in schema
+
+No explicit metric computation engine described
+
+Potential complexity creep (many forms/reports)
+
+Access-era logic may not fully translate cleanly
+
+Biological formula logic not yet formalized in SQL
+
+12. Overall Assessment
+
+This document is the definitive system design document for StreamWatch data management.
+
+It integrates:
+
+Field operations
+
+Volunteer governance
+
+Equipment QA
+
+Environmental data
+
+Reporting
+
+Regulatory export
+
+Migration strategy
+
+It is comprehensive and strategically aligned.
+
+Bottom Line
+
+This file defines the future state architecture of the entire monitoring program’s data system.
+
+It:
+
+Maps current Excel/Access fragmentation
+
+Proposes normalized relational structure
+
+Defines operational workflows
+
+Outlines QA controls
+
+Plans PostgreSQL transition
+
+It is the governance layer tying everything together.
+
+
+
+Executive Summary — EQUIPMENT Table & Related Schema.docx
+
+File: 
+
+EQUIPMENT Table & Related Schema
+
+1. Purpose
+
+This document defines the complete equipment management and QA schema for the StreamWatch program.
+
+It establishes a normalized relational structure for:
+
+Equipment inventory
+
+Sensor tracking
+
+Maintenance sessions
+
+Meter testing rounds
+
+Calibration records
+
+Equipment loans
+
+Temperature correction factors
+
+Troubleshooting classification
+
+This is the technical design for instrument traceability and data defensibility.
+
+2. Core Design Philosophy
+
+The structure ensures:
+
+Meter-level data stored once
+
+Sensor-level attributes isolated
+
+Calibration history preserved
+
+Testing outcomes linked to sessions
+
+Drift and failure trends analyzable
+
+No duplication
+
+Expandable sensor types
+
+This is strong normalization with future-proofing.
+
+3. Core Tables
+A. EQUIPMENTtbl
+
+All physical devices:
+
+Multiparameter meters
+
+Alcohol thermometers
+
+Digital thermometers
+
+Key fields:
+
+EquipmentID (e.g., TWI001)
+
+EquipmentType
+
+Manufacturer / Model
+
+SerialNumber
+
+Status (Active, Retired, Lost, Under Repair)
+
+DateAcquired
+
+This is the root asset table.
+
+B. SENSORStbl
+
+Used only for meters.
+
+Fields:
+
+SensorID
+
+EquipmentID (FK)
+
+SensorType (pH/ORP, DO, EC)
+
+SerialNumber
+
+DateInstalled / DateRetired
+
+Separates sensor lifecycle from meter lifecycle.
+
+C. SESSIONStbl
+
+Defines maintenance/testing events:
+
+Quarterly maintenance
+
+Thermometer calibration
+
+Troubleshooting
+
+Tracks:
+
+Session_ID
+
+Session_Type
+
+Date range
+
+Staff
+
+Summary
+
+This groups related calibration and testing events.
+
+D. tblEquipmentLoans
+
+Tracks equipment custody:
+
+EquipmentID
+
+VolunteerID
+
+DateAssigned / DateReturned
+
+ConditionOut / ConditionIn
+
+Enables traceability of who used what device and when.
+
+E. tblMeterMaintenance
+
+Quarterly inspection summary (meter-level).
+
+Tracks:
+
+SessionID
+
+EquipmentID
+
+InspectionDate
+
+InspectedBy
+
+LastSampleDate
+
+Case contents
+
+Battery level
+
+Comments
+
+Notably:
+
+LastSampleDate used to flag data collected after last calibration.
+
+F. tblMeterTesting
+
+Parameter-level test results per session.
+
+One row per:
+
+Meter
+
+Parameter
+
+Round
+
+Session
+
+Tracks:
+
+Reference value
+
+Measured value
+
+Difference
+
+Auto-generated Pass/Fail flag
+
+Troubleshooting level
+
+Action taken
+
+Links to SensorID for sensor-specific analysis.
+
+This enables:
+
+Drift tracking
+
+Parameter-specific reliability analysis
+
+Automated QA flag propagation
+
+G. tblCalibrationLog
+
+Unified calibration table for:
+
+Meters
+
+Thermometers
+
+Tracks:
+
+CalibrationDate
+
+CalibrationType (pH, DO, EC, Temperature)
+
+ReferenceValue
+
+MeasuredValue
+
+Offset
+
+SlopeA / SlopeB (pH)
+
+CellConstant (EC)
+
+Provides full audit trail of calibration state.
+
+H. tblTempCorrections (Optional)
+
+Stores computed correction factors derived from calibration.
+
+Tracks:
+
+AmbientCorrection
+
+ZeroDegCorrection
+
+CalculatedBy
+
+Allows automated temperature correction workflows.
+
+I. lstTroubleshooting
+
+Reference table for troubleshooting levels per parameter.
+
+Enables:
+
+Structured classification
+
+Parameter-specific filtering
+
+Controlled vocabulary
+
+4. Relationship Map
+
+Highly normalized structure.
+
+Primary relationships:
+
+EQUIPMENT → Sensors
+
+EQUIPMENT → Maintenance
+
+EQUIPMENT → Testing
+
+EQUIPMENT → Calibration
+
+EQUIPMENT → Loans
+
+SENSOR → Testing
+
+SENSOR → Calibration
+
+SENSOR → TempCorrections
+
+SESSION → Maintenance / Testing
+
+Loans → Volunteers
+
+Troubleshooting → MeterTesting
+
+This forms a robust QA network.
+
+5. Strengths
+
+Clear separation of:
+
+Equipment
+
+Sensors
+
+Sessions
+
+Tests
+
+Calibrations
+
+Enables historical drift analysis
+
+Enables automated pass/fail logic
+
+Supports multi-round testing
+
+Sensor replacement traceable
+
+Volunteer custody tracked
+
+Structured troubleshooting taxonomy
+
+This is a professionally designed QA schema.
+
+6. Notable Design Opportunities
+
+Flag propagation logic not yet formally defined (how failed tests affect historical data).
+
+No explicit linkage yet between:
+
+Meter test failure
+
+Specific VisitID records
+
+Volunteer equipment assignment filtering needs formal rule enforcement.
+
+Temperature corrections optional — may require automation trigger.
+
+Session summary auto-generation logic unspecified.
+
+7. Role in Overall System
+
+This schema connects directly to:
+
+CAT Meter Tracking (legacy tracking)
+
+Data Flag policy document
+
+VISITtbl (for data invalidation windows)
+
+Chemicaltbl (parameter-level traceability)
+
+It is the missing bridge between:
+
+Physical instruments
+
+Data reliability
+
+Flagging logic
+
+Audit defensibility
+
+8. Overall Assessment
+
+This document defines a fully normalized, scalable equipment QA architecture.
+
+It supports:
+
+Multi-user program
+
+Long-term calibration history
+
+Automated validation
+
+Drift detection
+
+Data defensibility
+
+PostgreSQL migration compatibility
+
+It is structurally sound and strategically aligned with database modernization.
+
+Bottom Line
+
+This file is the instrument-level integrity backbone of the monitoring program.
+
+It:
+
+Tracks equipment lifecycle
+
+Tracks sensor lifecycle
+
+Records maintenance events
+
+Records calibration values
+
+Records testing outcomes
+
+Links equipment to volunteers
+
+Enables automated QA enforcement
+
+
+
+Executive Summary — Goals for Data Organization, Reporting, and Visualization.docx
+
+File: 
+
+Goals for Data Organization, Re…
+
+1. Purpose
+
+This document defines the strategic objectives for a StreamWatch data modernization initiative: build a centralized database that consolidates, cleans, standardizes, and makes accessible:
+
+Water quality monitoring data
+
+Volunteer program data
+
+Equipment QA data
+
+It also explicitly targets both:
+
+internal reporting/analysis
+
+public-facing visualization and dashboards
+
+2. Phase 1 Priority
+
+The initial project phase is explicitly scoped as:
+
+Compile existing data
+
+Clean it
+
+Flag it
+
+Stand up a functional database to store everything
+
+This is a stabilization and consolidation phase, not feature expansion.
+
+3. Scope of Data
+A. Water Quality Data
+
+Covers three StreamWatch teams:
+
+Chemical Action Team (CAT)
+
+Biological Action Team (BAT)
+
+Bacterial Action Team (BACT)
+
+Includes:
+
+30+ years of historical monitoring
+
+Multiple parameters (examples: pH, dissolved oxygen, E. coli, macroinvertebrate counts)
+
+Site context: location, sampling frequency, monitoring notes
+
+Methods metadata: measurement type, detection limits, etc.
+
+B. Volunteer Data
+
+Includes:
+
+Contact info
+
+Participation history
+
+Team/site assignments
+
+Training completion records
+
+Availability and active/inactive status
+
+Parent/partner associations
+
+C. Equipment Data
+
+Includes:
+
+Meter inventory (make/model/serial)
+
+Calibration and maintenance logs
+
+Test results linked to specific meters
+
+This aligns directly with the equipment schema doc you uploaded earlier.
+
+4. Primary Goals for the Database
+A. Organize & Manage Data
+
+Key targets:
+
+Centralized storage for all datasets
+
+Map existing data subsets + document migration plan
+
+Standardize formatting and field names
+
+Cleaning and validation workflows for new entries
+
+Import/export workflows, explicitly naming sources:
+
+Survey123
+
+Gallery CSVs
+
+ArcGIS Dashboards
+
+Auto-flagging around DEP thresholds
+
+B. Facilitate Reporting & Analysis
+
+Capabilities required:
+
+Filter/search/download by date, location, parameter, etc.
+
+Export in WQX-compatible format
+
+Trend analysis across seasonal/annual/long-term horizons
+
+Automatic issue flagging (examples given):
+
+meter failed test
+
+volunteer due for training
+
+This implies rule-based propagation between equipment/volunteer states and data validity.
+
+C. Enhance Visualization & Shareability
+
+Deliverables implied:
+
+Time series graphs (multi-period)
+
+Site maps with parameter values
+
+Public dashboards and reports
+
+Potential “site pages” with photos, trends, and downloads
+
+This is effectively an outward-facing data portal roadmap.
+
+5. Additional Considerations
+
+The document flags operational requirements:
+
+Backup + version control
+
+Accessibility (staff and public)
+
+Permissions model (edit vs view)
+
+Tool integration options:
+
+ArcGIS / StoryMaps
+
+Excel
+
+Power BI
+
+etc.
+
+6. Overall Assessment
+
+This file is a project charter / objectives statement.
+
+It is high-level and intentionally non-technical, but it clearly commits to:
+
+Centralized relational database
+
+Automated QA/flagging
+
+WQX compliance outputs
+
+Public visualization layer
+
+Bottom Line
+
+This document sets the “why” and “what” of the modernization effort:
+
+consolidate fragmented datasets
+
+enforce standardization and QA
+
+enable defensible reporting
+
+power dashboards and maps
+
+It’s the strategic umbrella under which the database structure plan and equipment schema sit.
+
+
+
+Executive Summary — SITES Table Schema.docx
+
+File: 
+
+Goals for Data Organization, Re…
+
+1. Purpose
+
+This document defines the structure and design logic for the SITES table in the StreamWatch database.
+
+It specifies:
+
+Required vs optional fields
+
+Lookup relationships
+
+Calculated fields
+
+Dropdown value controls
+
+Form layout groupings
+
+Fields to delete
+
+Fields to add
+
+UI expectations for related data
+
+This is the authoritative schema design for site metadata management.
+
+2. Core Design Principles
+
+Site_code must be unique and indexed.
+
+Required fields limited to essential identity.
+
+Status fields calculated dynamically where possible.
+
+Priority values controlled via dropdown.
+
+Lookups enforce referential integrity.
+
+Multi-select relationships required for:
+
+Subwatersheds
+
+Municipalities
+
+The structure is clearly intended for normalized relational implementation.
+
+3. Field Grouping Structure
+
+The schema organizes fields by logical grouping for form construction.
+
+A. Header / Identity
+
+Site_code (unique, required)
+
+Is_active (boolean)
+
+Waterbody (lookup)
+
+Description
+
+Latitude
+
+Longitude
+
+Site_type (HUC, Target, Project, Legacy, MUNI, V.Req)
+
+Map_link
+
+Site_flag (calculated based on flag table relationship)
+
+This defines identity, classification, and spatial reference.
+
+B. Groundtruthing
+
+Groundtruthing_priority
+
+Groundtruthing_status
+
+Operational tracking fields.
+
+C. Ownership
+
+Property_type (Public, Private, TWI, etc.)
+
+Permission (short text)
+
+Municipality (multi-select lookup)
+
+Enables legal/access governance.
+
+D. Access Logistics
+
+Walk_time
+
+Walk_distance
+
+Walk_gradient
+
+Water_access
+
+Environmental_hazards
+
+Parking_details
+
+Walking_directions
+
+Additional_comments
+
+This is field crew operational support metadata.
+
+E. Additional Site Attributes
+
+Habitat_type (High Gradient, Low Gradient, Canal, Lake)
+
+Drainage_area
+
+Notes
+
+Supports biological index applicability and hydrologic analysis.
+
+F. Program Status Fields (CAT / BAT / BACT)
+
+For each tier:
+
+Priority (stored)
+
+Status (calculated, not stored)
+
+Last sample date (calculated, not stored)
+
+This prevents redundancy and enforces data derivation from VISITtbl.
+
+This is correct normalization practice.
+
+4. Fields to Remove
+
+Explicitly marked for deletion:
+
+Site_name
+
+Elevation
+
+Watershed
+
+Indicates cleanup of legacy redundancy.
+
+5. Derived / Calculated Fields
+
+Not stored directly:
+
+CAT_status
+
+BAT_status
+
+BACT_status
+
+Last sample dates
+
+Site_flag (driven by flag table relationship)
+
+This aligns with database best practice: calculate, don’t duplicate.
+
+6. UI / Form Design Intent
+
+The form should display:
+
+Related visits
+
+Site assignments
+
+Map view
+
+Images
+
+Status indicators
+
+Unresolved:
+
+Where to store site photos/graphics
+
+Likely solutions:
+
+Separate SiteMedia table
+
+External object storage with URL reference
+
+File path reference field
+
+7. Relationship Implications
+
+This schema connects to:
+
+VISITtbl (sample dates + status)
+
+juncAssignments (volunteer-site links)
+
+Waterbodytbl
+
+Subwatershedtbl
+
+Municipalitytbl
+
+Flagtbl
+
+MacroAnalysistbl
+
+Chemicaltbl
+
+Bacteriatbl
+
+It is the anchor table for nearly all monitoring data.
+
+8. Strengths
+
+Clear normalization intent
+
+Calculated vs stored distinction
+
+Multi-tier program integration
+
+Form-ready grouping
+
+GIS-ready structure
+
+Flag integration
+
+Explicit data governance awareness
+
+This is structurally sound.
+
+9. Design Gaps / Considerations
+
+Multi-select subwatershed and municipality require junction tables.
+
+Site_flag logic needs formal definition (what triggers it?).
+
+Priority fields likely need consistent enum enforcement.
+
+Map_link may be redundant if GIS integration implemented.
+
+Drainage_area should enforce numeric type with units standardized.
+
+10. Overall Assessment
+
+This document defines a clean, normalized, production-ready site schema.
+
+It supports:
+
+Multi-program monitoring
+
+Volunteer assignment
+
+Regulatory reporting
+
+GIS visualization
+
+Flag propagation
+
+Program prioritization
+
+It is foundational to the database architecture.
+
+Bottom Line
+
+This file is the structural definition of the site entity in your monitoring ecosystem.
+
+It:
+
+Eliminates redundancy
+
+Separates calculated from stored data
+
+Integrates monitoring tiers
+
+Supports QA flags
+
+Prepares for visualization tools
+
+It is consistent with the larger database modernization plan.
+
+
+
+Executive Summary — VOLUNTEERS Table Schema.docx
+
+File: 
+
+VOLUNTEERS Table Schema
+
+1. Purpose
+
+This document defines the schema and form structure for the VOLUNTEERS table within the StreamWatch database.
+
+It establishes:
+
+Required vs optional fields
+
+Calculated fields
+
+Lookup relationships
+
+Fields to delete
+
+New fields to add
+
+Status logic
+
+UI/form expectations
+
+This is the authoritative structural definition of the volunteer entity.
+
+2. Core Design Principles
+
+Volunteer_ID is auto-generated, unique, indexed.
+
+Required fields apply only to new records.
+
+Derived fields should not be stored redundantly.
+
+Dropdowns and lookups enforce data consistency.
+
+Flags calculated via related records (not manually set).
+
+The schema aligns with normalized relational design.
+
+3. Field Structure by Group
+A. Identity / Header
+
+Volunteer_ID (primary key)
+
+Full_name (calculated: First + Last)
+
+Is_active (yes/no)
+
+Vol_flag (calculated from flag table relationship)
+
+Defines the primary identity and system status.
+
+B. Bio Information
+
+First_name
+
+Last_name
+
+Perfect_ID
+
+Int_last_name (calculated: first letter of first name + last name)
+
+Is_under_17 (boolean)
+
+Supports internal indexing and youth volunteer handling.
+
+C. Contact Information
+
+Required for new entries:
+
+Email
+
+Address
+
+City (lookup to municipalities)
+
+State (NJ or PA)
+
+Zip_code
+
+Optional additions:
+
+Alt_email
+
+Phone
+
+Alt_phone
+
+Ensures standardized geographic references.
+
+D. StreamWatch Participation
+
+Start_date (calculated from earliest linked training record)
+
+Active_CAT
+
+Active_BAT
+
+Active_BACT
+
+Alternate/Partner (lookup to other active volunteers)
+
+Status (Active, Inactive, Parent, Unknown)
+
+Notes
+
+These fields control program eligibility and tier participation.
+
+4. Fields Explicitly Removed
+
+Training_status
+
+Correct decision — this should be derived from training records, not stored redundantly.
+
+5. Calculated Fields
+
+The schema properly separates stored vs derived data:
+
+Full_name
+
+Int_last_name
+
+Start_date
+
+Vol_flag
+
+Training status indicator (planned but not stored)
+
+This avoids redundancy and data drift.
+
+6. Relationship Implications
+
+The volunteer table must link to:
+
+TrainingLog (for certification & expiration logic)
+
+juncAssignments (volunteer ↔ site)
+
+VISITtbl (attendance tracking)
+
+EquipmentLoans (equipment custody)
+
+Flagtbl (automated Vol_flag)
+
+Municipalitytbl (city lookup)
+
+This is a central relational node in the system.
+
+7. Training Status Logic (Implied)
+
+The document explicitly states:
+
+Training status should be calculated from related records.
+
+It should not be stored.
+
+This implies:
+
+Certification expiration logic
+
+Tier eligibility logic
+
+Dynamic display on form
+
+Potential auto-flag if expired
+
+This will require view-level or computed-column logic in PostgreSQL.
+
+8. Strengths
+
+Clear separation of calculated vs stored data
+
+Removal of redundant training_status
+
+Proper use of lookup tables
+
+Flag integration awareness
+
+Multi-tier participation structure
+
+Youth volunteer handling
+
+Partner relationship modeling
+
+Structurally consistent with the broader database modernization plan.
+
+9. Design Gaps / Considerations
+
+Active_CAT/BAT/BACT may be derivable from valid training records — storing may introduce inconsistency.
+
+Status vs Is_active overlap needs formal definition.
+
+Partner field likely requires junction table if relationship can be mutual or multi-directional.
+
+Vol_flag logic must be formally defined.
+
+Address standardization may benefit from structured components (street number, name, etc.).
+
+State constrained to NJ/PA may require enum constraint.
+
+10. Overall Assessment
+
+This document defines a clean, normalized, and scalable volunteer entity schema.
+
+It supports:
+
+Volunteer governance
+
+Tier eligibility
+
+Certification enforcement
+
+Equipment accountability
+
+Site assignment
+
+QA flag propagation
+
+It is structurally sound and consistent with the broader database architecture.
+
+Bottom Line
+
+This file establishes the volunteer master entity definition for the system.
+
+It:
+
+Eliminates redundant training fields
+
+Separates stored vs derived logic
+
+Enforces lookup integrity
+
+Integrates with flags and assignments
+
+Supports certification governance
+
+It is ready for relational implementation.
+
+
+
+Executive Summary — VOLUNTEERS Table Schema.docx
+
+File: 
+
+VOLUNTEERS Table Schema
+
+1. Purpose
+
+This document defines the schema and form structure for the VOLUNTEERS table within the StreamWatch database.
+
+It establishes:
+
+Required vs optional fields
+
+Calculated fields
+
+Lookup relationships
+
+Fields to delete
+
+New fields to add
+
+Status logic
+
+UI/form expectations
+
+This is the authoritative structural definition of the volunteer entity.
+
+2. Core Design Principles
+
+Volunteer_ID is auto-generated, unique, indexed.
+
+Required fields apply only to new records.
+
+Derived fields should not be stored redundantly.
+
+Dropdowns and lookups enforce data consistency.
+
+Flags calculated via related records (not manually set).
+
+The schema aligns with normalized relational design.
+
+3. Field Structure by Group
+A. Identity / Header
+
+Volunteer_ID (primary key)
+
+Full_name (calculated: First + Last)
+
+Is_active (yes/no)
+
+Vol_flag (calculated from flag table relationship)
+
+Defines the primary identity and system status.
+
+B. Bio Information
+
+First_name
+
+Last_name
+
+Perfect_ID
+
+Int_last_name (calculated: first letter of first name + last name)
+
+Is_under_17 (boolean)
+
+Supports internal indexing and youth volunteer handling.
+
+C. Contact Information
+
+Required for new entries:
+
+Email
+
+Address
+
+City (lookup to municipalities)
+
+State (NJ or PA)
+
+Zip_code
+
+Optional additions:
+
+Alt_email
+
+Phone
+
+Alt_phone
+
+Ensures standardized geographic references.
+
+D. StreamWatch Participation
+
+Start_date (calculated from earliest linked training record)
+
+Active_CAT
+
+Active_BAT
+
+Active_BACT
+
+Alternate/Partner (lookup to other active volunteers)
+
+Status (Active, Inactive, Parent, Unknown)
+
+Notes
+
+These fields control program eligibility and tier participation.
+
+4. Fields Explicitly Removed
+
+Training_status
+
+Correct decision — this should be derived from training records, not stored redundantly.
+
+5. Calculated Fields
+
+The schema properly separates stored vs derived data:
+
+Full_name
+
+Int_last_name
+
+Start_date
+
+Vol_flag
+
+Training status indicator (planned but not stored)
+
+This avoids redundancy and data drift.
+
+6. Relationship Implications
+
+The volunteer table must link to:
+
+TrainingLog (for certification & expiration logic)
+
+juncAssignments (volunteer ↔ site)
+
+VISITtbl (attendance tracking)
+
+EquipmentLoans (equipment custody)
+
+Flagtbl (automated Vol_flag)
+
+Municipalitytbl (city lookup)
+
+This is a central relational node in the system.
+
+7. Training Status Logic (Implied)
+
+The document explicitly states:
+
+Training status should be calculated from related records.
+
+It should not be stored.
+
+This implies:
+
+Certification expiration logic
+
+Tier eligibility logic
+
+Dynamic display on form
+
+Potential auto-flag if expired
+
+This will require view-level or computed-column logic in PostgreSQL.
+
+8. Strengths
+
+Clear separation of calculated vs stored data
+
+Removal of redundant training_status
+
+Proper use of lookup tables
+
+Flag integration awareness
+
+Multi-tier participation structure
+
+Youth volunteer handling
+
+Partner relationship modeling
+
+Structurally consistent with the broader database modernization plan.
+
+9. Design Gaps / Considerations
+
+Active_CAT/BAT/BACT may be derivable from valid training records — storing may introduce inconsistency.
+
+Status vs Is_active overlap needs formal definition.
+
+Partner field likely requires junction table if relationship can be mutual or multi-directional.
+
+Vol_flag logic must be formally defined.
+
+Address standardization may benefit from structured components (street number, name, etc.).
+
+State constrained to NJ/PA may require enum constraint.
+
+10. Overall Assessment
+
+This document defines a clean, normalized, and scalable volunteer entity schema.
+
+It supports:
+
+Volunteer governance
+
+Tier eligibility
+
+Certification enforcement
+
+Equipment accountability
+
+Site assignment
+
+QA flag propagation
+
+It is structurally sound and consistent with the broader database architecture.
+
+Bottom Line
+
+This file establishes the volunteer master entity definition for the system.
+
+It:
+
+Eliminates redundant training fields
+
+Separates stored vs derived logic
+
+Enforces lookup integrity
+
+Integrates with flags and assignments
+
+Supports certification governance
+
+It is ready for relational implementation.
+
+
+
+Executive Summary — DataDictionary.pdf
+
+File: 
+
+DataDictionary
+
+1. Purpose
+
+This document is the official interpretive guide to StreamWatch data fields.
+
+It explains:
+
+Site codes and coordinates
+
+Parameter definitions
+
+Measurement units
+
+Detection limit notation
+
+Biological indices
+
+Habitat assessment metrics
+
+Data condition categories
+
+Method types
+
+It functions as the semantic layer of the monitoring database.
+
+2. Site Reference System
+Site Locations (Pages 1–3)
+
+Site code list (e.g., AC1, BD3, MR7, SB5)
+
+Latitude / Longitude coordinates
+
+Codes represent unique water bodies
+
+Suffix letters/numbers distinguish sub-locations
+
+This supports GIS integration and site identification.
+
+3. Data Condition Framework
+
+Outlined clearly on Page 1.
+
+Categories include:
+
+Accepted / Corrected
+
+Accepted → reviewed, meets QA standards
+
+Corrected → issues identified and fixed
+
+Flagged Conditions
+
+Flagged
+
+Minor Deviation
+
+Moderate Deviation
+
+Site Conflict
+
+Duplicate
+
+Incomplete
+
+Erroneous
+
+Provisional
+
+Unchecked
+
+This is the operational QA taxonomy.
+
+Important distinction:
+
+Data may be valid but unverified.
+
+Review status must be known before drawing scientific conclusions.
+
+4. Method Categories
+
+Defined on Page 1:
+
+BACT → bacterial, turbidity, nutrients
+
+BAT → macroinvertebrate monitoring
+
+Hanna → digital meter chemistry
+
+LaMotte → manual kit chemistry
+
+Method influences accuracy and detection limits.
+
+5. Chemical Parameters
+
+Pages 2–3 define major chemical metrics.
+
+Nutrients
+
+Nitrate (NO₃⁻) – µg/L
+
+Phosphate – mg/L
+
+Detection limit notation:
+
+< = within detection limit
+
+> = above detection limit
+
+= = below detection limit (per text)
+
+Temperature
+
+Air temperature (°C)
+
+Water temperature (°C)
+
+Dissolved Oxygen (DO)
+
+ppm (mg/L)
+
+% saturation
+
+Indicator of ecosystem health
+
+Conductivity
+
+µS/cm
+
+Indicates dissolved ion concentration
+
+Chloride
+
+mg/L
+
+Pollution indicator (road salt, sewage, runoff)
+
+Turbidity
+
+Suspended particle concentration
+
+Indicates erosion or pollution
+
+pH
+
+0–14 scale
+
+Influences nutrient/metal solubility
+
+6. Bacterial Metrics
+E. coli
+
+Measured in MPN per 100 mL
+
+EPA recreational threshold: ~235 CFU/100 mL
+
+Indicator of fecal contamination
+
+Includes detection limit notation modifiers.
+
+7. Biological Indices
+NJIS
+
+New Jersey Impairment Score
+
+Lower scores = higher impairment
+
+HGMI (Family & Genus)
+
+High Gradient Macroinvertebrate Index
+
+Uses EPT richness and tolerance metrics
+
+CPMI
+
+Coastal Plains Macroinvertebrate Index
+
+Equivalent index for low-gradient systems
+
+FBI
+
+Family Biotic Index
+
+Pollution tolerance weighting
+
+N. Bat
+
+Volunteer bug count for the day
+
+8. Habitat Assessment Metrics
+
+Pages 5–7 define Rapid Bioassessment Protocol-style metrics.
+
+Includes:
+
+High Gradient Metrics
+
+Embeddedness
+
+Velocity/Depth Combination
+
+Frequency of Riffles
+
+Low Gradient Metrics
+
+Pool Variability
+
+Pool Substrate Characterization
+
+Channel Sinuosity
+
+Shared Metrics
+
+Sediment Deposition
+
+Channel Flow Status
+
+Epifaunal Substrate
+
+Bank Stability (L/R)
+
+Bank Vegetative Protection (L/R)
+
+Riparian Vegetative Zone (L/R)
+
+Channel Alteration
+
+Scoring interpretation:
+
+Higher values generally indicate better habitat integrity.
+
+Lower values indicate degradation or instability.
+
+9. Gradient Classification
+
+Clarifies distinction between:
+
+High gradient streams (steep slope, rapid flow)
+
+Low gradient streams (slow, depositional)
+
+Index selection depends on stream type.
+
+10. Observations
+
+Strengths:
+
+Clear plain-language explanations
+
+Detection limit clarification
+
+Unit transparency
+
+Biological context provided
+
+Habitat scoring explanations
+
+Regulatory thresholds noted (E. coli)
+
+Weaknesses:
+
+Some symbol definitions appear inconsistent (=, <, >)
+
+Detection-limit language may need formalization
+
+No formal data type specification (text vs numeric)
+
+Units sometimes mixed (µg/L vs mg/L)
+
+11. Role in Database Ecosystem
+
+This document provides:
+
+Column meaning reference
+
+QA status interpretation
+
+Method differentiation
+
+Scientific context
+
+Regulatory threshold guidance
+
+It is the data interpretation companion to the database schema.
+
+Bottom Line
+
+This PDF is the semantic and QA reference manual for all StreamWatch datasets.
+
+It:
+
+Defines field meanings
+
+Explains units
+
+Clarifies detection symbols
+
+Defines biological indices
+
+Describes habitat metrics
+
+Outlines QA condition categories
+
+It is critical for:
+
+Data migration
+
+Schema validation
+
+Public reporting
+
+Volunteer training
+
+Regulatory defensibility
+
+
+
+Executive Summary — ModelingInstructions.pdf
+
+File: 
+
+ModelingInstructions
+
+1. Purpose
+
+This document is a step-by-step procedural guide for performing exploratory data analysis and visualization in Excel using StreamWatch datasets.
+
+It teaches:
+
+Data subsetting
+
+Data cleaning
+
+Table formatting
+
+Chart selection
+
+Chart customization
+
+Basic interpretation principles
+
+It is instructional, not policy or schema documentation.
+
+2. Core Objective
+
+The document frames modeling as a tool for:
+
+Revealing trends
+
+Identifying patterns
+
+Detecting outliers
+
+Supporting decision-making
+
+Communicating findings to non-technical audiences
+
+It emphasizes visualization as a decision-support tool.
+
+3. Workflow Structure
+
+The guide is structured into two major phases:
+
+Phase 1 — Picking & Cleaning Data
+A. Create Custom Subsets (Pages 1–3)
+
+Instructions for filtering:
+
+Use Excel column filter dropdowns
+
+Deselect “Select All”
+
+Select only sites/parameters of interest
+
+Confirm filter
+
+Illustrations (Pages 2–3) show:
+
+Site filtering (example: AC1)
+
+Only selected rows visible
+
+Encouragement to define a “___ vs ___” relationship
+
+The user is prompted to choose meaningful variable pairs (e.g., Temperature vs DO).
+
+B. Copy Data to New Sheet (Page 4)
+
+Procedure:
+
+Create new worksheet
+
+Copy selected parameter columns
+
+Paste into new sheet
+
+Avoid mixing unrelated data
+
+This isolates variables for modeling.
+
+C. Data Cleaning (Pages 4–6)
+
+Steps include:
+
+Apply filters again
+
+Remove (Blanks)
+
+Ensure only valid data remain
+
+D. Format Dates (Page 5)
+
+Reformat dates to:
+
+MM/DD/YYYY
+
+To improve temporal analysis and sorting.
+
+E. Convert to Table (Page 6)
+
+Use:
+
+Insert → Table
+
+Confirm “My table has headers”
+
+Re-filter blanks afterward.
+
+This prepares data for structured charting.
+
+4. Phase 2 — Modeling & Visualization
+
+Once data are cleaned:
+
+Highlight only data entries (not headers)
+
+Insert chart via Excel “Insert” tab
+
+Chart Selection Guidance (Pages 7–8)
+
+The document provides a structured comparison of chart types:
+
+Bar Chart
+
+Good: category comparison
+
+Poor: time trends
+
+Pie Chart
+
+Good: part-to-whole
+
+Poor: many categories
+
+Line Graph
+
+Good: trends over time
+
+Poor: categorical comparison
+
+Scatter Plot
+
+Good: correlation detection
+
+Poor: dense/overlapping data
+
+Histogram
+
+Good: distribution shape
+
+Sensitive to bin size
+
+Box Plot
+
+Good: comparing distributions
+
+Not intuitive for general audience
+
+This is a basic visualization decision framework.
+
+5. Customization Guidance (Pages 8–9)
+
+The document emphasizes:
+
+Chart titles
+
+Axis labels
+
+Gridlines
+
+Legends
+
+Trendlines
+
+Formatting
+
+Before/after examples (Pages 8–9) show:
+
+A plain line graph
+
+A refined, titled, labeled visualization
+
+Enhanced readability
+
+This focuses on presentation quality.
+
+6. Interpretation Framework (Page 10)
+
+Provides a structured analysis checklist:
+
+Look for:
+
+Overall trends (up/down)
+
+Peaks/valleys
+
+Clusters
+
+Examine:
+
+Highs/lows
+
+Outliers
+
+Shifts in trend
+
+Compare:
+
+Groups
+
+Time points
+
+Relative magnitude
+
+Validate:
+
+Scale integrity
+
+Axis manipulation
+
+Potential visual bias
+
+Encourages critical thinking about visualization.
+
+7. Example Applications (Pages 11–12)
+
+Examples include:
+
+Water Temperature over time (line graph)
+
+E. coli vs Temperature (scatter + regression line)
+
+Temperature vs Dissolved Oxygen (negative correlation visible)
+
+Temperature vs Nitrate (dense scatter/time distribution)
+
+These examples illustrate:
+
+Seasonal patterns
+
+Correlation analysis
+
+Multi-year time series
+
+Linear regression trendlines
+
+8. Strengths
+
+Clear procedural steps
+
+Screenshots for each action
+
+Encourages thoughtful variable selection
+
+Promotes cleaning before modeling
+
+Introduces multiple chart types
+
+Encourages interpretation discipline
+
+Connects analysis to decision-making
+
+9. Limitations
+
+Excel-centric (manual workflow)
+
+No statistical rigor beyond visual inspection
+
+No regression diagnostics beyond visual trendline
+
+No guidance on statistical significance
+
+No handling of QA flags or data conditions
+
+No automation framework
+
+Does not distinguish validated vs provisional data
+
+This is introductory modeling, not analytical modeling.
+
+10. Role in Ecosystem
+
+This document:
+
+Supports volunteers/staff performing exploratory analysis
+
+Bridges raw database → visualization layer
+
+Encourages trend detection prior to reporting
+
+Supports dashboard development
+
+It aligns with modernization goals for reporting and visualization.
+
+Bottom Line
+
+This PDF is an Excel-based exploratory data analysis manual.
+
+It teaches:
+
+Filtering
+
+Cleaning
+
+Table structuring
+
+Chart selection
+
+Chart refinement
+
+Basic interpretation
+
+It does not introduce advanced modeling but establishes a foundational workflow for turning StreamWatch data into visual insights.

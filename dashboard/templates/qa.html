@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – QA{% endblock %}
+{% block content %}
+<h1>Data quality summary</h1>
+<div class="card">
+  <h2>QA summary</h2>
+  <div class="qa-stats" id="qa-stats">Loading…</div>
+</div>
+<p class="muted">Flagged chemistry rows and exceedance/meter-fail flags are applied by QA rules. Use Export to download data for reporting.</p>
+{% endblock %}
+{% block scripts %}
+<script>
+fetch('/api/qa_summary').then(r => r.json()).then(qa => {
+  document.getElementById('qa-stats').innerHTML = '<span>Flagged chemistry: ' + qa.flagged_chemical_count + '</span><span>Exceedance flags: ' + qa.exceedance_flag_count + '</span><span>Meter-fail flags: ' + qa.meter_failed_flag_count + '</span>';
+}).catch(() => { document.getElementById('qa-stats').innerHTML = '<span class="error">Failed to load.</span>'; });
+</script>
+{% endblock %}

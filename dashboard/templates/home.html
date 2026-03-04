@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Home{% endblock %}
+{% block content %}
+<h1>StreamWatch</h1>
+<p class="card">Water quality monitoring data for streams and waterbodies. Browse sites, explore trends, check data quality, and export for reporting.</p>
+<ul style="list-style: none; padding: 0;">
+  <li style="margin-bottom: 0.5rem;"><a href="/map">Map</a> – View monitoring sites on an interactive map</li>
+  <li style="margin-bottom: 0.5rem;"><a href="/sites">Sites</a> – List and search all sites</li>
+  <li style="margin-bottom: 0.5rem;"><a href="/explore">Explore data</a> – Time series charts by site and parameter</li>
+  <li style="margin-bottom: 0.5rem;"><a href="/qa">QA</a> – Data quality and flag summary</li>
+  <li style="margin-bottom: 0.5rem;"><a href="/export">Export</a> – Download WQX CSV for regulatory submission</li>
+</ul>
+{% endblock %}

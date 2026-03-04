@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Sites{% endblock %}
+{% block content %}
+<h1>Sites</h1>
+<div class="card">
+  <label for="site-search">Search:</label>
+  <input type="text" id="site-search" placeholder="Site code or waterbody...">
+</div>
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>Site</th><th>Waterbody</th><th>Last sample</th><th>Visits</th><th></th></tr>
+    </thead>
+    <tbody id="sites-tbody"><tr><td colspan="5" class="loading">Loading…</td></tr></tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  const tbody = document.getElementById('sites-tbody');
+  const search = document.getElementById('site-search');
+  function render(sites, filter) {
+    const q = (filter || '').toLowerCase();
+    const list = q ? sites.filter(s => (s.site_code && s.site_code.toLowerCase().includes(q)) || (s.waterbody_name && s.waterbody_name.toLowerCase().includes(q))) : sites;
+    tbody.innerHTML = list.length ? list.map(s => '<tr><td>' + s.site_code + '</td><td>' + (s.waterbody_name || '—') + '</td><td>' + (s.last_sample_date || '—') + '</td><td>' + s.visit_count + '</td><td><a href="/site/' + encodeURIComponent(s.site_code) + '">View</a></td></tr>').join('') : '<tr><td colspan="5">No sites match.</td></tr>';
+  }
+  search.addEventListener('input', function() { render(window.__sites || [], search.value); });
+  fetch('/api/sites').then(r => r.json()).then(function(sites) { window.__sites = sites; render(sites, search.value); }).catch(function() { tbody.innerHTML = '<tr><td colspan="5" class="error">Failed to load sites.</td></tr>'; });
+})();
+</script>
+{% endblock %}

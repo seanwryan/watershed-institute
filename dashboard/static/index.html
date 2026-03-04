@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamWatch Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root { --bg: #0f1419; --card: #1a2332; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --border: #30363d; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 1rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .card h2 { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.5rem 0; }
+    select, button { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 0.4rem 0.6rem; border-radius: 4px; }
+    button { cursor: pointer; }
+    button:hover { background: var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.4rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); }
+    .qa-stats { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .qa-stats span { background: var(--border); padding: 0.5rem 0.8rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>StreamWatch Data Dashboard</h1>
+
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>QA summary</h2>
+    <div class="qa-stats" id="qa-stats">Loading…</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Time series</h2>
+      <p style="margin: 0.5rem 0;">
+        <label>Site <select id="site-select"></select></label>
+        <label>Parameter <select id="param-select"></select></label>
+        <button id="btn-load">Load</button>
+      </p>
+      <canvas id="chart" height="220"></canvas>
+    </div>
+    <div class="card">
+      <h2>Sites (last sample, visit count)</h2>
+      <div style="max-height: 320px; overflow: auto;">
+        <table>
+          <thead><tr><th>Site</th><th>Waterbody</th><th>Last sample</th><th>Visits</th></tr></thead>
+          <tbody id="sites-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '';
+    let chart = null;
+
+    async function loadSites() {
+      const r = await fetch(API + '/api/sites');
+      const sites = await r.json();
+      const sel = document.getElementById('site-select');
+      sel.innerHTML = '<option value="">All sites</option>' + sites.map(s => `<option value="${s.site_code}">${s.site_code} ${s.waterbody_name || ''}</option>`).join('');
+      const tbody = document.getElementById('sites-tbody');
+      tbody.innerHTML = sites.slice(0, 50).map(s => `<tr><td>${s.site_code}</td><td>${s.waterbody_name || '—'}</td><td>${s.last_sample_date || '—'}</td><td>${s.visit_count}</td></tr>`).join('');
+    }
+
+    async function loadParams() {
+      const r = await fetch(API + '/api/parameters');
+      const params = await r.json();
+      document.getElementById('param-select').innerHTML = params.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
+    }
+
+    async function loadQA() {
+      const r = await fetch(API + '/api/qa_summary');
+      const qa = await r.json();
+      document.getElementById('qa-stats').innerHTML = `
+        <span>Flagged chemistry: ${qa.flagged_chemical_count}</span>
+        <span>Exceedance flags: ${qa.exceedance_flag_count}</span>
+        <span>Meter-fail flags: ${qa.meter_failed_flag_count}</span>
+      `;
+    }
+
+    async function loadTimeSeries() {
+      const site = document.getElementById('site-select').value || undefined;
+      const param = document.getElementById('param-select').value;
+      const url = `${API}/api/time_series?parameter=${param}${site ? '&site_code=' + encodeURIComponent(site) : ''}`;
+      const r = await fetch(url);
+      const data = await r.json();
+      const labels = data.map(d => d.date);
+      const values = data.map(d => d.value);
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById('chart'), {
+        type: 'line',
+        data: { labels, datasets: [{ label: param, data: values, borderColor: '#58a6ff', fill: false }] },
+        options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: false } } }
+      });
+    }
+
+    document.getElementById('btn-load').addEventListener('click', loadTimeSeries);
+    loadSites();
+    loadParams();
+    loadQA();
+  </script>
+</body>
+</html>

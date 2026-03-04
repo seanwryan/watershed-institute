@@ -1,0 +1,12 @@
+# Render Blueprint: one-click deploy for StreamWatch web app
+# After deploy, add DATABASE_URL in Dashboard → streamwatch → Environment (your Neon connection string).
+# See docs/DEPLOYMENT.md for full instructions.
+
+services:
+  - type: web
+    name: streamwatch
+    runtime: python
+    plan: free
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT dashboard.app:app

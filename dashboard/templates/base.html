@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}StreamWatch{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="logo">StreamWatch</a>
+    <nav class="nav">
+      <a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Home</a>
+      <a href="/map" class="nav-link {% if request.endpoint == 'map_page' %}active{% endif %}">Map</a>
+      <a href="/sites" class="nav-link {% if request.endpoint == 'sites_page' %}active{% endif %}">Sites</a>
+      <a href="/explore" class="nav-link {% if request.endpoint == 'explore_page' %}active{% endif %}">Explore data</a>
+      <a href="/qa" class="nav-link {% if request.endpoint == 'qa_page' %}active{% endif %}">QA</a>
+      <a href="/export" class="nav-link {% if request.endpoint == 'export_page' %}active{% endif %}">Export</a>
+    </nav>
+  </header>
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">
+    <p>StreamWatch water quality monitoring data. Use filters and export for your reporting needs.</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
