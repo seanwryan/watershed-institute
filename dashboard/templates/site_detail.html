@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Site {{ site_code }}{% endblock %}
+{% block content %}
+<h1>Site <span id="site-code">{{ site_code }}</span></h1>
+<div id="site-content" class="loading">Loading…</div>
+<div id="site-error" class="error" style="display:none;"></div>
+<div class="card" id="recent-card" style="display:none;">
+  <h2>Recent results (last 5 visits)</h2>
+  <div class="table-wrap" style="overflow-x:auto;">
+    <table id="recent-table"></table>
+  </div>
+  <p style="margin-top:0.75rem;">
+    <a href="/explore?site_code={{ site_code }}">Explore time series for this site</a>
+    · <a href="/export?site_code={{ site_code }}" id="export-link">Download data for this site (WQX)</a>
+  </p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  const code = document.getElementById('site-code').textContent.trim();
+  const content = document.getElementById('site-content');
+  const errEl = document.getElementById('site-error');
+  const recentCard = document.getElementById('recent-card');
+  const recentTable = document.getElementById('recent-table');
+  fetch('/api/site/' + encodeURIComponent(code))
+    .then(r => { if (!r.ok) throw new Error('Site not found'); return r.json(); })
+    .then(site => {
+      content.innerHTML = '<div class="card"><p><strong>Waterbody:</strong> ' + (site.waterbody_name || '—') + '</p><p><strong>Description:</strong> ' + (site.description || '—') + '</p><p><strong>Last sample:</strong> ' + (site.last_sample_date || '—') + '</p><p><strong>Visit count:</strong> ' + site.visit_count + '</p>' + (site.latitude != null && site.longitude != null ? '<p><a href="https://www.google.com/maps?q=' + site.latitude + ',' + site.longitude + '" target="_blank" rel="noopener">View on map</a></p>' : '') + '</div>';
+      content.classList.remove('loading');
+      if (site.recent_results && site.recent_results.length) {
+        const cols = ['sample_date', 'water_temp_c', 'nitrate_ug_l', 'phosphate_mg_l', 'ph', 'turbidity_ntu', 'dissolved_oxygen_ppm', 'chloride_mg_l', 'e_coli_mpn_100ml'];
+        const labels = { sample_date: 'Date', water_temp_c: 'Temp °C', nitrate_ug_l: 'Nitrate', phosphate_mg_l: 'Phosphate', ph: 'pH', turbidity_ntu: 'Turbidity', dissolved_oxygen_ppm: 'DO', chloride_mg_l: 'Chloride', e_coli_mpn_100ml: 'E. coli' };
+        recentTable.innerHTML = '<thead><tr>' + cols.map(c => '<th>' + labels[c] + '</th>').join('') + '</tr></thead><tbody>' + site.recent_results.map(r => '<tr>' + cols.map(c => '<td>' + (r[c] != null ? r[c] : '—') + '</td>').join('') + '</tr>').join('') + '</tbody>';
+        recentCard.style.display = 'block';
+      }
+    })
+    .catch(e => { content.classList.remove('loading'); content.innerHTML = ''; errEl.textContent = e.message; errEl.style.display = 'block'; });
+})();
+</script>
+{% endblock %}

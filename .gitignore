@@ -1,0 +1,23 @@
+# Environment and secrets (never commit)
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Optional: uncomment if you keep large Excel data in repo
+# data/*.xlsx
+# data/*.xlsm

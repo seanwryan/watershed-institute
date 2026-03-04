@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Export{% endblock %}
+{% block content %}
+<h1>Export data</h1>
+<div class="card">
+  <p>Download monitoring data as WQX-compatible CSV for EPA Water Quality Exchange submission.</p>
+  <form id="export-form" class="form-row">
+    <div class="form-row">
+      <label>From date</label>
+      <input type="date" id="date-start" name="date_start">
+    </div>
+    <div class="form-row">
+      <label>To date</label>
+      <input type="date" id="date-end" name="date_end">
+    </div>
+    <div class="form-row">
+      <label>Site (optional)</label>
+      <select id="site-select" name="site_code">
+        <option value="">All sites</option>
+      </select>
+      <span class="muted" style="margin-left:0.5rem;">Leave blank for all sites.</span>
+    </div>
+    <div class="form-row">
+      <button type="submit" id="btn-download">Download WQX CSV</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  var qs = new URLSearchParams(location.search);
+  var presetSite = qs.get('site_code') || '';
+  fetch('/api/sites').then(r => r.json()).then(sites => {
+    var sel = document.getElementById('site-select');
+    sites.forEach(s => { sel.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code)); });
+    if (presetSite && sel.querySelector('option[value="' + presetSite + '"]')) sel.value = presetSite;
+  });
+})();
+document.getElementById('export-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const start = document.getElementById('date-start').value;
+  const end = document.getElementById('date-end').value;
+  const site = document.getElementById('site-select').value;
+  let url = '/export/wqx?';
+  if (start) url += 'date_start=' + encodeURIComponent(start) + '&';
+  if (end) url += 'date_end=' + encodeURIComponent(end) + '&';
+  if (site) url += 'site_code=' + encodeURIComponent(site);
+  window.location.href = url;
+});
+</script>
+{% endblock %}

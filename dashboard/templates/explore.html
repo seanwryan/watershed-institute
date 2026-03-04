@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Explore data{% endblock %}
+{% block content %}
+<h1>Explore data</h1>
+<div class="card">
+  <div class="form-row">
+    <label>Site</label>
+    <select id="site-select"><option value="">All sites</option></select>
+    <label style="margin-left:1rem;">Parameter</label>
+    <select id="param-select"></select>
+  </div>
+  <div class="form-row">
+    <label>From</label>
+    <input type="date" id="date-start">
+    <label style="margin-left:1rem;">To</label>
+    <input type="date" id="date-end">
+    <button id="btn-load" style="margin-left:1rem;">Load</button>
+  </div>
+  <canvas id="chart" height="280"></canvas>
+</div>
+{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  var chart = null;
+  var siteSelect = document.getElementById('site-select');
+  var paramSelect = document.getElementById('param-select');
+  var dateStart = document.getElementById('date-start');
+  var dateEnd = document.getElementById('date-end');
+  var btn = document.getElementById('btn-load');
+  var qs = new URLSearchParams(location.search);
+  var presetSite = qs.get('site_code') || '';
+  function setDefaultDates() {
+    var end = new Date();
+    var start = new Date(end);
+    start.setFullYear(start.getFullYear() - 1);
+    if (!dateEnd.value) dateEnd.value = end.toISOString().slice(0, 10);
+    if (!dateStart.value) dateStart.value = start.toISOString().slice(0, 10);
+  }
+  function load() {
+    var url = '/api/time_series?parameter=' + encodeURIComponent(paramSelect.value) + (siteSelect.value ? '&site_code=' + encodeURIComponent(siteSelect.value) : '') + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+      var labels = data.map(function(d) { return d.date; });
+      var values = data.map(function(d) { return d.value; });
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById('chart'), { type: 'line', data: { labels: labels, datasets: [{ label: paramSelect.options[paramSelect.selectedIndex].text, data: values, borderColor: '#58a6ff', fill: false }] }, options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: false } } } });
+    }).catch(function() { if (chart) chart.destroy(); });
+  }
+  btn.addEventListener('click', load);
+  Promise.all([fetch('/api/sites').then(function(r) { return r.json(); }), fetch('/api/parameters').then(function(r) { return r.json(); })]).then(function(res) {
+    var sites = res[0], paramList = res[1];
+    sites.forEach(function(s) { siteSelect.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code)); });
+    paramList.forEach(function(p) { paramSelect.appendChild(new Option(p.label, p.id)); });
+    if (presetSite && siteSelect.querySelector('option[value="' + presetSite + '"]')) siteSelect.value = presetSite;
+    setDefaultDates();
+    load();
+  });
+})();
+</script>
+{% endblock %}
