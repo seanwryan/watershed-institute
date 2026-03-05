@@ -4,6 +4,7 @@ JSON endpoints for sites, time series, QA; HTML routes for Map, Sites, Site deta
 """
 import os
 import sys
+import math
 from pathlib import Path
 from datetime import date
 
@@ -13,7 +14,9 @@ from flask import Flask, jsonify, request, send_from_directory, render_template,
 # Allow importing etl when running from dashboard/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost/streamwatch")
+# Strip quotes so pasting 'postgresql://...' in Render Environment still works
+_raw = os.getenv("DATABASE_URL", "postgresql://localhost/streamwatch") or ""
+DATABASE_URL = _raw.strip().strip("'\"").strip()
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
@@ -22,10 +25,31 @@ def get_db():
     return psycopg2.connect(DATABASE_URL)
 
 
+def get_db_or_503():
+    """Return (conn, None) or (None, response_tuple) so API routes can return JSON 503 on DB failure."""
+    try:
+        return get_db(), None
+    except psycopg2.Error:
+        return None, (jsonify({"error": "Database unavailable", "hint": "Check DATABASE_URL in Render → Environment. Open /health to verify."}), 503)
+
+
+@app.route("/health")
+def health():
+    """Check app and database connectivity. Returns 200 if DB is reachable, 503 otherwise."""
+    try:
+        conn = get_db()
+        conn.close()
+        return jsonify({"status": "ok", "database": "connected"})
+    except psycopg2.Error:
+        return jsonify({"status": "degraded", "database": "disconnected"}), 503
+
+
 @app.route("/api/sites")
 def api_sites():
     """List active sites with last sample date and visit count (for maps and site pages)."""
-    conn = get_db()
+    conn, err = get_db_or_503()
+    if err:
+        return err
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -38,11 +62,26 @@ def api_sites():
             ORDER BY s.site_code
             """)
         rows = cur.fetchall()
+
+        def _safe_coord(val):
+            if val is None:
+                return None
+            try:
+                f = float(val)
+            except (TypeError, ValueError):
+                return None
+            return f if math.isfinite(f) else None
+
         return jsonify([
             {
-                "site_id": r[0], "site_code": r[1], "waterbody_name": r[2],
-                "latitude": float(r[3]) if r[3] else None, "longitude": float(r[4]) if r[4] else None,
-                "description": r[5], "last_sample_date": r[6], "visit_count": r[7],
+                "site_id": r[0],
+                "site_code": r[1],
+                "waterbody_name": r[2],
+                "latitude": _safe_coord(r[3]),
+                "longitude": _safe_coord(r[4]),
+                "description": r[5],
+                "last_sample_date": r[6],
+                "visit_count": r[7],
             }
             for r in rows
         ])
@@ -57,7 +96,9 @@ def api_time_series():
     parameter = request.args.get("parameter", "water_temp_c")
     date_start = request.args.get("date_start")
     date_end = request.args.get("date_end")
-    conn = get_db()
+    conn, err = get_db_or_503()
+    if err:
+        return err
     try:
         cur = conn.cursor()
         allowed = {"water_temp_c", "nitrate_ug_l", "phosphate_mg_l", "ph", "turbidity_ntu", "dissolved_oxygen_ppm", "chloride_mg_l", "e_coli_mpn_100ml"}
@@ -90,7 +131,9 @@ def api_time_series():
 @app.route("/api/qa_summary")
 def api_qa_summary():
     """QA summary: flagged chemical count, exceedance count, meter-fail count (for internal QA dashboard)."""
-    conn = get_db()
+    conn, err = get_db_or_503()
+    if err:
+        return err
     try:
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM chemical c JOIN data_condition dc ON dc.data_condition_id = c.data_condition_id WHERE dc.code = 'Flagged'")
@@ -122,7 +165,9 @@ def api_parameters():
 @app.route("/api/site/<site_code>")
 def api_site(site_code):
     """Full site info + last sample date + visit count + recent chemical/bacteria summary (last 5 visits)."""
-    conn = get_db()
+    conn, err = get_db_or_503()
+    if err:
+        return err
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -137,9 +182,14 @@ def api_site(site_code):
         if not row:
             return jsonify({"error": "Site not found"}), 404
         site = {
-            "site_id": row[0], "site_code": row[1], "waterbody_name": row[2], "description": row[3],
-            "latitude": float(row[4]) if row[4] else None, "longitude": float(row[5]) if row[5] else None,
-            "last_sample_date": row[6], "visit_count": row[7],
+            "site_id": row[0],
+            "site_code": row[1],
+            "waterbody_name": row[2],
+            "description": row[3],
+            "latitude": float(row[4]) if (row[4] is not None and math.isfinite(float(row[4]))) else None,
+            "longitude": float(row[5]) if (row[5] is not None and math.isfinite(float(row[5]))) else None,
+            "last_sample_date": row[6],
+            "visit_count": row[7],
         }
         cur.execute("""
             SELECT v.sample_date::text, c.water_temp_c, c.nitrate_ug_l, c.phosphate_mg_l, c.ph, c.turbidity_ntu, c.dissolved_oxygen_ppm, c.chloride_mg_l, b.e_coli_mpn_100ml

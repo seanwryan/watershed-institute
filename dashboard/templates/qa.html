@@ -10,8 +10,8 @@
 {% endblock %}
 {% block scripts %}
 <script>
-fetch('/api/qa_summary').then(r => r.json()).then(qa => {
+fetch('/api/qa_summary').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(qa => {
   document.getElementById('qa-stats').innerHTML = '<span>Flagged chemistry: ' + qa.flagged_chemical_count + '</span><span>Exceedance flags: ' + qa.exceedance_flag_count + '</span><span>Meter-fail flags: ' + qa.meter_failed_flag_count + '</span>';
-}).catch(() => { document.getElementById('qa-stats').innerHTML = '<span class="error">Failed to load.</span>'; });
+}).catch(() => { document.getElementById('qa-stats').innerHTML = '<span class="error">Failed to load. Database may be disconnected—check /health or Render Environment (DATABASE_URL).</span>'; });
 </script>
 {% endblock %}

@@ -38,7 +38,7 @@ git push -u origin main
 | **Branch** | `main` (or your default branch) |
 | **Runtime** | Python 3 |
 | **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `gunicorn -w 1 -b 0.0.0.0:$PORT dashboard.app:app` |
+| **Start Command** | `sh -c 'gunicorn -w 1 -b 0.0.0.0:${PORT:-10000} dashboard.app:app'` |
 | **Instance Type** | Free |
 
 5. **Environment** – Add one variable:
@@ -46,6 +46,13 @@ git push -u origin main
    - **Value:** Your Neon connection string (from [Neon Console](https://console.neon.tech) → Connection string). It should include `?sslmode=require` (Neon usually adds this).
 
 6. Click **Create Web Service**. Render will build and deploy.
+
+**If you see "No open HTTP ports detected"** in the logs: (1) Use the start command above (with `sh -c` and `${PORT:-10000}`) so the port is always set. (2) Scroll up in the same log and look for a **Python traceback** (e.g. `ModuleNotFoundError`, `ImportError`, or database connection errors)—the app may be crashing before it binds; fix that error and redeploy.
+
+**If Map / Sites / Explore show "Could not load sites" or "Failed to load sites"** (and QA shows "Failed to load" or zeros with an error): the app is running but **cannot reach the database**. Do this:
+
+1. In Render → your service → **Environment**, confirm **`DATABASE_URL`** is set to your **Neon** connection string (from [Neon Console](https://console.neon.tech) → Connection details). It must include **`?sslmode=require`** (Neon usually adds this).
+2. Open **`https://your-app.onrender.com/health`** in a browser. You should see `{"status":"ok","database":"connected"}`. If you see `{"status":"degraded","database":"disconnected"}`, the app cannot connect to Neon—double-check the URL, re-paste it in Environment, and **Redeploy** (Environment changes require a redeploy).
 
 ### 3. Get your public URL
 
@@ -64,9 +71,14 @@ Use this as your **public app URL**. Share it for Map, Sites, Explore, Export, a
 - **QA** – `/qa`; summary counts show.
 - **Export** – `/export`; choose dates (and optional site); WQX CSV downloads.
 
-### Free tier behavior
+### Free tier behavior (why the first load is slow)
 
-- **Spin-down** – After ~15 minutes with no traffic, the service sleeps. The first request after that may take ~30–60 seconds (cold start). Later requests are fast.
+- **Cold start** – On the **free tier**, Render puts your service to sleep after about **15 minutes of no traffic**. The next time someone opens your URL, Render has to start the server again. That **first request can take 30–90 seconds** (sometimes longer) before the page appears. Once it’s awake, the site responds quickly until it’s idle again for 15+ minutes.
+- **Right after “Successfully deployed”** – The first time you open the live URL (or after a deploy), you’re often hitting a cold start too, so a long wait there is normal.
+- **What you can do:**
+  - **Expect it** – For a free app, this is normal. Tell users: “First load may take up to a minute; please wait.”
+  - **Keep it awake (optional)** – A free uptime checker (e.g. [UptimeRobot](https://uptimerobot.com)) can ping your URL every 10–14 minutes so the service stays awake when you care about fast response. Stay within Render’s [fair use](https://render.com/docs/free#limitations); a single ping every 10–14 minutes is typically fine.
+  - **Faster always-on** – Render’s paid plans keep the service running (no spin-down), so the first load is always fast.
 - **Hours** – 750 free instance hours per month; usually enough for a single service.
 - **HTTPS** – Render provides HTTPS and a default `*.onrender.com` hostname.
 
