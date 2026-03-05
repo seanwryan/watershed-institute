@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Biology scores{% endblock %}
+{% block content %}
+<h1>Biology scores</h1>
+<p class="muted">HGMI, NJIS, and CPMI indices from macroinvertebrate data. Use filters to narrow by site and date.</p>
+<div class="card">
+  <div class="form-row">
+    <label>Site</label>
+    <select id="filter-site"><option value="">All sites</option></select>
+    <label style="margin-left:1rem;">From</label>
+    <input type="date" id="filter-date-start">
+    <label>To</label>
+    <input type="date" id="filter-date-end">
+    <button id="btn-load" style="margin-left:1rem;">Load</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Site</th><th>Sample date</th><th>NJIS score</th><th>NJIS rating</th><th>HGMI genus</th><th>HGMI family</th><th>HGMI rating</th><th>CPMI score</th><th>CPMI rating</th></tr>
+      </thead>
+      <tbody id="scores-tbody"><tr><td colspan="9" class="muted">Click Load to load scores.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<div class="card">
+  <h2>Index over time (optional)</h2>
+  <p class="muted">Select a site and index to plot over time.</p>
+  <div class="form-row">
+    <label>Site</label>
+    <select id="chart-site"></select>
+    <label style="margin-left:1rem;">Index</label>
+    <select id="chart-index">
+      <option value="hgmi_genus">HGMI (genus)</option>
+      <option value="hgmi_family">HGMI (family)</option>
+      <option value="njis_score">NJIS score</option>
+      <option value="cpmi_score">CPMI score</option>
+    </select>
+    <button id="btn-chart" style="margin-left:1rem;">Plot</button>
+  </div>
+  <canvas id="scores-chart" height="220"></canvas>
+</div>
+{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  var tbody = document.getElementById('scores-tbody');
+  var filterSite = document.getElementById('filter-site');
+  var filterDateStart = document.getElementById('filter-date-start');
+  var filterDateEnd = document.getElementById('filter-date-end');
+  var btnLoad = document.getElementById('btn-load');
+  var chartSite = document.getElementById('chart-site');
+  var chartIndex = document.getElementById('chart-index');
+  var btnChart = document.getElementById('btn-chart');
+  var scoresData = [];
+  var chart = null;
+
+  function loadScores() {
+    var url = '/api/bio_scores?limit=500';
+    if (filterSite.value) url += '&site_code=' + encodeURIComponent(filterSite.value);
+    if (filterDateStart.value) url += '&date_start=' + encodeURIComponent(filterDateStart.value);
+    if (filterDateEnd.value) url += '&date_end=' + encodeURIComponent(filterDateEnd.value);
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+      scoresData = data.scores || [];
+      if (scoresData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="muted">No biological scores found for the selected filters.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = scoresData.map(function(r) {
+        var siteLink = '<a href="/site/' + encodeURIComponent(r.site_code) + '">' + r.site_code + '</a>';
+        return '<tr><td>' + siteLink + '</td><td>' + (r.sample_date || '—') + '</td><td>' + (r.njis_score != null ? r.njis_score : '—') + '</td><td>' + (r.njis_rating || '—') + '</td><td>' + (r.hgmi_genus != null ? r.hgmi_genus : '—') + '</td><td>' + (r.hgmi_family != null ? r.hgmi_family : '—') + '</td><td>' + (r.hgmi_rating || '—') + '</td><td>' + (r.cpmi_score != null ? r.cpmi_score : '—') + '</td><td>' + (r.cpmi_rating || '—') + '</td></tr>';
+      }).join('');
+    }).catch(function() { tbody.innerHTML = '<tr><td colspan="9" class="error">Failed to load scores.</td></tr>'; });
+  }
+
+  function plotChart() {
+    var site = chartSite.value;
+    var indexKey = chartIndex.value;
+    if (!site) return;
+    var filtered = scoresData.filter(function(r) { return r.site_code === site && r[indexKey] != null; });
+    if (filtered.length === 0) { filtered = scoresData.filter(function(r) { return r.site_code === site; }); }
+    var labels = filtered.map(function(r) { return r.sample_date; }).reverse();
+    var values = filtered.map(function(r) { return r[indexKey]; }).reverse();
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById('scores-chart'), {
+      type: 'line',
+      data: { labels: labels, datasets: [{ label: chartIndex.options[chartIndex.selectedIndex].text + ' – ' + site, data: values, borderColor: '#58a6ff', fill: false }] },
+      options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: true } } }
+    });
+  }
+
+  btnLoad.addEventListener('click', loadScores);
+  btnChart.addEventListener('click', plotChart);
+  fetch('/api/sites').then(function(r) { return r.json(); }).then(function(sites) {
+    if (!Array.isArray(sites)) return;
+    sites.forEach(function(s) {
+      var opt = new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code);
+      filterSite.appendChild(opt.cloneNode(true));
+      chartSite.appendChild(opt);
+    });
+    loadScores();
+  }).catch(function() { tbody.innerHTML = '<tr><td colspan="9" class="error">Failed to load sites.</td></tr>'; });
+})();
+</script>
+{% endblock %}

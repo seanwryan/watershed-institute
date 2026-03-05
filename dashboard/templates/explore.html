@@ -5,17 +5,42 @@
 <div class="card">
   <p id="explore-error" class="error" style="display:none; margin-bottom: 0.75rem;"></p>
   <div class="form-row">
+    <label>Chart type</label>
+    <select id="chart-type">
+      <option value="line">Time series (line)</option>
+      <option value="scatter">Scatter (X vs Y)</option>
+    </select>
+  </div>
+  <div id="line-controls" class="form-row">
+    <label>Mode</label>
+    <select id="mode">
+      <option value="single">Single site</option>
+      <option value="compare">Compare sites</option>
+    </select>
+    <span style="margin-left:1rem;"></span>
     <label>Site</label>
     <select id="site-select"><option value="">All sites</option></select>
-    <label style="margin-left:1rem;">Parameter</label>
+    <span id="compare-sites-wrap" style="display:none; margin-left:0.5rem;">
+      <label>Site B</label><select id="site-b"><option value="">—</option></select>
+      <label style="margin-left:0.5rem;">Site C</label><select id="site-c"><option value="">—</option></select>
+    </span>
+  </div>
+  <div class="form-row">
+    <label>Parameter</label>
     <select id="param-select"></select>
+    <span id="scatter-params" style="display:none; margin-left:1rem;">
+      <label>X</label><select id="param-x"></select>
+      <label style="margin-left:0.5rem;">Y</label><select id="param-y"></select>
+    </span>
   </div>
   <div class="form-row">
     <label>From</label>
     <input type="date" id="date-start">
     <label style="margin-left:1rem;">To</label>
     <input type="date" id="date-end">
+    <label style="margin-left:1rem;"><input type="checkbox" id="show-threshold" checked> Show threshold line</label>
     <button id="btn-load" style="margin-left:1rem;">Load</button>
+    <button id="btn-download-csv" style="margin-left:0.5rem;">Download CSV</button>
   </div>
   <canvas id="chart" height="280"></canvas>
 </div>
@@ -28,12 +53,44 @@
 (function() {
   var chart = null;
   var siteSelect = document.getElementById('site-select');
+  var siteB = document.getElementById('site-b');
+  var siteC = document.getElementById('site-c');
   var paramSelect = document.getElementById('param-select');
+  var paramX = document.getElementById('param-x');
+  var paramY = document.getElementById('param-y');
   var dateStart = document.getElementById('date-start');
   var dateEnd = document.getElementById('date-end');
+  var chartType = document.getElementById('chart-type');
+  var mode = document.getElementById('mode');
+  var showThreshold = document.getElementById('show-threshold');
   var btn = document.getElementById('btn-load');
+  var btnCsv = document.getElementById('btn-download-csv');
+  var compareWrap = document.getElementById('compare-sites-wrap');
+  var scatterWrap = document.getElementById('scatter-params');
   var qs = new URLSearchParams(location.search);
   var presetSite = qs.get('site_code') || '';
+  var COMPARE_COLORS = ['#58a6ff', '#3fb950', '#d29922', '#db61a2', '#79c0ff'];
+  var sitesList = [];
+  var paramList = [];
+  var thresholds = {};
+  var STORAGE_KEYS = { dateStart: 'streamwatch_global_date_start', dateEnd: 'streamwatch_global_date_end', siteCode: 'streamwatch_global_site_code' };
+  function saveToGlobalFilter() {
+    try {
+      window.sessionStorage.setItem(STORAGE_KEYS.dateStart, dateStart.value || '');
+      window.sessionStorage.setItem(STORAGE_KEYS.dateEnd, dateEnd.value || '');
+      window.sessionStorage.setItem(STORAGE_KEYS.siteCode, siteSelect.value || '');
+    } catch (e) {}
+  }
+  function applyGlobalFilter() {
+    try {
+      var s = window.sessionStorage;
+      if (s.getItem(STORAGE_KEYS.dateStart)) dateStart.value = s.getItem(STORAGE_KEYS.dateStart);
+      if (s.getItem(STORAGE_KEYS.dateEnd)) dateEnd.value = s.getItem(STORAGE_KEYS.dateEnd);
+      var code = s.getItem(STORAGE_KEYS.siteCode);
+      if (code && siteSelect.querySelector('option[value="' + code + '"]')) siteSelect.value = code;
+    } catch (e) {}
+  }
+
   function setDefaultDates() {
     var end = new Date();
     var start = new Date(end);
@@ -44,27 +101,147 @@
   var errEl = document.getElementById('explore-error');
   function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
   function hideErr() { errEl.style.display = 'none'; }
+
+  function isScatter() { return chartType.value === 'scatter'; }
+  function isCompare() { return !isScatter() && mode.value === 'compare'; }
+
+  function getSelectedSiteCodes() {
+    if (isCompare()) {
+      var codes = [];
+      if (siteSelect.value) codes.push(siteSelect.value);
+      if (siteB.value) codes.push(siteB.value);
+      if (siteC.value) codes.push(siteC.value);
+      return codes.filter(Boolean);
+    }
+    return siteSelect.value ? [siteSelect.value] : [];
+  }
+
+  function buildCompareOptions(sel, exclude) {
+    var opts = sel.options;
+    sel.innerHTML = '<option value="">—</option>';
+    sitesList.forEach(function(s) {
+      if (exclude.indexOf(s.site_code) !== -1) return;
+      sel.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code));
+    });
+  }
+
+  function loadThresholds() {
+    fetch('/api/thresholds').then(function(r) { return r.json(); }).then(function(t) { thresholds = t; }).catch(function() {});
+  }
+
   function load() {
     hideErr();
+    if (isScatter()) {
+      var url = '/api/scatter?param_x=' + encodeURIComponent(paramX.value) + '&param_y=' + encodeURIComponent(paramY.value) + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
+      if (siteSelect.value) url += '&site_code=' + encodeURIComponent(siteSelect.value);
+      fetch(url).then(function(r) { if (!r.ok) throw new Error('API error'); return r.json(); }).then(function(data) {
+        if (data.error) { showErr(data.error); if (chart) chart.destroy(); return; }
+        var pts = data.points || [];
+        if (chart) chart.destroy();
+        chart = new Chart(document.getElementById('chart'), {
+          type: 'scatter',
+          data: {
+            datasets: [{
+              label: paramX.options[paramX.selectedIndex].text + ' vs ' + paramY.options[paramY.selectedIndex].text,
+              data: pts.map(function(p) { return { x: p.x, y: p.y }; }),
+              backgroundColor: 'rgba(88, 166, 255, 0.5)',
+              borderColor: '#58a6ff'
+            }]
+          },
+          options: { responsive: true, scales: { x: { title: { display: true, text: paramX.options[paramX.selectedIndex].text } }, y: { title: { display: true, text: paramY.options[paramY.selectedIndex].text } } } }
+        });
+      }).catch(function() { showErr('Could not load scatter data.'); if (chart) chart.destroy(); });
+      return;
+    }
+    if (isCompare() && getSelectedSiteCodes().length > 0) {
+      var codes = getSelectedSiteCodes();
+      var url = '/api/time_series_multi?site_codes=' + encodeURIComponent(codes.join(',')) + '&parameter=' + encodeURIComponent(paramSelect.value) + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
+      fetch(url).then(function(r) { if (!r.ok) throw new Error('API error'); return r.json(); }).then(function(data) {
+        if (data.error) { showErr(data.error); if (chart) chart.destroy(); return; }
+        var paramId = data.parameter;
+        var thresh = showThreshold.checked && thresholds[paramId] != null ? thresholds[paramId] : null;
+        var datasets = (data.series || []).map(function(s, i) {
+          return {
+            label: s.label,
+            data: s.data.map(function(d) { return d.value; }),
+            borderColor: COMPARE_COLORS[i % COMPARE_COLORS.length],
+            fill: false
+          };
+        });
+        var labels = (data.series && data.series[0]) ? data.series[0].data.map(function(d) { return d.date; }) : [];
+        if (thresh != null && labels.length) {
+          datasets.push({ label: 'Threshold ' + thresh, data: labels.map(function() { return thresh; }), borderColor: '#f85149', borderWidth: 1, borderDash: [4, 2], fill: false, pointRadius: 0 });
+        }
+        if (chart) chart.destroy();
+        chart = new Chart(document.getElementById('chart'), { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: false } } } });
+      }).catch(function() { showErr('Could not load comparison data.'); if (chart) chart.destroy(); });
+      return;
+    }
     var url = '/api/time_series?parameter=' + encodeURIComponent(paramSelect.value) + (siteSelect.value ? '&site_code=' + encodeURIComponent(siteSelect.value) : '') + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
     fetch(url).then(function(r) { if (!r.ok) throw new Error('API error'); return r.json(); }).then(function(data) {
       if (data.error) { showErr(data.error + (data.hint ? ' ' + data.hint : '')); if (chart) chart.destroy(); return; }
       var labels = data.map(function(d) { return d.date; });
       var values = data.map(function(d) { return d.value; });
+      var paramId = paramSelect.value;
+      var thresh = showThreshold.checked && thresholds[paramId] != null ? thresholds[paramId] : null;
+      var datasets = [{ label: paramSelect.options[paramSelect.selectedIndex].text, data: values, borderColor: '#58a6ff', fill: false }];
+      if (thresh != null && labels.length) {
+        datasets.push({ label: 'Threshold ' + thresh, data: labels.map(function() { return thresh; }), borderColor: '#f85149', borderWidth: 1, borderDash: [4, 2], fill: false, pointRadius: 0 });
+      }
       if (chart) chart.destroy();
-      chart = new Chart(document.getElementById('chart'), { type: 'line', data: { labels: labels, datasets: [{ label: paramSelect.options[paramSelect.selectedIndex].text, data: values, borderColor: '#58a6ff', fill: false }] }, options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: false } } } });
-    }).catch(function() { showErr('Could not load data. Database may be disconnected—check /health or Render Environment (DATABASE_URL).'); if (chart) chart.destroy(); });
+      chart = new Chart(document.getElementById('chart'), { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: false } } } });
+    }).catch(function() { showErr('Could not load data.'); if (chart) chart.destroy(); });
   }
+
+  function downloadCsv() {
+    if (isScatter()) { showErr('Download CSV is for time series view only.'); return; }
+    var codes = getSelectedSiteCodes();
+    var url = '/export/explore_csv?parameter=' + encodeURIComponent(paramSelect.value) + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
+    if (codes.length) url += '&site_codes=' + encodeURIComponent(codes.join(','));
+    window.location.href = url;
+  }
+
+  chartType.addEventListener('change', function() {
+    scatterWrap.style.display = isScatter() ? 'inline' : 'none';
+    document.getElementById('line-controls').style.display = isScatter() ? 'none' : 'block';
+  });
+  mode.addEventListener('change', function() {
+    compareWrap.style.display = isCompare() ? 'inline' : 'none';
+    if (isCompare()) { buildCompareOptions(siteB, [siteSelect.value]); buildCompareOptions(siteC, [siteSelect.value, siteB.value]); }
+  });
+  siteSelect.addEventListener('change', function() {
+    if (isCompare()) { buildCompareOptions(siteB, [siteSelect.value]); buildCompareOptions(siteC, [siteSelect.value, siteB.value]); }
+  });
+  siteB.addEventListener('change', function() { if (isCompare()) buildCompareOptions(siteC, [siteSelect.value, siteB.value]); });
   btn.addEventListener('click', load);
+  btnCsv.addEventListener('click', downloadCsv);
+
+  scatterWrap.style.display = 'none';
+  loadThresholds();
   Promise.all([fetch('/api/sites').then(function(r) { if (!r.ok) throw new Error('sites'); return r.json(); }), fetch('/api/parameters').then(function(r) { return r.json(); })]).then(function(res) {
-    var sites = res[0], paramList = res[1];
-    if (!Array.isArray(sites) || sites.error) { showErr('Could not load sites. Database may be disconnected—check /health or DATABASE_URL.'); return; }
-    sites.forEach(function(s) { siteSelect.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code)); });
-    paramList.forEach(function(p) { paramSelect.appendChild(new Option(p.label, p.id)); });
+    sitesList = res[0];
+    paramList = res[1];
+    if (!Array.isArray(sitesList) || sitesList.error) { showErr('Could not load sites.'); return; }
+    sitesList.forEach(function(s) {
+      var label = s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : '');
+      siteSelect.appendChild(new Option(label, s.site_code));
+      siteB.appendChild(new Option(label, s.site_code));
+      siteC.appendChild(new Option(label, s.site_code));
+    });
+    paramList.forEach(function(p) {
+      paramSelect.appendChild(new Option(p.label, p.id));
+      paramX.appendChild(new Option(p.label, p.id));
+      paramY.appendChild(new Option(p.label, p.id));
+    });
+    paramY.value = 'dissolved_oxygen_ppm';
     if (presetSite && siteSelect.querySelector('option[value="' + presetSite + '"]')) siteSelect.value = presetSite;
     setDefaultDates();
+    applyGlobalFilter();
+    dateStart.addEventListener('change', saveToGlobalFilter);
+    dateEnd.addEventListener('change', saveToGlobalFilter);
+    siteSelect.addEventListener('change', saveToGlobalFilter);
     load();
-  }).catch(function() { showErr('Could not load sites or parameters. Database may be disconnected—check /health or Render Environment (DATABASE_URL).'); });
+  }).catch(function() { showErr('Could not load sites or parameters.'); });
 })();
 </script>
 {% endblock %}

@@ -6,12 +6,87 @@
   <h2>QA summary</h2>
   <div class="qa-stats" id="qa-stats">Loading…</div>
 </div>
-<p class="muted">Flagged chemistry rows and exceedance/meter-fail flags are applied by QA rules. Use Export to download data for reporting.</p>
+<div class="card">
+  <h2>Flagged records</h2>
+  <p class="muted">Filter and review individual flagged results. Click a site to open its detail page.</p>
+  <div class="form-row">
+    <label>Site</label>
+    <select id="filter-site"><option value="">All sites</option></select>
+    <label style="margin-left:1rem;">Flag type</label>
+    <select id="filter-flag-type"><option value="">All</option></select>
+    <label style="margin-left:1rem;">From</label>
+    <input type="date" id="filter-date-start">
+    <label>To</label>
+    <input type="date" id="filter-date-end">
+    <button id="btn-filter" style="margin-left:1rem;">Apply</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Site</th><th>Sample date</th><th>Flag type</th><th>Result type</th></tr>
+      </thead>
+      <tbody id="qa-flags-tbody"><tr><td colspan="4" class="muted">Load filters and click Apply, or no flagged records match.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<div class="card">
+  <h2>Data condition legend</h2>
+  <p class="muted">Status and flag codes used in the database. Chemistry rows may be marked Flagged, Provisional, Unchecked, etc.</p>
+  <div id="data-conditions-legend" class="muted">Loading…</div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
-fetch('/api/qa_summary').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(qa => {
-  document.getElementById('qa-stats').innerHTML = '<span>Flagged chemistry: ' + qa.flagged_chemical_count + '</span><span>Exceedance flags: ' + qa.exceedance_flag_count + '</span><span>Meter-fail flags: ' + qa.meter_failed_flag_count + '</span>';
-}).catch(() => { document.getElementById('qa-stats').innerHTML = '<span class="error">Failed to load. Database may be disconnected—check /health or Render Environment (DATABASE_URL).</span>'; });
+(function() {
+  var statsEl = document.getElementById('qa-stats');
+  var tbody = document.getElementById('qa-flags-tbody');
+  var filterSite = document.getElementById('filter-site');
+  var filterFlagType = document.getElementById('filter-flag-type');
+  var filterDateStart = document.getElementById('filter-date-start');
+  var filterDateEnd = document.getElementById('filter-date-end');
+  var btnFilter = document.getElementById('btn-filter');
+  var legendEl = document.getElementById('data-conditions-legend');
+
+  function loadSummary() {
+    fetch('/api/qa_summary').then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(qa) {
+      statsEl.innerHTML = '<span>Flagged chemistry: ' + qa.flagged_chemical_count + '</span><span>Exceedance flags: ' + qa.exceedance_flag_count + '</span><span>Meter-fail flags: ' + qa.meter_failed_flag_count + '</span>';
+    }).catch(function() { statsEl.innerHTML = '<span class="error">We couldn\'t load the QA summary right now. Please try again in a moment.</span>'; });
+  }
+
+  function loadFlags() {
+    var url = '/api/qa_flags?limit=200';
+    if (filterSite.value) url += '&site_code=' + encodeURIComponent(filterSite.value);
+    if (filterFlagType.value) url += '&flag_type=' + encodeURIComponent(filterFlagType.value);
+    if (filterDateStart.value) url += '&date_start=' + encodeURIComponent(filterDateStart.value);
+    if (filterDateEnd.value) url += '&date_end=' + encodeURIComponent(filterDateEnd.value);
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+      var flags = data.flags || [];
+      if (flags.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="muted">No flagged records match the filters.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = flags.map(function(f) {
+        var siteLink = '<a href="/site/' + encodeURIComponent(f.site_code) + '">' + f.site_code + '</a>';
+        return '<tr><td>' + siteLink + '</td><td>' + (f.sample_date || '—') + '</td><td>' + (f.flag_type_code || '—') + '</td><td>' + (f.result_table || '—') + '</td></tr>';
+      }).join('');
+    }).catch(function() { tbody.innerHTML = '<tr><td colspan="4" class="error">Failed to load flagged records.</td></tr>'; });
+  }
+
+  function loadLegend() {
+    fetch('/api/data_conditions').then(function(r) { return r.json(); }).then(function(list) {
+      legendEl.innerHTML = '<ul style="columns:2; margin:0; padding-left:1.25rem;">' + list.map(function(d) { return '<li><strong>' + (d.code || '') + '</strong>: ' + (d.description || '') + '</li>'; }).join('') + '</ul>';
+    }).catch(function() { legendEl.textContent = 'Could not load legend.'; });
+  }
+
+  btnFilter.addEventListener('click', loadFlags);
+  loadSummary();
+  loadLegend();
+  Promise.all([fetch('/api/sites').then(function(r) { return r.json(); }), fetch('/api/flag_types').then(function(r) { return r.json(); })]).then(function(res) {
+    var sites = res[0], flagTypes = res[1];
+    if (Array.isArray(sites)) sites.forEach(function(s) { filterSite.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code)); });
+    if (Array.isArray(flagTypes)) flagTypes.forEach(function(f) { filterFlagType.appendChild(new Option(f.code + (f.description ? ' – ' + f.description : ''), f.code)); });
+    loadFlags();
+  }).catch(function() { loadFlags(); });
+})();
 </script>
 {% endblock %}

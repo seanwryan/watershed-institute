@@ -46,6 +46,29 @@ a:hover { text-decoration: underline; }
 .nav-link:hover { color: var(--text); background: var(--border); text-decoration: none; }
 .nav-link.active { color: var(--accent); background: rgba(88, 166, 255, 0.1); }
 
+.health-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  margin-left: auto;
+}
+.health-dot[data-status="ok"] { background: #3fb950; }
+.health-dot[data-status="degraded"] { background: #f85149; }
+
+.global-filter-bar {
+  padding: 0.5rem 1.5rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.global-filter-bar label { margin-right: 0.25rem; }
+.global-filter-bar .global-filter-label { color: var(--muted); font-size: 0.875rem; }
+
 .main { flex: 1; padding: 1.5rem; max-width: 1200px; margin: 0 auto; width: 100%; }
 .footer {
   padding: 1rem 1.5rem;

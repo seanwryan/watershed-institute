@@ -26,7 +26,7 @@
     tbody.innerHTML = list.length ? list.map(s => '<tr><td>' + s.site_code + '</td><td>' + (s.waterbody_name || '—') + '</td><td>' + (s.last_sample_date || '—') + '</td><td>' + s.visit_count + '</td><td><a href="/site/' + encodeURIComponent(s.site_code) + '">View</a></td></tr>').join('') : '<tr><td colspan="5">No sites match.</td></tr>';
   }
   search.addEventListener('input', function() { render(window.__sites || [], search.value); });
-  fetch('/api/sites').then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(sites) { window.__sites = sites; render(sites, search.value); }).catch(function() { tbody.innerHTML = '<tr><td colspan="5" class="error">Failed to load sites. If this is the live site, the database may be disconnected—check Render Environment (DATABASE_URL) or open /health.</td></tr>'; });
+  fetch('/api/sites').then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(sites) { window.__sites = sites; render(sites, search.value); }).catch(function() { tbody.innerHTML = '<tr><td colspan="5" class="error">We couldn\'t load sites right now. Please try again in a moment.</td></tr>'; });
 })();
 </script>
 {% endblock %}
