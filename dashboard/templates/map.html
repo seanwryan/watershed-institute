@@ -32,7 +32,7 @@
       });
       document.getElementById('map-legend').textContent = count + ' sites with coordinates shown.';
     })
-    .catch(() => { document.getElementById('map-legend').innerHTML = 'Could not load sites. <span class="muted">If this is the live site, check that the database is connected (open /health).</span>'; });
+    .catch(() => { document.getElementById('map-legend').innerHTML = '<span class="error">We couldn\'t load sites right now. Please try again in a moment.</span>'; });
 })();
 </script>
 {% endblock %}

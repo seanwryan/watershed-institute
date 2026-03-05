@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – About & data use{% endblock %}
+{% block content %}
+<h1>About StreamWatch & data use</h1>
+
+<section class="card">
+  <h2>What this app shows</h2>
+  <p>StreamWatch is a volunteer water-quality monitoring program. This web app provides:</p>
+  <ul>
+    <li><strong>Map & sites</strong> — Monitoring locations, waterbody names, and last sample dates.</li>
+    <li><strong>Explore</strong> — Time series of water chemistry and bacteria (e.g. temperature, nitrate, dissolved oxygen, E. coli) for one or more sites. You can also view scatter plots (e.g. temperature vs DO) and optional threshold reference lines.</li>
+    <li><strong>Scores</strong> — Biological index scores (HGMI, NJIS, CPMI) from macroinvertebrate sampling.</li>
+    <li><strong>QA</strong> — Summary of flagged results (exceedances, meter-fail flags) and a drill-down table of flagged records by site, flag type, and date.</li>
+    <li><strong>Export</strong> — WQX-style CSV export for submission, and CSV downloads for the data you are viewing in Explore or for a single site.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>What this app does not do</h2>
+  <p>Please keep the following in mind when using the data:</p>
+  <ul>
+    <li><strong>Provisional vs validated</strong> — Many results are marked as <em>Provisional</em> or <em>Unchecked</em> until staff review. The app shows data conditions in the QA section and in exports; use the data condition legend to understand status.</li>
+    <li><strong>Not for sole decision-making</strong> — This app is for exploration, QA review, and reporting support. Do not use it as the sole basis for regulatory or management decisions without verifying data and QA status.</li>
+    <li><strong>Coverage</strong> — Not all sites or years have every parameter or biological index; gaps reflect historical collection and loading, not absence of concern.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Understanding data condition</h2>
+  <p>Each result can have a <strong>data condition</strong> that indicates its QA status:</p>
+  <ul>
+    <li><strong>Accepted / Validated / Approved / Certified</strong> — Reviewed and meeting QA standards.</li>
+    <li><strong>Provisional / Unchecked</strong> — Not yet verified; use with caution.</li>
+    <li><strong>Flagged</strong> — Flagged for review (e.g. possible exceedance or anomaly).</li>
+    <li><strong>Corrected / Minor_Deviation / Moderate_Deviation</strong> — Issues noted or addressed.</li>
+    <li>Other codes (e.g. Duplicate, Incomplete, Erroneous, Estimated, Derived) indicate specific handling; see the QA page legend for the full list.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Key parameters (short guide)</h2>
+  <p>Brief explanations of parameters you’ll see in Explore and on site pages:</p>
+  <ul>
+    <li><strong>Water temperature (°C)</strong> — In-stream temperature. High values (e.g. &gt; 31 °C) can stress aquatic life and may be flagged as exceedances.</li>
+    <li><strong>Dissolved oxygen (ppm)</strong> — Oxygen available to aquatic life. Low DO often correlates with high temperature or nutrient loading.</li>
+    <li><strong>Nitrate</strong> — Often reported in µg/L or ppm. Elevated nitrate can indicate nutrient pollution; thresholds (e.g. 10 ppm) may be used for flagging.</li>
+    <li><strong>Phosphate</strong> — Phosphorus form that can drive algal growth; reported in mg/L.</li>
+    <li><strong>Chloride (mg/L)</strong> — Can increase from road salt and other sources; relevant for freshwater standards.</li>
+    <li><strong>E. coli (MPN/100 mL)</strong> — Fecal indicator bacteria; high counts may indicate impaired contact recreation (e.g. 235 CFU/100 mL threshold).</li>
+    <li><strong>pH</strong> — Acidity/alkalinity; typically stable in many streams but useful for quality checks.</li>
+    <li><strong>Turbidity (NTU)</strong> — Cloudiness; can spike after storms and affect habitat and clarity.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>More information</h2>
+  <p>For deployment, architecture, and ETL details, see the project documentation (e.g. <code>docs/PROJECT_SUMMARY.md</code>, <code>docs/APP_TUTORIAL.md</code>). For exact thresholds and QA rules, refer to the database schema and DataDictionary.</p>
+</section>
+{% endblock %}

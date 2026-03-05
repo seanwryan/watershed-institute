@@ -15,16 +15,80 @@
       <a href="/map" class="nav-link {% if request.endpoint == 'map_page' %}active{% endif %}">Map</a>
       <a href="/sites" class="nav-link {% if request.endpoint == 'sites_page' %}active{% endif %}">Sites</a>
       <a href="/explore" class="nav-link {% if request.endpoint == 'explore_page' %}active{% endif %}">Explore data</a>
+      <a href="/scores" class="nav-link {% if request.endpoint == 'scores_page' %}active{% endif %}">Scores</a>
       <a href="/qa" class="nav-link {% if request.endpoint == 'qa_page' %}active{% endif %}">QA</a>
       <a href="/export" class="nav-link {% if request.endpoint == 'export_page' %}active{% endif %}">Export</a>
+      <a href="/about" class="nav-link {% if request.endpoint == 'about_page' %}active{% endif %}">About</a>
     </nav>
+    <span id="health-indicator" class="health-dot" title="Checking connection…" aria-hidden="true"></span>
   </header>
+  <div id="global-filter-bar" class="global-filter-bar" style="display:none;">
+    <span class="global-filter-label">Filter:</span>
+    <label>From</label><input type="date" id="global-date-start">
+    <label>To</label><input type="date" id="global-date-end">
+    <label>Site</label><select id="global-site"><option value="">All sites</option></select>
+  </div>
   <main class="main">
     {% block content %}{% endblock %}
   </main>
   <footer class="footer">
-    <p>StreamWatch water quality monitoring data. Use filters and export for your reporting needs.</p>
+    <p>StreamWatch water quality monitoring data. <a href="/about">About &amp; data use</a> — what the data mean, QA status, and parameter guide.</p>
   </footer>
   {% block scripts %}{% endblock %}
+  <script>
+  (function() {
+    var path = window.location.pathname;
+    var showGlobalFilter = path === '/map' || path === '/sites' || path === '/explore';
+    var STORAGE_KEYS = { dateStart: 'streamwatch_global_date_start', dateEnd: 'streamwatch_global_date_end', siteCode: 'streamwatch_global_site_code' };
+
+    function loadHealth() {
+      var el = document.getElementById('health-indicator');
+      if (!el) return;
+      fetch('/health').then(function(r) {
+        var ok = r.ok;
+        el.setAttribute('data-status', ok ? 'ok' : 'degraded');
+        el.setAttribute('title', ok ? 'Database connected' : 'Database unavailable');
+      }).catch(function() {
+        el.setAttribute('data-status', 'degraded');
+        el.setAttribute('title', 'Database unavailable');
+      });
+    }
+    loadHealth();
+    setInterval(loadHealth, 60000);
+
+    if (showGlobalFilter) {
+      var bar = document.getElementById('global-filter-bar');
+      var gStart = document.getElementById('global-date-start');
+      var gEnd = document.getElementById('global-date-end');
+      var gSite = document.getElementById('global-site');
+      if (bar && gStart && gEnd && gSite) {
+        bar.style.display = 'block';
+        try {
+          var s = window.sessionStorage;
+          if (s.getItem(STORAGE_KEYS.dateStart)) gStart.value = s.getItem(STORAGE_KEYS.dateStart);
+          if (s.getItem(STORAGE_KEYS.dateEnd)) gEnd.value = s.getItem(STORAGE_KEYS.dateEnd);
+          if (s.getItem(STORAGE_KEYS.siteCode)) gSite.value = s.getItem(STORAGE_KEYS.siteCode);
+        } catch (e) {}
+        function saveGlobalFilter() {
+          try {
+            window.sessionStorage.setItem(STORAGE_KEYS.dateStart, gStart.value || '');
+            window.sessionStorage.setItem(STORAGE_KEYS.dateEnd, gEnd.value || '');
+            window.sessionStorage.setItem(STORAGE_KEYS.siteCode, gSite.value || '');
+          } catch (e) {}
+        }
+        gStart.addEventListener('change', saveGlobalFilter);
+        gEnd.addEventListener('change', saveGlobalFilter);
+        gSite.addEventListener('change', saveGlobalFilter);
+        fetch('/api/sites').then(function(r) { return r.json(); }).then(function(sites) {
+          if (!Array.isArray(sites)) return;
+          sites.forEach(function(s) {
+            gSite.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code));
+          });
+          try { if (window.sessionStorage.getItem(STORAGE_KEYS.siteCode)) gSite.value = window.sessionStorage.getItem(STORAGE_KEYS.siteCode); } catch (e) {}
+        }).catch(function() {});
+      }
+    }
+  })();
+  </script>
 </body>
 </html>

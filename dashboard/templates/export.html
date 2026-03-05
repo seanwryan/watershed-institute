@@ -25,6 +25,13 @@
     </div>
   </form>
 </div>
+<div class="card">
+  <h2>Simple CSV (analysis)</h2>
+  <p>Flattened dataset: one row per value (site, date, parameter, value, data_condition, method). Use for Excel or other analysis. Same date range and site filter as above.</p>
+  <div class="form-row">
+    <button type="button" id="btn-csv">Download simple CSV</button>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -43,6 +50,16 @@ document.getElementById('export-form').addEventListener('submit', function(e) {
   const end = document.getElementById('date-end').value;
   const site = document.getElementById('site-select').value;
   let url = '/export/wqx?';
+  if (start) url += 'date_start=' + encodeURIComponent(start) + '&';
+  if (end) url += 'date_end=' + encodeURIComponent(end) + '&';
+  if (site) url += 'site_code=' + encodeURIComponent(site);
+  window.location.href = url;
+});
+document.getElementById('btn-csv').addEventListener('click', function() {
+  const start = document.getElementById('date-start').value;
+  const end = document.getElementById('date-end').value;
+  const site = document.getElementById('site-select').value;
+  let url = '/export/csv?';
   if (start) url += 'date_start=' + encodeURIComponent(start) + '&';
   if (end) url += 'date_end=' + encodeURIComponent(end) + '&';
   if (site) url += 'site_code=' + encodeURIComponent(site);
