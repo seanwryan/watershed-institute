@@ -24,11 +24,9 @@ Then open http://localhost:5000 (or http://localhost:5001 when using `PORT=5001`
 
 ## Deploy (free tier)
 
-1. **Render** – Create a Web Service; connect repo; add PostgreSQL (or use external DB). Build: `pip install -r requirements.txt`. Start: `gunicorn -w 1 -b 0.0.0.0:$PORT dashboard.app:app`. Set `DATABASE_URL`.
-2. **Fly.io** – `fly launch`, add Postgres or `DATABASE_URL` secret, run `gunicorn -w 1 -b 0.0.0.0:8080 dashboard.app:app`.
-3. **Self-hosted** – Same as local; use gunicorn behind nginx and point `DATABASE_URL` to your Postgres.
+See **[docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md)** for step-by-step Render + Neon (and optional Fly.io) deployment, including start command, `DATABASE_URL` (no quotes), and troubleshooting. For full app usage (local and live), see **[docs/APP_TUTORIAL.md](../docs/APP_TUTORIAL.md)**.
 
-All of the above use free tiers; no paid SaaS required. Leaflet and OpenStreetMap tiles are free to use.
+Summary: Render — connect repo, set Build/Start commands, add `DATABASE_URL` (Neon connection string, no quotes), redeploy. Use `sh -c 'gunicorn -w 1 -b 0.0.0.0:${PORT:-10000} dashboard.app:app'` as Start Command.
 
 ## API (for Power BI, Excel, R)
 
