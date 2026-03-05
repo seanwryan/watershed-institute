@@ -40,7 +40,8 @@ Centralized PostgreSQL database, ETL, QA, reporting, and dashboard for the Strea
 - **db/** – PostgreSQL schema (lookups, site, volunteer, equipment, visit, results, flags, QA views, reporting views) and seed data
 - **etl/** – Migration scripts (sites, volunteers, equipment, StreamWatch data, BACT 2025, BAT), QA rules, biological indices, WQX export
 - **dashboard/** – Flask web app (Map, Sites, Site detail, Explore, QA, Export) and JSON API
-- **docs/** – Migration log (source → target mapping)
+- **docs/** – App tutorial, deployment guide, migration log; **docs/reference/** – source workbook summaries (raw_breakdown.txt)
+- **data/** – Excel/XLSX source files (see “Data sources” below)
 
 ## Data sources (expected in `data/` or paths in `etl/config.py`)
 

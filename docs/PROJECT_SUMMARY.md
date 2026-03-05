@@ -55,10 +55,10 @@ This file summarizes what we have built so far and where we are headed for the S
   - [README.md](../README.md) – overall project overview and ETL run order
   - [db/README.md](../db/README.md) – schema application instructions
   - [dashboard/README.md](../dashboard/README.md) – running and deploying the web app
-  - [docs/migration_log.md](migration_log.md) – mapping of source files → target tables
-  - [docs/APP_TUTORIAL.md](APP_TUTORIAL.md) – step‑by‑step web app usage guide
+  - [docs/migration_log.md](migration_log.md) – source → target mapping for ETL
+  - [docs/APP_TUTORIAL.md](APP_TUTORIAL.md) – how to use the web app (local and live)
   - [docs/DEPLOYMENT.md](DEPLOYMENT.md) – public hosting (Render + Neon, free tier)
-  - [docs/FRONTEND_GOALS.md](FRONTEND_GOALS.md) – frontend goals from raw_breakdown
+  - [docs/reference/raw_breakdown.txt](reference/raw_breakdown.txt) – executive summaries of source workbooks
 
 ---
 
@@ -124,7 +124,7 @@ This file summarizes what we have built so far and where we are headed for the S
 
 ## How this supports the original vision
 
-From the `raw_breakdown.txt` summaries and planning docs, the vision is to move from many scattered Excel/Access files to a **single, defensible, queryable system** that can:
+From the [raw_breakdown](reference/raw_breakdown.txt) summaries and planning docs, the vision is to move from many scattered Excel/Access files to a **single, defensible, queryable system** that can:
 
 - Store **all** StreamWatch data (chemistry, biology, habitat, bacteria, HAB, equipment, volunteers, sites) in one place.
 - Apply consistent **QA rules and flags** that are traceable and transparent.
