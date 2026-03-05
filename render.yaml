@@ -9,4 +9,5 @@ services:
     plan: free
 
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT dashboard.app:app
+    # Shell ensures $PORT is expanded; 10000 is Render free-tier default if PORT unset
+    startCommand: sh -c 'gunicorn -w 1 -b 0.0.0.0:${PORT:-10000} dashboard.app:app'
