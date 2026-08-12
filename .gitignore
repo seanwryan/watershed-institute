@@ -21,3 +21,4 @@ env/
 # Optional: uncomment if you keep large Excel data in repo
 # data/*.xlsx
 # data/*.xlsm
+backups/
