@@ -472,7 +472,7 @@ def api_site(site_code):
         cur = conn.cursor()
         cur.execute("""
             SELECT s.site_id, s.site_code, w.name AS waterbody_name, s.description, s.latitude, s.longitude,
-                   s.is_active, s.site_type::text,
+                   s.is_active, s.site_type::text, s.property_type::text, s.habitat_type::text, s.notes,
                    (SELECT MAX(v.sample_date)::text FROM visit v WHERE v.site_id = s.site_id),
                    (SELECT COUNT(*) FROM visit v WHERE v.site_id = s.site_id)
             FROM site s
@@ -501,9 +501,28 @@ def api_site(site_code):
             "longitude": _safe_float(row[5]),
             "is_active": bool(row[6]),
             "site_type": row[7],
-            "last_sample_date": row[8],
-            "visit_count": row[9],
+            "property_type": row[8],
+            "habitat_type": row[9],
+            "notes": row[10],
+            "last_sample_date": row[11],
+            "visit_count": row[12],
         }
+        cur.execute("""
+            SELECT m.name
+            FROM junc_site_municipality j
+            JOIN municipality m ON m.municipality_id = j.municipality_id
+            WHERE j.site_id = %s
+            ORDER BY m.name
+            """, (site["site_id"],))
+        site["municipalities"] = [r[0] for r in cur.fetchall()]
+        cur.execute("""
+            SELECT sw.name
+            FROM junc_site_subwatershed j
+            JOIN subwatershed sw ON sw.subwatershed_id = j.subwatershed_id
+            WHERE j.site_id = %s
+            ORDER BY sw.name
+            """, (site["site_id"],))
+        site["subwatersheds"] = [r[0] for r in cur.fetchall()]
         cur.execute("""
             SELECT v.sample_date::text, c.water_temp_c, c.nitrate_ug_l, c.phosphate_mg_l, c.ph, c.turbidity_ntu, c.dissolved_oxygen_ppm, c.chloride_mg_l, b.e_coli_mpn_100ml
             FROM visit v
@@ -695,9 +714,503 @@ def sites_page():
     return render_template("sites.html")
 
 
+_SITE_TYPES = ("HUC", "Target", "Project", "Legacy", "MUNI", "V.Req")
+_PROPERTY_TYPES = ("Public", "Private", "TWI", "Other")
+_HABITAT_TYPES = ("High Gradient", "Low Gradient", "Canal", "Lake")
+_SITE_CODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
+
+
+def _empty_site_form(defaults=None):
+    form = {
+        "site_code": "",
+        "waterbody_id": "",
+        "site_type": "",
+        "is_active": True,
+        "property_type": "",
+        "latitude": "",
+        "longitude": "",
+        "municipality_ids": [],
+        "subwatershed_ids": [],
+        "description": "",
+        "notes": "",
+        "habitat_type": "",
+    }
+    if defaults:
+        form.update(defaults)
+    return form
+
+
+def _site_form_from_request():
+    return {
+        "site_code": (request.form.get("site_code") or "").strip(),
+        "waterbody_id": (request.form.get("waterbody_id") or "").strip(),
+        "site_type": (request.form.get("site_type") or "").strip(),
+        "is_active": _form_bool(request.form, "is_active"),
+        "property_type": (request.form.get("property_type") or "").strip(),
+        "latitude": (request.form.get("latitude") or "").strip(),
+        "longitude": (request.form.get("longitude") or "").strip(),
+        "municipality_ids": [v.strip() for v in request.form.getlist("municipality_ids") if str(v).strip()],
+        "subwatershed_ids": [v.strip() for v in request.form.getlist("subwatershed_ids") if str(v).strip()],
+        "description": (request.form.get("description") or "").strip(),
+        "notes": (request.form.get("notes") or "").strip(),
+        "habitat_type": (request.form.get("habitat_type") or "").strip(),
+    }
+
+
+def _load_waterbodies(cur):
+    cur.execute("SELECT waterbody_id, name FROM waterbody ORDER BY name")
+    return [{"waterbody_id": r[0], "name": r[1]} for r in cur.fetchall()]
+
+
+def _load_subwatersheds(cur):
+    cur.execute("SELECT subwatershed_id, name FROM subwatershed ORDER BY name")
+    return [{"subwatershed_id": r[0], "name": r[1]} for r in cur.fetchall()]
+
+
+def _parse_optional_coord(raw, kind):
+    """Parse lat/lng. Returns (value_or_None, error_or_None)."""
+    if raw is None:
+        return None, None
+    s = str(raw).strip()
+    if not s:
+        return None, None
+    try:
+        val = float(s)
+    except (TypeError, ValueError):
+        return None, "invalid"
+    if not math.isfinite(val):
+        return None, "invalid"
+    if kind == "lat" and not (-90.0 <= val <= 90.0):
+        return None, "range"
+    if kind == "lng" and not (-180.0 <= val <= 180.0):
+        return None, "range"
+    return val, None
+
+
+def _validate_site_form(cur, form, *, require_code=True, existing_site_id=None):
+    """
+    Validate site create/edit fields.
+    Returns (error_message_or_None, parsed_dict).
+    """
+    parsed = {
+        "site_code": form.get("site_code") or "",
+        "waterbody_id": None,
+        "site_type": form.get("site_type") or None,
+        "is_active": bool(form.get("is_active")),
+        "property_type": form.get("property_type") or None,
+        "latitude": None,
+        "longitude": None,
+        "municipality_ids": [],
+        "subwatershed_ids": [],
+        "description": form.get("description") or None,
+        "notes": form.get("notes") or None,
+        "habitat_type": form.get("habitat_type") or None,
+    }
+
+    if require_code:
+        if not parsed["site_code"]:
+            return "Site code is required.", None
+        if not _SITE_CODE_RE.fullmatch(parsed["site_code"]):
+            return (
+                "Site code must start with a letter or number and use only letters, "
+                "numbers, periods, hyphens, or underscores (max 32 characters)."
+            ), None
+        cur.execute(
+            "SELECT site_id FROM site WHERE lower(site_code) = lower(%s)",
+            (parsed["site_code"],),
+        )
+        row = cur.fetchone()
+        if row and (existing_site_id is None or row[0] != existing_site_id):
+            return "That site code is already in use.", None
+
+    if form.get("waterbody_id"):
+        waterbody_id, wb_err = _parse_optional_int(form["waterbody_id"])
+        if wb_err or waterbody_id is None:
+            return "Waterbody selection is invalid.", None
+        cur.execute("SELECT 1 FROM waterbody WHERE waterbody_id = %s", (waterbody_id,))
+        if not cur.fetchone():
+            return "Waterbody selection is invalid.", None
+        parsed["waterbody_id"] = waterbody_id
+
+    if parsed["site_type"] and parsed["site_type"] not in _SITE_TYPES:
+        return "Site type selection is invalid.", None
+    if not parsed["site_type"]:
+        parsed["site_type"] = None
+
+    if parsed["property_type"] and parsed["property_type"] not in _PROPERTY_TYPES:
+        return "Property type selection is invalid.", None
+    if not parsed["property_type"]:
+        parsed["property_type"] = None
+
+    if parsed["habitat_type"] and parsed["habitat_type"] not in _HABITAT_TYPES:
+        return "Habitat type selection is invalid.", None
+    if not parsed["habitat_type"]:
+        parsed["habitat_type"] = None
+
+    lat, lat_err = _parse_optional_coord(form.get("latitude"), "lat")
+    if lat_err == "invalid":
+        return "Latitude must be a valid number.", None
+    if lat_err == "range":
+        return "Latitude must be between -90 and 90.", None
+    lng, lng_err = _parse_optional_coord(form.get("longitude"), "lng")
+    if lng_err == "invalid":
+        return "Longitude must be a valid number.", None
+    if lng_err == "range":
+        return "Longitude must be between -180 and 180.", None
+    parsed["latitude"] = lat
+    parsed["longitude"] = lng
+
+    for raw in form.get("municipality_ids") or []:
+        mid, mid_err = _parse_optional_int(raw)
+        if mid_err or mid is None:
+            return "Municipality selection is invalid.", None
+        cur.execute("SELECT 1 FROM municipality WHERE municipality_id = %s", (mid,))
+        if not cur.fetchone():
+            return "Municipality selection is invalid.", None
+        parsed["municipality_ids"].append(mid)
+    parsed["municipality_ids"] = sorted(set(parsed["municipality_ids"]))
+
+    for raw in form.get("subwatershed_ids") or []:
+        sid, sid_err = _parse_optional_int(raw)
+        if sid_err or sid is None:
+            return "Subwatershed selection is invalid.", None
+        cur.execute("SELECT 1 FROM subwatershed WHERE subwatershed_id = %s", (sid,))
+        if not cur.fetchone():
+            return "Subwatershed selection is invalid.", None
+        parsed["subwatershed_ids"].append(sid)
+    parsed["subwatershed_ids"] = sorted(set(parsed["subwatershed_ids"]))
+
+    if parsed["description"] == "":
+        parsed["description"] = None
+    if parsed["notes"] == "":
+        parsed["notes"] = None
+
+    return None, parsed
+
+
+def _sync_site_junctions(cur, site_id, municipality_ids, subwatershed_ids):
+    cur.execute("DELETE FROM junc_site_municipality WHERE site_id = %s", (site_id,))
+    for mid in municipality_ids:
+        cur.execute(
+            "INSERT INTO junc_site_municipality (site_id, municipality_id) VALUES (%s, %s)",
+            (site_id, mid),
+        )
+    cur.execute("DELETE FROM junc_site_subwatershed WHERE site_id = %s", (site_id,))
+    for sid in subwatershed_ids:
+        cur.execute(
+            "INSERT INTO junc_site_subwatershed (site_id, subwatershed_id) VALUES (%s, %s)",
+            (site_id, sid),
+        )
+
+
+def _load_site_edit_context(cur, site_code):
+    cur.execute(
+        """
+        SELECT s.site_id, s.site_code, s.waterbody_id, s.site_type::text, s.is_active,
+               s.property_type::text, s.latitude, s.longitude, s.description, s.notes,
+               s.habitat_type::text
+        FROM site s
+        WHERE s.site_code = %s
+        """,
+        (site_code,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    site_id = row[0]
+    cur.execute(
+        "SELECT municipality_id FROM junc_site_municipality WHERE site_id = %s ORDER BY 1",
+        (site_id,),
+    )
+    muni_ids = [str(r[0]) for r in cur.fetchall()]
+    cur.execute(
+        "SELECT subwatershed_id FROM junc_site_subwatershed WHERE site_id = %s ORDER BY 1",
+        (site_id,),
+    )
+    sub_ids = [str(r[0]) for r in cur.fetchall()]
+    form = {
+        "site_code": row[1],
+        "waterbody_id": "" if row[2] is None else str(row[2]),
+        "site_type": row[3] or "",
+        "is_active": bool(row[4]),
+        "property_type": row[5] or "",
+        "latitude": "" if row[6] is None else str(row[6]),
+        "longitude": "" if row[7] is None else str(row[7]),
+        "description": row[8] or "",
+        "notes": row[9] or "",
+        "habitat_type": row[10] or "",
+        "municipality_ids": muni_ids,
+        "subwatershed_ids": sub_ids,
+    }
+    return {"site_id": site_id, "site_code": row[1], "form": form}
+
+
+def _site_form_template_kwargs(form, waterbodies, municipalities, subwatersheds, **extra):
+    kw = {
+        "form": form,
+        "waterbodies": waterbodies,
+        "municipalities": municipalities,
+        "subwatersheds": subwatersheds,
+        "site_types": _SITE_TYPES,
+        "property_types": _PROPERTY_TYPES,
+        "habitat_types": _HABITAT_TYPES,
+    }
+    kw.update(extra)
+    return kw
+
+
+@app.route("/sites/new", methods=["GET", "POST"])
+def site_new():
+    """
+    Staff form to create a monitoring site.
+    NOTE: Write access is intentionally open in this milestone.
+    """
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "site_form.html",
+            **_site_form_template_kwargs(
+                _empty_site_form(),
+                [],
+                [],
+                [],
+                mode="new",
+                error="Service temporarily unavailable. Please try again in a moment.",
+            ),
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        waterbodies = _load_waterbodies(cur)
+        municipalities = _load_municipalities(cur)
+        subwatersheds = _load_subwatersheds(cur)
+
+        if request.method == "GET":
+            return render_template(
+                "site_form.html",
+                **_site_form_template_kwargs(
+                    _empty_site_form(),
+                    waterbodies,
+                    municipalities,
+                    subwatersheds,
+                    mode="new",
+                    error=None,
+                ),
+            )
+
+        form = _site_form_from_request()
+
+        def _form_error(msg):
+            return render_template(
+                "site_form.html",
+                **_site_form_template_kwargs(
+                    form,
+                    waterbodies,
+                    municipalities,
+                    subwatersheds,
+                    mode="new",
+                    error=msg,
+                ),
+            ), 400
+
+        val_err, parsed = _validate_site_form(cur, form, require_code=True)
+        if val_err:
+            return _form_error(val_err)
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO site (
+                    site_code, is_active, waterbody_id, description,
+                    latitude, longitude, site_type, property_type,
+                    habitat_type, notes
+                ) VALUES (
+                    %s, %s, %s, %s,
+                    %s, %s, %s::site_type_enum, %s::property_type_enum,
+                    %s::habitat_type_enum, %s
+                )
+                RETURNING site_id, site_code
+                """,
+                (
+                    parsed["site_code"],
+                    parsed["is_active"],
+                    parsed["waterbody_id"],
+                    parsed["description"],
+                    parsed["latitude"],
+                    parsed["longitude"],
+                    parsed["site_type"],
+                    parsed["property_type"],
+                    parsed["habitat_type"],
+                    parsed["notes"],
+                ),
+            )
+            site_id, site_code = cur.fetchone()
+            _sync_site_junctions(
+                cur, site_id, parsed["municipality_ids"], parsed["subwatershed_ids"]
+            )
+            conn.commit()
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            return _form_error("That site code is already in use.")
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "site_form.html",
+                **_site_form_template_kwargs(
+                    form,
+                    waterbodies,
+                    municipalities,
+                    subwatersheds,
+                    mode="new",
+                    error="Could not save site right now. Please try again in a moment.",
+                ),
+            ), 500
+
+        return redirect(url_for("site_detail_page", site_code=site_code))
+    finally:
+        conn.close()
+
+
 @app.route("/site/<site_code>")
 def site_detail_page(site_code):
     return render_template("site_detail.html", site_code=site_code)
+
+
+@app.route("/site/<site_code>/edit", methods=["GET", "POST"])
+def site_edit(site_code):
+    """
+    Staff form to edit an existing monitoring site.
+    site_code is stable (read-only) to preserve URLs and relationships.
+    """
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "site_form.html",
+            **_site_form_template_kwargs(
+                _empty_site_form({"site_code": site_code}),
+                [],
+                [],
+                [],
+                mode="edit",
+                site_code=site_code,
+                error="Service temporarily unavailable. Please try again in a moment.",
+            ),
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        ctx = _load_site_edit_context(cur, site_code)
+        if not ctx:
+            return render_template(
+                "site_form.html",
+                **_site_form_template_kwargs(
+                    _empty_site_form({"site_code": site_code}),
+                    [],
+                    [],
+                    [],
+                    mode="edit",
+                    site_code=site_code,
+                    error="Site not found.",
+                ),
+            ), 404
+
+        waterbodies = _load_waterbodies(cur)
+        municipalities = _load_municipalities(cur)
+        subwatersheds = _load_subwatersheds(cur)
+        site_id = ctx["site_id"]
+        stable_code = ctx["site_code"]
+
+        if request.method == "GET":
+            return render_template(
+                "site_form.html",
+                **_site_form_template_kwargs(
+                    ctx["form"],
+                    waterbodies,
+                    municipalities,
+                    subwatersheds,
+                    mode="edit",
+                    site_code=stable_code,
+                    error=None,
+                ),
+            )
+
+        form = _site_form_from_request()
+        form["site_code"] = stable_code  # ignore posted code changes
+
+        def _form_error(msg):
+            return render_template(
+                "site_form.html",
+                **_site_form_template_kwargs(
+                    form,
+                    waterbodies,
+                    municipalities,
+                    subwatersheds,
+                    mode="edit",
+                    site_code=stable_code,
+                    error=msg,
+                ),
+            ), 400
+
+        val_err, parsed = _validate_site_form(
+            cur, form, require_code=False, existing_site_id=site_id
+        )
+        if val_err:
+            return _form_error(val_err)
+
+        try:
+            cur.execute(
+                """
+                UPDATE site SET
+                    is_active = %s,
+                    waterbody_id = %s,
+                    description = %s,
+                    latitude = %s,
+                    longitude = %s,
+                    site_type = %s::site_type_enum,
+                    property_type = %s::property_type_enum,
+                    habitat_type = %s::habitat_type_enum,
+                    notes = %s,
+                    updated_at = NOW()
+                WHERE site_id = %s
+                """,
+                (
+                    parsed["is_active"],
+                    parsed["waterbody_id"],
+                    parsed["description"],
+                    parsed["latitude"],
+                    parsed["longitude"],
+                    parsed["site_type"],
+                    parsed["property_type"],
+                    parsed["habitat_type"],
+                    parsed["notes"],
+                    site_id,
+                ),
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                return _form_error("Site not found.")
+            _sync_site_junctions(
+                cur, site_id, parsed["municipality_ids"], parsed["subwatershed_ids"]
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "site_form.html",
+                **_site_form_template_kwargs(
+                    form,
+                    waterbodies,
+                    municipalities,
+                    subwatersheds,
+                    mode="edit",
+                    site_code=stable_code,
+                    error="Could not save site right now. Please try again in a moment.",
+                ),
+            ), 500
+
+        return redirect(url_for("site_detail_page", site_code=stable_code))
+    finally:
+        conn.close()
 
 
 @app.route("/explore")

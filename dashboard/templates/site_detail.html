@@ -133,6 +133,27 @@
       } else {
         locHtml += '<p class="muted">Coordinates are not available for this site.</p>';
       }
+      var muni = (site.municipalities || []).filter(Boolean);
+      var subws = (site.subwatersheds || []).filter(Boolean);
+      if (muni.length) {
+        locHtml += '<p class="site-meta-item" style="display:block;margin-top:0.65rem;"><span class="metric-label">Municipality</span> ' +
+          esc(muni.join(', ')) + '</p>';
+      }
+      if (subws.length) {
+        locHtml += '<p class="site-meta-item" style="display:block;margin-top:0.35rem;"><span class="metric-label">Subwatershed</span> ' +
+          esc(subws.join(', ')) + '</p>';
+      }
+      if (site.property_type) {
+        locHtml += '<p class="site-meta-item" style="display:block;margin-top:0.35rem;"><span class="metric-label">Property type</span> ' +
+          esc(site.property_type) + '</p>';
+      }
+      if (site.habitat_type) {
+        locHtml += '<p class="site-meta-item" style="display:block;margin-top:0.35rem;"><span class="metric-label">Habitat type</span> ' +
+          esc(site.habitat_type) + '</p>';
+      }
+      if (site.notes) {
+        locHtml += '<p class="site-desc" style="margin-top:0.65rem;">' + esc(site.notes) + '</p>';
+      }
       locHtml += '<p class="site-map-links"><a href="/map">View on monitoring map</a></p>';
       locationBody.innerHTML = locHtml;
 
@@ -151,7 +172,8 @@
       actionsBody.innerHTML =
         '<a class="btn-primary" href="/explore?site_code=' + encodeURIComponent(site.site_code) + '">Explore trends</a>' +
         '<a class="btn-secondary" href="/scores?site_code=' + encodeURIComponent(site.site_code) + '">View biology scores</a>' +
-        '<a class="btn-secondary" href="/export?site_code=' + encodeURIComponent(site.site_code) + '">Export site data</a>';
+        '<a class="btn-secondary" href="/export?site_code=' + encodeURIComponent(site.site_code) + '">Export site data</a>' +
+        '<a class="btn-secondary" href="/site/' + encodeURIComponent(site.site_code) + '/edit">Edit site</a>';
 
       recentPanel.hidden = false;
       document.getElementById('site-explore-link').href = '/explore?site_code=' + encodeURIComponent(site.site_code);

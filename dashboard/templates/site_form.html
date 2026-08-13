@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {% if mode == 'edit' %}Edit site {{ site_code }}{% else %}Add site{% endif %}{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% if mode == 'edit' %}
+    <a href="/site/{{ site_code }}">{{ site_code }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Edit</span>
+    {% else %}
+    <span aria-current="page">Add site</span>
+    {% endif %}
+  </nav>
+
+  <header class="page-header">
+    <h1>{% if mode == 'edit' %}Edit site{% else %}Add site{% endif %}</h1>
+    <p class="page-subtitle">
+      {% if mode == 'edit' %}
+      Update monitoring location details for {{ site_code }}.
+      {% else %}
+      Create a StreamWatch monitoring location.
+      {% endif %}
+    </p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form class="form-shell panel" method="post"
+        action="{% if mode == 'edit' %}/site/{{ site_code }}/edit{% else %}/sites/new{% endif %}"
+        novalidate>
+    <section class="form-section" aria-labelledby="site-identity">
+      <h2 class="form-section-title" id="site-identity">Site identity</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          {% if mode == 'edit' %}
+          <span class="form-group-label">Site code</span>
+          <p class="form-readonly">{{ site_code }}</p>
+          <p class="form-help">Site code stays fixed so existing visits, exports, and links keep working.</p>
+          {% else %}
+          <label for="site_code">Site code <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="site_code" name="site_code" required maxlength="32" value="{{ form.site_code or '' }}" autocomplete="off">
+          <p class="form-help">Unique code used in maps, Explore, and exports (for example AC1).</p>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          <label for="waterbody_id">Waterbody</label>
+          <select id="waterbody_id" name="waterbody_id">
+            <option value="">—</option>
+            {% for w in waterbodies %}
+            <option value="{{ w.waterbody_id }}" {% if form.waterbody_id == (w.waterbody_id|string) %}selected{% endif %}>{{ w.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="site_type">Site type</label>
+          <select id="site_type" name="site_type">
+            <option value="">—</option>
+            {% for t in site_types %}
+            <option value="{{ t }}" {% if form.site_type == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="property_type">Property type</label>
+          <select id="property_type" name="property_type">
+            <option value="">—</option>
+            {% for t in property_types %}
+            <option value="{{ t }}" {% if form.property_type == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field form-field-full">
+          <span class="form-group-label">Status</span>
+          <div class="checkbox-group" role="group" aria-label="Active status">
+            <label class="checkbox-label">
+              <input type="checkbox" name="is_active" value="1" {% if form.is_active %}checked{% endif %}>
+              Active monitoring site
+            </label>
+          </div>
+          <p class="form-help">Inactive sites are hidden from the Sites list and map.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="site-location">
+      <h2 class="form-section-title" id="site-location">Location</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="latitude">Latitude</label>
+          <input type="text" id="latitude" name="latitude" inputmode="decimal" value="{{ form.latitude or '' }}" placeholder="e.g. 40.31234">
+        </div>
+        <div class="form-field">
+          <label for="longitude">Longitude</label>
+          <input type="text" id="longitude" name="longitude" inputmode="decimal" value="{{ form.longitude or '' }}" placeholder="e.g. -74.71234">
+        </div>
+        <div class="form-field form-field-full">
+          <label for="municipality_ids">Municipalities</label>
+          <select id="municipality_ids" name="municipality_ids" multiple size="6">
+            {% for m in municipalities %}
+            <option value="{{ m.municipality_id }}" {% if (m.municipality_id|string) in form.municipality_ids %}selected{% endif %}>{{ m.name }}</option>
+            {% endfor %}
+          </select>
+          <p class="form-help">Hold Ctrl/Cmd to select more than one. Only existing municipalities are listed.</p>
+        </div>
+        <div class="form-field form-field-full">
+          <label for="subwatershed_ids">Subwatersheds</label>
+          <select id="subwatershed_ids" name="subwatershed_ids" multiple size="6">
+            {% for s in subwatersheds %}
+            <option value="{{ s.subwatershed_id }}" {% if (s.subwatershed_id|string) in form.subwatershed_ids %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+          <p class="form-help">Hold Ctrl/Cmd to select more than one. Only existing subwatersheds are listed.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="site-details">
+      <h2 class="form-section-title" id="site-details">Details</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="habitat_type">Habitat type</label>
+          <select id="habitat_type" name="habitat_type">
+            <option value="">—</option>
+            {% for t in habitat_types %}
+            <option value="{{ t }}" {% if form.habitat_type == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field form-field-full">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="3" maxlength="4000">{{ form.description or '' }}</textarea>
+        </div>
+        <div class="form-field form-field-full">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3" maxlength="4000">{{ form.notes or '' }}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">{% if mode == 'edit' %}Save site{% else %}Create site{% endif %}</button>
+      {% if mode == 'edit' %}
+      <a class="btn-secondary" href="/site/{{ site_code }}">Cancel</a>
+      {% else %}
+      <a class="btn-secondary" href="/sites">Cancel</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
