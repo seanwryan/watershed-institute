@@ -30,10 +30,17 @@ def _float(v):
 def _date(v):
     if v is None or pd.isna(v):
         return None
-    if hasattr(v, "date"):
-        return v
+    # datetime/Timestamp: convert to date (do not return the datetime itself)
+    if hasattr(v, "date") and callable(getattr(v, "date")):
+        try:
+            return v.date()
+        except Exception:
+            pass
     try:
-        return pd.to_datetime(v).date()
+        ts = pd.to_datetime(v, errors="coerce")
+        if pd.isna(ts):
+            return None
+        return ts.date()
     except Exception:
         return None
 

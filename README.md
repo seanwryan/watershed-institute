@@ -33,21 +33,24 @@ Centralized PostgreSQL database, ETL, QA, reporting, and dashboard for the Strea
    ```bash
    python dashboard/app.py
    ```
-   Open http://localhost:5000 for the multi-page app (Home, Map, Sites, Site detail, Explore data, QA, Export). See `dashboard/README.md` for deployment on a free tier (e.g. Render, Fly.io).
+   Open http://localhost:5000 for the multi-page app (Home, Map, Sites, Site detail, Explore, Equipment, Volunteers, Scores, QA, Export). See `dashboard/README.md` for deployment on a free tier (e.g. Render, Fly.io).
+
+Historical chemistry (`migrate_streamwatch_data`) loads the **ALL DATA** sheet only as the evidence-supported technical primary pending Watershed confirmation; see `docs/migration_log.md`. Generated reconciliation JSON under `reports/` is gitignored. Rebuild migrations refuse protected DB names (default `streamwatch_final`; set `STREAMWATCH_PROTECTED_DBS` to customize).
 
 ## Layout
 
 - **db/** – PostgreSQL schema (lookups, site, volunteer, equipment, visit, results, flags, QA views, reporting views) and seed data
 - **etl/** – Migration scripts (sites, volunteers, equipment, StreamWatch data, BACT 2025, BAT), QA rules, biological indices, WQX export
-- **dashboard/** – Flask web app (Map, Sites, Site detail, Explore, QA, Export) and JSON API
+- **dashboard/** – Flask web app (Map, Sites, Explore, Equipment, Volunteers, Scores, QA, Export) and JSON API
 - **docs/** – App tutorial, deployment guide, migration log; **docs/reference/** – source workbook summaries (raw_breakdown.txt)
 - **data/** – Excel/XLSX source files (see “Data sources” below)
+- **reports/** – local ETL reconciliation outputs (gitignored)
 
 ## Data sources (expected in `data/` or paths in `etl/config.py`)
 
 - 2025 StreamWatch Locations.xlsx
 - Volunteer_Tracking.xlsm
 - CAT Meter Tracking v.1.xlsx
-- All StreamWatch Data.xlsx / 30 yr StreamWatch Data Analysis.xlsx
+- All StreamWatch Data.xlsx (ALL DATA chemistry path; 30 yr workbook not dual-loaded by current ETL)
 - BACT and HAB 2025 Data.xlsx
 - tblSampleDates.xlsx / BAT Data Consolidation / BATSITES COLLECTED (for BAT/BugList)

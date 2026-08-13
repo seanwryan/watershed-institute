@@ -21,8 +21,9 @@ This file summarizes what we have built so far and where we are headed for the S
     - `migrate_sites.py` – 2025 StreamWatch Locations → `site` + lookups
     - `migrate_volunteers.py` – Volunteer_Tracking → `volunteer`, `training`, `training_log`, `junc_assignments`
     - `migrate_equipment.py` – CAT Meter Tracking → `equipment`, `sensor`, `meter_testing` (and related tables)
-    - `migrate_streamwatch_data.py` – All StreamWatch Data / 30 yr analysis → `visit`, `chemical`, `bacteria`
-    - `migrate_bact_2025.py` – BACT and HAB 2025 Data → `visit`, `chemical`, `bacteria`
+    - `migrate_streamwatch_data.py` – All StreamWatch Data (**ALL DATA** sheet only; technical primary pending staff confirmation) → `visit`, `chemical` (idempotent package dedupe); bacteria column names that match current ETL only
+    - `migrate_bact_2025.py` – Survey123 chemistry enrichment (fill NULLs) + IDEXX bacteria (idempotent by visit + E. coli MPN)
+    - `chem_recon.py` – shared chemistry fingerprints, header aliases, reconciliation JSON under `reports/`
     - `migrate_bat.py` – BAT/tblSampleDates/BugList → `bug_list`, `visit`, `bug_count`, `rbp100_bug`
   - **QA and flags:**
     - `apply_qa_rules.py` – flags exceedances (temp > 31 °C, nitrate > 10 ppm), meter-fail windows, updates `data_condition` and `result_flag`

@@ -22,3 +22,6 @@ env/
 # data/*.xlsx
 # data/*.xlsm
 backups/
+
+# Generated reconciliation / verification outputs
+reports/
