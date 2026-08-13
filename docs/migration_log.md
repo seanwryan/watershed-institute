@@ -33,6 +33,12 @@ Source → target mapping per Database Project Plan. ETL scripts in `etl/`.
 | Volunteer_Tracking.xlsm | Sites_Live | (reference only; sites from migrate_sites) | — |
 | CAT Meter Tracking v.1.xlsx | Assignments, Sensors, Tracking, 2024/2025/2026 Testing | `equipment`, `sensor`, `session`, `meter_maintenance`, `meter_testing`, `calibration_log` | `etl/migrate_equipment.py` |
 
+**Volunteers / trainings / assignments (`Volunteer_Tracking.xlsm`):** Table headers often sit a few rows below the top of the sheet. `migrate_volunteers.py` detects the header row from labels (`VolunteerID`, `TrainingID`, `SiteID`, etc.). `Street` maps to `volunteer.address`. Assignments `SiteID` values that are non-numeric are treated as `site_code` and resolved against `site`. Parent links, phone, ZIP padding, and role alias normalization are not handled in this import.
+
+**Equipment inventory (Assignments → `equipment`):** Only rows whose Meter ID matches `TWI` + exactly 3 digits (case-insensitive) are inserted. The lower “LaMotte Users” block reuses the Meter ID column for assignee names and is skipped. Serial numbers from numeric Excel cells are normalized to digit strings (no trailing `.0`); text serials are stripped only so leading zeros are preserved.
+
+**Meter testing (`2024 Testing` / `2025 Testing` / `2026 Testing` → `session` + `meter_testing`):** Sheets are wide quarterly matrices (Round / Test Date / Standards / Meter columns), not flat tables. Each dated Round block becomes a `session` (`date_start` = workbook test date, type Quarterly maintenance). One `meter_testing` row is inserted per meter × parameter (`pH`, `DO` from DO ppm, `EC` from Cond. or Cond. 1) when a numeric measured value is present. Trailing `*` on meter IDs are stripped. Blocks without a test date are skipped. `pass_fail`, Tracking-sheet codes, staff, and sensors are not joined in this import.
+
 ## 3. Visits and results
 
 | Source | Sheet/Table | Target | Script |
