@@ -1,58 +1,148 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Volunteers{% endblock %}
 {% block content %}
-<h1>Volunteers</h1>
-<p class="muted">StreamWatch volunteer roster.</p>
-<div class="card">
-  <label for="volunteer-search">Search:</label>
-  <input type="text" id="volunteer-search" placeholder="Name or email…">
-</div>
-<div class="card">
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th><th>Status</th><th>CAT</th><th>BAT</th><th>BACT</th><th>Email</th><th></th>
-        </tr>
-      </thead>
-      <tbody id="volunteers-tbody"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
-    </table>
+<div class="page-monitoring page-ops">
+  <header class="page-header">
+    <h1>Volunteers</h1>
+    <p class="page-subtitle">Review StreamWatch volunteer profiles, programs, training, and assignments.</p>
+  </header>
+
+  <div class="toolbar panel">
+    <div class="toolbar-main">
+      <label for="volunteer-search">Search</label>
+      <input type="search" id="volunteer-search" placeholder="Name or email…" autocomplete="off">
+      <label for="volunteer-status">Status</label>
+      <select id="volunteer-status">
+        <option value="">All statuses</option>
+      </select>
+      <button type="button" class="btn-secondary" id="volunteer-search-clear">Clear</button>
+      <a class="btn-primary" href="/volunteers/new">Add volunteer</a>
+    </div>
+    <p class="toolbar-count muted" id="volunteers-count" aria-live="polite">Loading volunteers…</p>
+  </div>
+
+  <div class="panel table-panel">
+    <div class="table-wrap">
+      <table class="data-table data-table-clickable" id="volunteers-table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Status</th>
+            <th scope="col">Programs</th>
+            <th scope="col">Email</th>
+          </tr>
+        </thead>
+        <tbody id="volunteers-tbody">
+          <tr><td colspan="4" class="muted">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
 (function() {
-  const tbody = document.getElementById('volunteers-tbody');
-  const search = document.getElementById('volunteer-search');
+  var tbody = document.getElementById('volunteers-tbody');
+  var search = document.getElementById('volunteer-search');
+  var statusSel = document.getElementById('volunteer-status');
+  var clearBtn = document.getElementById('volunteer-search-clear');
+  var countEl = document.getElementById('volunteers-count');
+  var allItems = [];
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  function yn(v) { return v ? 'Yes' : 'No'; }
-  function render(items, filter) {
-    const q = (filter || '').toLowerCase();
-    const list = q ? items.filter(function(v) {
-      const name = ((v.first_name || '') + ' ' + (v.last_name || '')).toLowerCase();
-      const email = (v.email || '').toLowerCase();
-      return name.includes(q) || email.includes(q);
-    }) : items;
-    tbody.innerHTML = list.length
-      ? list.map(function(v) {
-          const name = esc((v.first_name || '') + ' ' + (v.last_name || '')).trim();
-          return '<tr><td>' + name + '</td><td>' + esc(v.status || '—') +
-            '</td><td>' + yn(v.active_cat) + '</td><td>' + yn(v.active_bat) +
-            '</td><td>' + yn(v.active_bact) + '</td><td>' + esc(v.email || '—') +
-            '</td><td><a href="/volunteers/' + encodeURIComponent(v.volunteer_id) + '">View</a></td></tr>';
-        }).join('')
-      : '<tr><td colspan="7">No volunteers match.</td></tr>';
+  function statusBadge(status) {
+    if (!status) return '<span class="muted">—</span>';
+    var s = String(status);
+    var cls = 'badge';
+    var lower = s.toLowerCase();
+    if (lower === 'active') cls += ' badge-success';
+    else if (lower === 'inactive') cls += ' badge-warning';
+    return '<span class="' + cls + '">' + esc(s) + '</span>';
   }
-  search.addEventListener('input', function() { render(window.__volunteers || [], search.value); });
+  function programBadges(v) {
+    var parts = [];
+    if (v.active_cat) parts.push('<span class="badge badge-program">CAT</span>');
+    if (v.active_bat) parts.push('<span class="badge badge-program">BAT</span>');
+    if (v.active_bact) parts.push('<span class="badge badge-program">BACT</span>');
+    return parts.length ? '<span class="program-badges">' + parts.join(' ') + '</span>' : '<span class="muted">—</span>';
+  }
+  function fullName(v) {
+    return ((v.first_name || '') + ' ' + (v.last_name || '')).trim() || ('Volunteer ' + v.volunteer_id);
+  }
+
+  function filtered() {
+    var q = (search.value || '').trim().toLowerCase();
+    var st = statusSel.value || '';
+    return allItems.filter(function(v) {
+      if (st && String(v.status || '') !== st) return false;
+      if (!q) return true;
+      var name = fullName(v).toLowerCase();
+      var email = (v.email || '').toLowerCase();
+      return name.indexOf(q) !== -1 || email.indexOf(q) !== -1;
+    });
+  }
+
+  function render() {
+    var list = filtered();
+    countEl.textContent = list.length === allItems.length
+      ? (allItems.length + ' volunteers')
+      : (list.length + ' of ' + allItems.length + ' volunteers');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No volunteers match your filters.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function(v) {
+      var href = '/volunteers/' + encodeURIComponent(v.volunteer_id);
+      var name = fullName(v);
+      return '<tr class="row-link" tabindex="0" data-href="' + href + '" role="link" aria-label="Open volunteer ' + esc(name) + '">' +
+        '<td><span class="cell-strong">' + esc(name) + '</span></td>' +
+        '<td>' + statusBadge(v.status) + '</td>' +
+        '<td>' + programBadges(v) + '</td>' +
+        '<td>' + esc(v.email || '—') + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function go(tr) {
+    if (tr && tr.getAttribute('data-href')) window.location.href = tr.getAttribute('data-href');
+  }
+  tbody.addEventListener('click', function(e) { go(e.target.closest('tr.row-link')); });
+  tbody.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var tr = e.target.closest('tr.row-link');
+    if (!tr) return;
+    e.preventDefault();
+    go(tr);
+  });
+  search.addEventListener('input', render);
+  statusSel.addEventListener('change', render);
+  clearBtn.addEventListener('click', function() {
+    search.value = '';
+    statusSel.value = '';
+    search.focus();
+    render();
+  });
+
   fetch('/api/volunteers')
-    .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(items) { window.__volunteers = items; render(items, search.value); })
+    .then(function(r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+    .then(function(items) {
+      allItems = Array.isArray(items) ? items : [];
+      var statuses = [];
+      allItems.forEach(function(v) {
+        if (v.status && statuses.indexOf(v.status) === -1) statuses.push(v.status);
+      });
+      statuses.sort().forEach(function(s) {
+        statusSel.appendChild(new Option(s, s));
+      });
+      render();
+    })
     .catch(function() {
-      tbody.innerHTML = '<tr><td colspan="7" class="error">We couldn\'t load volunteers right now. Please try again in a moment.</td></tr>';
+      countEl.textContent = 'Unable to load volunteers';
+      tbody.innerHTML = '<tr><td colspan="4" class="error">We couldn\'t load volunteers right now. Please try again in a moment.</td></tr>';
     });
 })();
 </script>

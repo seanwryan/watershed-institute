@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {% if mode == 'edit' %}Edit assignment{% else %}Add site assignment{% endif %}{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/volunteers">Volunteers</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/volunteers/{{ volunteer_id }}">{{ volunteer_name }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">{% if mode == 'edit' %}Edit assignment{% else %}Add site assignment{% endif %}</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>{% if mode == 'edit' %}Edit site assignment{% else %}Add site assignment{% endif %}</h1>
+    <p class="page-subtitle">
+      {% if mode == 'edit' %}
+      Update role or dates for this assignment. Leave end date blank for an active assignment.
+      {% else %}
+      Assign {{ volunteer_name }} to a monitoring site.
+      {% endif %}
+    </p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form class="form-shell panel" method="post"
+        action="{% if mode == 'edit' %}/volunteers/{{ volunteer_id }}/assignments/{{ assignment_id }}/edit{% else %}/volunteers/{{ volunteer_id }}/assignments/new{% endif %}"
+        novalidate>
+    <section class="form-section" aria-labelledby="assign-details">
+      <h2 class="form-section-title" id="assign-details">Assignment</h2>
+      <div class="form-grid">
+        {% if mode == 'edit' %}
+        <div class="form-field form-field-full">
+          <span class="form-group-label">Site</span>
+          <p class="form-readonly">{{ site_label }}</p>
+          <p class="form-help">Site cannot be changed after an assignment is created. End this assignment and add a new one for a different site.</p>
+        </div>
+        {% else %}
+        <div class="form-field form-field-full">
+          <label for="site_id">Site <span class="req" aria-hidden="true">*</span></label>
+          <select id="site_id" name="site_id" required>
+            <option value="">Choose a site…</option>
+            {% for s in sites %}
+            <option value="{{ s.site_id }}" {% if form.site_id == (s.site_id|string) %}selected{% endif %}>{{ s.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="form-field">
+          <label for="role_id">Role</label>
+          <select id="role_id" name="role_id">
+            <option value="">Unspecified</option>
+            {% for r in roles %}
+            <option value="{{ r.role_id }}" {% if form.role_id == (r.role_id|string) %}selected{% endif %}>{{ r.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="start_date">Start date</label>
+          <input type="date" id="start_date" name="start_date" value="{{ form.start_date or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="end_date">End date</label>
+          <input type="date" id="end_date" name="end_date" value="{{ form.end_date or '' }}">
+          <p class="form-help">Leave blank while the assignment is active. Set an end date to close it.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">{% if mode == 'edit' %}Save changes{% else %}Add assignment{% endif %}</button>
+      <a class="btn-secondary" href="/volunteers/{{ volunteer_id }}">Cancel</a>
+    </div>
+  </form>
+
+  {% if mode == 'new' and current_assignments %}
+  <section class="panel" style="margin-top:1rem; max-width:44rem;" aria-labelledby="current-assign-title">
+    <h2 class="home-panel-title" id="current-assign-title">Current assignments</h2>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Site</th>
+            <th scope="col">Role</th>
+            <th scope="col">Start</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in current_assignments %}
+          <tr>
+            <td>{{ a.site_code }}</td>
+            <td>{{ a.role }}</td>
+            <td>{{ a.start_date or '—' }}</td>
+            <td>{% if a.is_active %}<span class="badge badge-success">Active</span>{% else %}Ended {{ a.end_date }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,38 +1,73 @@
 {% extends "base.html" %}
-{% block title %}StreamWatch – QA{% endblock %}
+{% block title %}StreamWatch – Data quality{% endblock %}
 {% block content %}
-<h1>Data quality summary</h1>
-<div class="card">
-  <h2>QA summary</h2>
-  <div class="qa-stats" id="qa-stats">Loading…</div>
-</div>
-<div class="card">
-  <h2>Flagged records</h2>
-  <p class="muted">Filter and review individual flagged results. Click a site to open its detail page.</p>
-  <div class="form-row">
-    <label>Site</label>
-    <select id="filter-site"><option value="">All sites</option></select>
-    <label style="margin-left:1rem;">Flag type</label>
-    <select id="filter-flag-type"><option value="">All</option></select>
-    <label style="margin-left:1rem;">From</label>
-    <input type="date" id="filter-date-start">
-    <label>To</label>
-    <input type="date" id="filter-date-end">
-    <button id="btn-filter" style="margin-left:1rem;">Apply</button>
+<div class="page-monitoring page-reporting">
+  <header class="page-header">
+    <h1>Data quality</h1>
+    <p class="page-subtitle">Review flagged StreamWatch observations and reference exceedances.</p>
+  </header>
+
+  <section class="panel site-snapshot" aria-label="QA summary">
+    <div class="snapshot-grid" id="qa-stats">
+      <div><span class="metric-label">Flagged chemistry results</span><span class="snapshot-value">…</span></div>
+      <div><span class="metric-label">Exceedance flags</span><span class="snapshot-value">…</span></div>
+      <div><span class="metric-label">Meter-related flags</span><span class="snapshot-value">…</span></div>
+    </div>
+    <p class="qa-note muted">Flagged results indicate review status and are not automatically errors.</p>
+  </section>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="QA filters">
+      <div class="filter-field">
+        <label for="filter-site">Site</label>
+        <select id="filter-site"><option value="">All sites</option></select>
+      </div>
+      <div class="filter-field">
+        <label for="filter-flag-type">Flag</label>
+        <select id="filter-flag-type"><option value="">All flags</option></select>
+      </div>
+      <div class="filter-field">
+        <label for="filter-date-start">From</label>
+        <input type="date" id="filter-date-start">
+      </div>
+      <div class="filter-field">
+        <label for="filter-date-end">To</label>
+        <input type="date" id="filter-date-end">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn-primary" id="btn-filter">Update results</button>
+      </div>
+    </aside>
+
+    <section class="panel table-panel" aria-labelledby="qa-flags-title">
+      <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
+        <h2 class="home-panel-title" id="qa-flags-title">Flagged records</h2>
+        <p class="muted toolbar-count" id="qa-flags-count" aria-live="polite"></p>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="qa-flags-table">
+          <thead>
+            <tr>
+              <th scope="col">Site</th>
+              <th scope="col">Date</th>
+              <th scope="col">Result type</th>
+              <th scope="col">Flag</th>
+              <th scope="col">Detail</th>
+            </tr>
+          </thead>
+          <tbody id="qa-flags-tbody">
+            <tr><td colspan="5" class="muted">Loading flagged records…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Site</th><th>Sample date</th><th>Flag type</th><th>Result type</th></tr>
-      </thead>
-      <tbody id="qa-flags-tbody"><tr><td colspan="4" class="muted">Load filters and click Apply, or no flagged records match.</td></tr></tbody>
-    </table>
-  </div>
-</div>
-<div class="card">
-  <h2>Data condition legend</h2>
-  <p class="muted">Status and flag codes used in the database. Chemistry rows may be marked Flagged, Provisional, Unchecked, etc.</p>
-  <div id="data-conditions-legend" class="muted">Loading…</div>
+
+  <section class="panel definitions-panel" aria-labelledby="qa-defs-title">
+    <h2 class="home-panel-title" id="qa-defs-title">Status definitions</h2>
+    <p class="muted">Chemistry rows may carry a review status such as Flagged, Provisional, or Unchecked. Flag codes mark specific review reasons.</p>
+    <div id="data-conditions-legend" class="definitions-list muted">Loading…</div>
+  </section>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -40,6 +75,7 @@
 (function() {
   var statsEl = document.getElementById('qa-stats');
   var tbody = document.getElementById('qa-flags-tbody');
+  var countEl = document.getElementById('qa-flags-count');
   var filterSite = document.getElementById('filter-site');
   var filterFlagType = document.getElementById('filter-flag-type');
   var filterDateStart = document.getElementById('filter-date-start');
@@ -47,44 +83,137 @@
   var btnFilter = document.getElementById('btn-filter');
   var legendEl = document.getElementById('data-conditions-legend');
 
+  var RESULT_LABELS = {
+    chemical: 'Chemistry result',
+    bacteria: 'Bacteria result',
+    habitat: 'Habitat result',
+    biological: 'Biological result'
+  };
+  var FLAG_LABELS = {
+    Exceedance: 'Exceedance',
+    Meter_Failed_Test: 'Meter test flag',
+    Known_Issue: 'Known issue',
+    Outlier: 'Outlier',
+    Suspect: 'Suspect'
+  };
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmtNum(n) {
+    if (n == null || n === '') return '—';
+    return Number(n).toLocaleString('en-US');
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso);
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+  }
+  function resultLabel(code) {
+    return RESULT_LABELS[code] || (code ? String(code) : '—');
+  }
+  function flagLabel(code) {
+    if (!code) return '—';
+    return FLAG_LABELS[code] || String(code).replace(/_/g, ' ');
+  }
+  function flagBadgeClass(code) {
+    if (code === 'Exceedance') return 'badge badge-warning';
+    if (code === 'Meter_Failed_Test') return 'badge badge-danger';
+    if (code === 'Suspect' || code === 'Outlier' || code === 'Known_Issue') return 'badge badge-warning';
+    return 'badge';
+  }
+
   function loadSummary() {
     fetch('/api/qa_summary').then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(qa) {
-      statsEl.innerHTML = '<span>Flagged chemistry: ' + qa.flagged_chemical_count + '</span><span>Exceedance flags: ' + qa.exceedance_flag_count + '</span><span>Meter-fail flags: ' + qa.meter_failed_flag_count + '</span>';
-    }).catch(function() { statsEl.innerHTML = '<span class="error">We couldn\'t load the QA summary right now. Please try again in a moment.</span>'; });
+      statsEl.innerHTML =
+        '<div><span class="metric-label">Flagged chemistry results</span><span class="snapshot-value">' + esc(fmtNum(qa.flagged_chemical_count)) + '</span></div>' +
+        '<div><span class="metric-label">Exceedance flags</span><span class="snapshot-value">' + esc(fmtNum(qa.exceedance_flag_count)) + '</span></div>' +
+        '<div><span class="metric-label">Meter-related flags</span><span class="snapshot-value">' + esc(fmtNum(qa.meter_failed_flag_count)) + '</span></div>';
+    }).catch(function() {
+      statsEl.innerHTML = '<p class="error">We couldn\'t load the QA summary right now. Please try again in a moment.</p>';
+    });
   }
 
   function loadFlags() {
+    countEl.textContent = 'Updating…';
     var url = '/api/qa_flags?limit=200';
     if (filterSite.value) url += '&site_code=' + encodeURIComponent(filterSite.value);
     if (filterFlagType.value) url += '&flag_type=' + encodeURIComponent(filterFlagType.value);
     if (filterDateStart.value) url += '&date_start=' + encodeURIComponent(filterDateStart.value);
     if (filterDateEnd.value) url += '&date_end=' + encodeURIComponent(filterDateEnd.value);
-    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    fetch(url).then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(data) {
       var flags = data.flags || [];
-      if (flags.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="muted">No flagged records match the filters.</td></tr>';
+      countEl.textContent = flags.length ? (flags.length + ' record' + (flags.length === 1 ? '' : 's')) : '';
+      if (!flags.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="muted">No flagged records match these filters.</td></tr>';
         return;
       }
       tbody.innerHTML = flags.map(function(f) {
-        var siteLink = '<a href="/site/' + encodeURIComponent(f.site_code) + '">' + f.site_code + '</a>';
-        return '<tr><td>' + siteLink + '</td><td>' + (f.sample_date || '—') + '</td><td>' + (f.flag_type_code || '—') + '</td><td>' + (f.result_table || '—') + '</td></tr>';
+        var siteLink = '<a href="/site/' + encodeURIComponent(f.site_code) + '">' + esc(f.site_code) + '</a>';
+        var detail = f.flag_type_description || flagLabel(f.flag_type_code);
+        return '<tr>' +
+          '<td><span class="cell-strong">' + siteLink + '</span></td>' +
+          '<td>' + esc(fmtDate(f.sample_date)) + '</td>' +
+          '<td>' + esc(resultLabel(f.result_table)) + '</td>' +
+          '<td><span class="' + flagBadgeClass(f.flag_type_code) + '">' + esc(flagLabel(f.flag_type_code)) + '</span></td>' +
+          '<td>' + esc(detail) + '</td>' +
+          '</tr>';
       }).join('');
-    }).catch(function() { tbody.innerHTML = '<tr><td colspan="4" class="error">Failed to load flagged records.</td></tr>'; });
+    }).catch(function() {
+      countEl.textContent = '';
+      tbody.innerHTML = '<tr><td colspan="5" class="error">We couldn\'t load flagged records right now. Please try again in a moment.</td></tr>';
+    });
   }
 
   function loadLegend() {
-    fetch('/api/data_conditions').then(function(r) { return r.json(); }).then(function(list) {
-      legendEl.innerHTML = '<ul style="columns:2; margin:0; padding-left:1.25rem;">' + list.map(function(d) { return '<li><strong>' + (d.code || '') + '</strong>: ' + (d.description || '') + '</li>'; }).join('') + '</ul>';
-    }).catch(function() { legendEl.textContent = 'Could not load legend.'; });
+    Promise.all([
+      fetch('/api/data_conditions').then(function(r) { return r.json(); }),
+      fetch('/api/flag_types').then(function(r) { return r.json(); })
+    ]).then(function(res) {
+      var conditions = Array.isArray(res[0]) ? res[0] : [];
+      var flagTypes = Array.isArray(res[1]) ? res[1] : [];
+      var html = '';
+      if (flagTypes.length) {
+        html += '<p class="definitions-group-title">Flags</p><ul>';
+        flagTypes.forEach(function(f) {
+          html += '<li><strong>' + esc(flagLabel(f.code)) + '</strong> — ' + esc(f.description || f.code) + '</li>';
+        });
+        html += '</ul>';
+      }
+      if (conditions.length) {
+        html += '<p class="definitions-group-title">Review status</p><ul>';
+        conditions.forEach(function(d) {
+          html += '<li><strong>' + esc((d.code || '').replace(/_/g, ' ')) + '</strong> — ' + esc(d.description || '') + '</li>';
+        });
+        html += '</ul>';
+      }
+      legendEl.innerHTML = html || 'No definitions available.';
+    }).catch(function() {
+      legendEl.textContent = 'Could not load status definitions.';
+    });
   }
 
   btnFilter.addEventListener('click', loadFlags);
   loadSummary();
   loadLegend();
-  Promise.all([fetch('/api/sites').then(function(r) { return r.json(); }), fetch('/api/flag_types').then(function(r) { return r.json(); })]).then(function(res) {
+  Promise.all([
+    fetch('/api/sites').then(function(r) { return r.json(); }),
+    fetch('/api/flag_types').then(function(r) { return r.json(); })
+  ]).then(function(res) {
     var sites = res[0], flagTypes = res[1];
-    if (Array.isArray(sites)) sites.forEach(function(s) { filterSite.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code)); });
-    if (Array.isArray(flagTypes)) flagTypes.forEach(function(f) { filterFlagType.appendChild(new Option(f.code + (f.description ? ' – ' + f.description : ''), f.code)); });
+    if (Array.isArray(sites)) {
+      sites.forEach(function(s) {
+        filterSite.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code));
+      });
+    }
+    if (Array.isArray(flagTypes)) {
+      flagTypes.forEach(function(f) {
+        filterFlagType.appendChild(new Option(flagLabel(f.code), f.code));
+      });
+    }
     loadFlags();
   }).catch(function() { loadFlags(); });
 })();

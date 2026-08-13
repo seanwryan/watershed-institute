@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – New training session{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    {% if volunteer_id and volunteer_name %}
+    <a href="/volunteers">Volunteers</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/volunteers/{{ volunteer_id }}">{{ volunteer_name }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/volunteers/{{ volunteer_id }}/training/new">Add training record</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">New session</span>
+    {% else %}
+    <a href="/volunteers">Volunteers</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">New training session</span>
+    {% endif %}
+  </nav>
+
+  <header class="page-header">
+    <h1>New training session</h1>
+    <p class="page-subtitle">
+      {% if volunteer_name %}
+      Create a shared training session, then return to record attendance for {{ volunteer_name }}.
+      {% else %}
+      Create a shared training session that volunteers can be attached to.
+      {% endif %}
+    </p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form class="form-shell panel" method="post" action="/trainings/new{% if volunteer_id %}?volunteer_id={{ volunteer_id }}{% endif %}" novalidate>
+    <section class="form-section" aria-labelledby="session-details">
+      <h2 class="form-section-title" id="session-details">Session details</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="training_type_id">Training type</label>
+          <select id="training_type_id" name="training_type_id">
+            <option value="">Unspecified</option>
+            {% for t in training_types %}
+            <option value="{{ t.training_type_id }}" {% if form.training_type_id == (t.training_type_id|string) %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="training_date">Training date <span class="req" aria-hidden="true">*</span></label>
+          <input type="date" id="training_date" name="training_date" required value="{{ form.training_date or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="trainer">Trainer</label>
+          <input type="text" id="trainer" name="trainer" value="{{ form.trainer or '' }}" maxlength="200">
+        </div>
+        <div class="form-field">
+          <label for="location">Location</label>
+          <input type="text" id="location" name="location" value="{{ form.location or '' }}" maxlength="200">
+        </div>
+        <div class="form-field form-field-full">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3" maxlength="4000">{{ form.notes or '' }}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Create session</button>
+      {% if volunteer_id %}
+      <a class="btn-secondary" href="/volunteers/{{ volunteer_id }}/training/new">Cancel</a>
+      {% else %}
+      <a class="btn-secondary" href="/volunteers">Cancel</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1062,11 +1062,25 @@ def meter_test_new(equipment_code):
 # --- Volunteers (staff volunteer management v1) ---
 
 _VOLUNTEER_STATUSES = ("Active", "Inactive", "Parent", "Unknown")
+_TRAINING_LOG_STATUSES = ("Passed", "Not Started")
 
 
 def _form_bool(form, name):
     """Checkbox / truthy form values → bool."""
     return str(form.get(name, "")).strip().lower() in ("1", "true", "yes", "on", "x")
+
+
+def _parse_optional_date(raw):
+    """Parse YYYY-MM-DD to date, or (None, None) if blank, or (None, 'invalid')."""
+    if raw is None:
+        return None, None
+    s = str(raw).strip()
+    if not s:
+        return None, None
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").date(), None
+    except (TypeError, ValueError):
+        return None, "invalid"
 
 
 def _volunteer_row_to_dict(row):
@@ -1091,6 +1105,199 @@ def _volunteer_row_to_dict(row):
         "status": row[17],
         "notes": row[18],
     }
+
+
+def _empty_volunteer_form(defaults=None):
+    form = {
+        "first_name": "",
+        "last_name": "",
+        "perfect_id": "",
+        "email": "",
+        "alt_email": "",
+        "phone": "",
+        "alt_phone": "",
+        "address": "",
+        "city_id": "",
+        "state": "NJ",
+        "zip_code": "",
+        "status": "Active",
+        "active_cat": False,
+        "active_bat": False,
+        "active_bact": False,
+        "is_under_17": False,
+        "notes": "",
+    }
+    if defaults:
+        form.update(defaults)
+    return form
+
+
+def _volunteer_form_from_request():
+    return {
+        "first_name": (request.form.get("first_name") or "").strip(),
+        "last_name": (request.form.get("last_name") or "").strip(),
+        "perfect_id": (request.form.get("perfect_id") or "").strip(),
+        "email": (request.form.get("email") or "").strip(),
+        "alt_email": (request.form.get("alt_email") or "").strip(),
+        "phone": (request.form.get("phone") or "").strip(),
+        "alt_phone": (request.form.get("alt_phone") or "").strip(),
+        "address": (request.form.get("address") or "").strip(),
+        "city_id": (request.form.get("city_id") or "").strip(),
+        "state": (request.form.get("state") or "").strip(),
+        "zip_code": (request.form.get("zip_code") or "").strip(),
+        "status": (request.form.get("status") or "").strip(),
+        "active_cat": _form_bool(request.form, "active_cat"),
+        "active_bat": _form_bool(request.form, "active_bat"),
+        "active_bact": _form_bool(request.form, "active_bact"),
+        "is_under_17": _form_bool(request.form, "is_under_17"),
+        "notes": (request.form.get("notes") or "").strip(),
+    }
+
+
+def _volunteer_to_form(v):
+    return {
+        "first_name": v.get("first_name") or "",
+        "last_name": v.get("last_name") or "",
+        "perfect_id": v.get("perfect_id") or "",
+        "email": v.get("email") or "",
+        "alt_email": v.get("alt_email") or "",
+        "phone": v.get("phone") or "",
+        "alt_phone": v.get("alt_phone") or "",
+        "address": v.get("address") or "",
+        "city_id": "" if v.get("city_id") is None else str(v.get("city_id")),
+        "state": v.get("state") or "",
+        "zip_code": v.get("zip_code") or "",
+        "status": v.get("status") or "Unknown",
+        "active_cat": bool(v.get("active_cat")),
+        "active_bat": bool(v.get("active_bat")),
+        "active_bact": bool(v.get("active_bact")),
+        "is_under_17": bool(v.get("is_under_17")),
+        "notes": v.get("notes") or "",
+    }
+
+
+def _validate_volunteer_form(cur, form):
+    """
+    Validate volunteer create/edit form fields.
+    Returns (error_message_or_None, city_id_or_None, state_val_or_None).
+    Mutates form['state'] to normalized 2-letter (or '').
+    """
+    if not form["first_name"] or not form["last_name"]:
+        return "First name and last name are required.", None, None
+    if form["status"] not in _VOLUNTEER_STATUSES:
+        return "Status must be Active, Inactive, Parent, or Unknown.", None, None
+
+    state_val = form["state"].upper() if form["state"] else None
+    if state_val is not None and len(state_val) != 2:
+        return "State must be a 2-letter code (for example NJ).", None, None
+    form["state"] = state_val or ""
+
+    city_id = None
+    if form["city_id"]:
+        city_id, city_err = _parse_optional_int(form["city_id"])
+        if city_err or city_id is None:
+            return "Municipality selection is invalid.", None, None
+        cur.execute("SELECT 1 FROM municipality WHERE municipality_id = %s", (city_id,))
+        if not cur.fetchone():
+            return "Municipality selection is invalid.", None, None
+    return None, city_id, state_val
+
+
+def _load_municipalities(cur):
+    cur.execute("SELECT municipality_id, name FROM municipality ORDER BY name")
+    return [{"municipality_id": r[0], "name": r[1]} for r in cur.fetchall()]
+
+
+def _load_volunteer_name(cur, volunteer_id):
+    cur.execute(
+        "SELECT first_name, last_name FROM volunteer WHERE volunteer_id = %s",
+        (volunteer_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    name = ((row[0] or "") + " " + (row[1] or "")).strip()
+    return name or ("Volunteer " + str(volunteer_id))
+
+
+def _load_roles(cur):
+    cur.execute("SELECT role_id, name FROM lst_role ORDER BY name")
+    return [{"role_id": r[0], "name": r[1]} for r in cur.fetchall()]
+
+
+def _load_sites_for_assign(cur):
+    cur.execute("""
+        SELECT s.site_id, s.site_code, w.name AS waterbody_name
+        FROM site s
+        LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
+        WHERE s.is_active = true
+        ORDER BY s.site_code
+        """)
+    return [
+        {
+            "site_id": r[0],
+            "site_code": r[1],
+            "label": r[1] + ((" – " + r[2]) if r[2] else ""),
+        }
+        for r in cur.fetchall()
+    ]
+
+
+def _load_training_types(cur):
+    cur.execute("SELECT training_type_id, name FROM lst_training_type ORDER BY name")
+    return [{"training_type_id": r[0], "name": r[1]} for r in cur.fetchall()]
+
+
+def _format_training_session_label(training_date, type_name, trainer, location):
+    parts = [type_name or "Unspecified training"]
+    if training_date:
+        parts.append(str(training_date))
+    if trainer:
+        parts.append(trainer)
+    elif location:
+        parts.append(location)
+    return " · ".join(parts)
+
+
+def _load_training_sessions(cur, limit=250):
+    cur.execute(
+        """
+        SELECT t.training_id, t.training_date::text,
+               COALESCE(tt.name, 'Unspecified') AS training_type,
+               t.trainer, t.location
+        FROM training t
+        LEFT JOIN lst_training_type tt ON tt.training_type_id = t.training_type_id
+        ORDER BY t.training_date DESC NULLS LAST, t.training_id DESC
+        LIMIT %s
+        """,
+        (limit,),
+    )
+    sessions = []
+    for r in cur.fetchall():
+        sessions.append(
+            {
+                "training_id": r[0],
+                "training_date": r[1],
+                "training_type": r[2],
+                "trainer": r[3],
+                "location": r[4],
+                "label": _format_training_session_label(r[1], r[2], r[3], r[4]),
+            }
+        )
+    return sessions
+
+
+def _refresh_training_attendee_count(cur, training_id):
+    cur.execute(
+        """
+        UPDATE training
+        SET total_attendees = (
+            SELECT COUNT(*) FROM training_log WHERE training_id = %s
+        )
+        WHERE training_id = %s
+        """,
+        (training_id, training_id),
+    )
 
 
 _VOLUNTEER_SELECT = """
@@ -1153,22 +1360,24 @@ def api_volunteer_detail(volunteer_id):
         ]
 
         cur.execute("""
-            SELECT s.site_code, w.name AS waterbody_name, r.name AS role_name,
+            SELECT a.assignment_id, s.site_code, w.name AS waterbody_name, r.name AS role_name,
                    a.start_date::text, a.end_date::text
             FROM junc_assignments a
             JOIN site s ON s.site_id = a.site_id
             LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
             LEFT JOIN lst_role r ON r.role_id = a.role_id
             WHERE a.volunteer_id = %s
-            ORDER BY a.start_date DESC NULLS LAST, s.site_code
+            ORDER BY (a.end_date IS NULL) DESC, a.start_date DESC NULLS LAST, s.site_code
             """, (volunteer_id,))
         vol["assignments"] = [
             {
-                "site_code": r[0],
-                "waterbody_name": r[1],
-                "role": r[2] or "Unspecified",
-                "start_date": r[3],
-                "end_date": r[4],
+                "assignment_id": r[0],
+                "site_code": r[1],
+                "waterbody_name": r[2],
+                "role": r[3] or "Unspecified",
+                "start_date": r[4],
+                "end_date": r[5],
+                "is_active": r[5] is None,
             }
             for r in cur.fetchall()
         ]
@@ -1180,6 +1389,102 @@ def api_volunteer_detail(volunteer_id):
 @app.route("/volunteers")
 def volunteers_page():
     return render_template("volunteers.html")
+
+
+@app.route("/volunteers/new", methods=["GET", "POST"])
+def volunteer_new():
+    """
+    Staff form to create a new volunteer record.
+    NOTE: Write access is intentionally open in this milestone. Protect this route
+    (auth / network restriction) before any production deployment.
+    """
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "volunteer_new.html",
+            error="Service temporarily unavailable. Please try again in a moment.",
+            form=_empty_volunteer_form(),
+            municipalities=[],
+            statuses=_VOLUNTEER_STATUSES,
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        municipalities = _load_municipalities(cur)
+
+        if request.method == "GET":
+            return render_template(
+                "volunteer_new.html",
+                error=None,
+                form=_empty_volunteer_form(),
+                municipalities=municipalities,
+                statuses=_VOLUNTEER_STATUSES,
+            )
+
+        form = _volunteer_form_from_request()
+
+        def _form_error(msg):
+            return render_template(
+                "volunteer_new.html",
+                error=msg,
+                form=form,
+                municipalities=municipalities,
+                statuses=_VOLUNTEER_STATUSES,
+            ), 400
+
+        val_err, city_id, state_val = _validate_volunteer_form(cur, form)
+        if val_err:
+            return _form_error(val_err)
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO volunteer (
+                    first_name, last_name, perfect_id, email, alt_email, phone, alt_phone,
+                    address, city_id, state, zip_code, status,
+                    active_cat, active_bat, active_bact, is_under_17, notes
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, COALESCE(%s, 'NJ'), %s, %s::volunteer_status_enum,
+                    %s, %s, %s, %s, %s
+                )
+                RETURNING volunteer_id
+                """,
+                (
+                    form["first_name"],
+                    form["last_name"],
+                    form["perfect_id"] or None,
+                    form["email"] or None,
+                    form["alt_email"] or None,
+                    form["phone"] or None,
+                    form["alt_phone"] or None,
+                    form["address"] or None,
+                    city_id,
+                    state_val,
+                    form["zip_code"] or None,
+                    form["status"],
+                    form["active_cat"],
+                    form["active_bat"],
+                    form["active_bact"],
+                    form["is_under_17"],
+                    form["notes"] or None,
+                ),
+            )
+            new_id = cur.fetchone()[0]
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "volunteer_new.html",
+                error="Could not save volunteer right now. Please try again in a moment.",
+                form=form,
+                municipalities=municipalities,
+                statuses=_VOLUNTEER_STATUSES,
+            ), 500
+
+        return redirect(url_for("volunteer_detail_page", volunteer_id=new_id))
+    finally:
+        conn.close()
 
 
 @app.route("/volunteers/<int:volunteer_id>")
@@ -1200,7 +1505,7 @@ def volunteer_edit(volunteer_id):
             "volunteer_edit.html",
             volunteer_id=volunteer_id,
             error="Service temporarily unavailable. Please try again in a moment.",
-            form={},
+            form=_empty_volunteer_form(),
             municipalities=[],
             statuses=_VOLUNTEER_STATUSES,
         ), 503
@@ -1214,65 +1519,24 @@ def volunteer_edit(volunteer_id):
                 "volunteer_edit.html",
                 volunteer_id=volunteer_id,
                 error="Volunteer not found.",
-                form={},
+                form=_empty_volunteer_form(),
                 municipalities=[],
                 statuses=_VOLUNTEER_STATUSES,
             ), 404
         vol = _volunteer_row_to_dict(row)
-
-        cur.execute("SELECT municipality_id, name FROM municipality ORDER BY name")
-        municipalities = [{"municipality_id": r[0], "name": r[1]} for r in cur.fetchall()]
-
-        def _vol_to_form(v):
-            return {
-                "first_name": v.get("first_name") or "",
-                "last_name": v.get("last_name") or "",
-                "perfect_id": v.get("perfect_id") or "",
-                "email": v.get("email") or "",
-                "alt_email": v.get("alt_email") or "",
-                "phone": v.get("phone") or "",
-                "alt_phone": v.get("alt_phone") or "",
-                "address": v.get("address") or "",
-                "city_id": "" if v.get("city_id") is None else str(v.get("city_id")),
-                "state": v.get("state") or "",
-                "zip_code": v.get("zip_code") or "",
-                "status": v.get("status") or "Unknown",
-                "active_cat": bool(v.get("active_cat")),
-                "active_bat": bool(v.get("active_bat")),
-                "active_bact": bool(v.get("active_bact")),
-                "is_under_17": bool(v.get("is_under_17")),
-                "notes": v.get("notes") or "",
-            }
+        municipalities = _load_municipalities(cur)
 
         if request.method == "GET":
             return render_template(
                 "volunteer_edit.html",
                 volunteer_id=volunteer_id,
                 error=None,
-                form=_vol_to_form(vol),
+                form=_volunteer_to_form(vol),
                 municipalities=municipalities,
                 statuses=_VOLUNTEER_STATUSES,
             )
 
-        form = {
-            "first_name": (request.form.get("first_name") or "").strip(),
-            "last_name": (request.form.get("last_name") or "").strip(),
-            "perfect_id": (request.form.get("perfect_id") or "").strip(),
-            "email": (request.form.get("email") or "").strip(),
-            "alt_email": (request.form.get("alt_email") or "").strip(),
-            "phone": (request.form.get("phone") or "").strip(),
-            "alt_phone": (request.form.get("alt_phone") or "").strip(),
-            "address": (request.form.get("address") or "").strip(),
-            "city_id": (request.form.get("city_id") or "").strip(),
-            "state": (request.form.get("state") or "").strip(),
-            "zip_code": (request.form.get("zip_code") or "").strip(),
-            "status": (request.form.get("status") or "").strip(),
-            "active_cat": _form_bool(request.form, "active_cat"),
-            "active_bat": _form_bool(request.form, "active_bat"),
-            "active_bact": _form_bool(request.form, "active_bact"),
-            "is_under_17": _form_bool(request.form, "is_under_17"),
-            "notes": (request.form.get("notes") or "").strip(),
-        }
+        form = _volunteer_form_from_request()
 
         def _form_error(msg):
             return render_template(
@@ -1284,24 +1548,9 @@ def volunteer_edit(volunteer_id):
                 statuses=_VOLUNTEER_STATUSES,
             ), 400
 
-        if not form["first_name"] or not form["last_name"]:
-            return _form_error("First name and last name are required.")
-        if form["status"] not in _VOLUNTEER_STATUSES:
-            return _form_error("Status must be Active, Inactive, Parent, or Unknown.")
-
-        state_val = form["state"].upper() if form["state"] else None
-        if state_val is not None and len(state_val) != 2:
-            return _form_error("State must be a 2-letter code (for example NJ).")
-        form["state"] = state_val or ""
-
-        city_id = None
-        if form["city_id"]:
-            city_id, city_err = _parse_optional_int(form["city_id"])
-            if city_err or city_id is None:
-                return _form_error("Municipality selection is invalid.")
-            cur.execute("SELECT 1 FROM municipality WHERE municipality_id = %s", (city_id,))
-            if not cur.fetchone():
-                return _form_error("Municipality selection is invalid.")
+        val_err, city_id, state_val = _validate_volunteer_form(cur, form)
+        if val_err:
+            return _form_error(val_err)
 
         try:
             cur.execute(
@@ -1361,6 +1610,660 @@ def volunteer_edit(volunteer_id):
                 form=form,
                 municipalities=municipalities,
                 statuses=_VOLUNTEER_STATUSES,
+            ), 500
+
+        return redirect(url_for("volunteer_detail_page", volunteer_id=volunteer_id))
+    finally:
+        conn.close()
+
+
+@app.route("/volunteers/<int:volunteer_id>/assignments/new", methods=["GET", "POST"])
+def volunteer_assignment_new(volunteer_id):
+    """Assign a volunteer to a site (junc_assignments)."""
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "volunteer_assignment_form.html",
+            volunteer_id=volunteer_id,
+            volunteer_name="Volunteer",
+            mode="new",
+            assignment_id=None,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            form={},
+            sites=[],
+            roles=[],
+            current_assignments=[],
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        volunteer_name = _load_volunteer_name(cur, volunteer_id)
+        if not volunteer_name:
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name="Volunteer",
+                mode="new",
+                assignment_id=None,
+                error="Volunteer not found.",
+                form={},
+                sites=[],
+                roles=[],
+                current_assignments=[],
+            ), 404
+
+        sites = _load_sites_for_assign(cur)
+        roles = _load_roles(cur)
+        cur.execute("""
+            SELECT s.site_code, r.name AS role_name, a.start_date::text, a.end_date::text
+            FROM junc_assignments a
+            JOIN site s ON s.site_id = a.site_id
+            LEFT JOIN lst_role r ON r.role_id = a.role_id
+            WHERE a.volunteer_id = %s
+            ORDER BY (a.end_date IS NULL) DESC, a.start_date DESC NULLS LAST, s.site_code
+            """, (volunteer_id,))
+        current_assignments = [
+            {
+                "site_code": r[0],
+                "role": r[1] or "Unspecified",
+                "start_date": r[2],
+                "end_date": r[3],
+                "is_active": r[3] is None,
+            }
+            for r in cur.fetchall()
+        ]
+
+        empty_form = {"site_id": "", "role_id": "", "start_date": "", "end_date": ""}
+
+        if request.method == "GET":
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                mode="new",
+                assignment_id=None,
+                error=None,
+                form=empty_form,
+                sites=sites,
+                roles=roles,
+                current_assignments=current_assignments,
+            )
+
+        form = {
+            "site_id": (request.form.get("site_id") or "").strip(),
+            "role_id": (request.form.get("role_id") or "").strip(),
+            "start_date": (request.form.get("start_date") or "").strip(),
+            "end_date": (request.form.get("end_date") or "").strip(),
+        }
+
+        def _form_error(msg):
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                mode="new",
+                assignment_id=None,
+                error=msg,
+                form=form,
+                sites=sites,
+                roles=roles,
+                current_assignments=current_assignments,
+            ), 400
+
+        site_id, site_err = _parse_optional_int(form["site_id"])
+        if site_err or site_id is None:
+            return _form_error("Site is required.")
+        cur.execute("SELECT 1 FROM site WHERE site_id = %s", (site_id,))
+        if not cur.fetchone():
+            return _form_error("Site selection is invalid.")
+
+        role_id = None
+        if form["role_id"]:
+            role_id, role_err = _parse_optional_int(form["role_id"])
+            if role_err or role_id is None:
+                return _form_error("Role selection is invalid.")
+            cur.execute("SELECT 1 FROM lst_role WHERE role_id = %s", (role_id,))
+            if not cur.fetchone():
+                return _form_error("Role selection is invalid.")
+
+        start_date, start_err = _parse_optional_date(form["start_date"])
+        if start_err:
+            return _form_error("Start date must be a valid date.")
+        end_date, end_err = _parse_optional_date(form["end_date"])
+        if end_err:
+            return _form_error("End date must be a valid date.")
+        if start_date and end_date and end_date < start_date:
+            return _form_error("End date cannot be before start date.")
+
+        cur.execute(
+            "SELECT 1 FROM junc_assignments WHERE volunteer_id = %s AND site_id = %s",
+            (volunteer_id, site_id),
+        )
+        if cur.fetchone():
+            return _form_error(
+                "This volunteer already has an assignment for that site. "
+                "Edit the existing assignment instead of creating a new one."
+            )
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO junc_assignments (volunteer_id, site_id, role_id, start_date, end_date)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (volunteer_id, site_id, role_id, start_date, end_date),
+            )
+            conn.commit()
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            return _form_error(
+                "This volunteer already has an assignment for that site. "
+                "Edit the existing assignment instead of creating a new one."
+            )
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                mode="new",
+                assignment_id=None,
+                error="Could not save assignment right now. Please try again in a moment.",
+                form=form,
+                sites=sites,
+                roles=roles,
+                current_assignments=current_assignments,
+            ), 500
+
+        return redirect(url_for("volunteer_detail_page", volunteer_id=volunteer_id))
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/volunteers/<int:volunteer_id>/assignments/<int:assignment_id>/edit",
+    methods=["GET", "POST"],
+)
+def volunteer_assignment_edit(volunteer_id, assignment_id):
+    """Edit role/dates for an existing assignment (including ending it)."""
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "volunteer_assignment_form.html",
+            volunteer_id=volunteer_id,
+            volunteer_name="Volunteer",
+            mode="edit",
+            assignment_id=assignment_id,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            form={},
+            sites=[],
+            roles=[],
+            current_assignments=[],
+            site_label="",
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        volunteer_name = _load_volunteer_name(cur, volunteer_id)
+        if not volunteer_name:
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name="Volunteer",
+                mode="edit",
+                assignment_id=assignment_id,
+                error="Volunteer not found.",
+                form={},
+                sites=[],
+                roles=[],
+                current_assignments=[],
+                site_label="",
+            ), 404
+
+        cur.execute("""
+            SELECT a.assignment_id, a.site_id, a.role_id, a.start_date::text, a.end_date::text,
+                   s.site_code, w.name AS waterbody_name
+            FROM junc_assignments a
+            JOIN site s ON s.site_id = a.site_id
+            LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
+            WHERE a.assignment_id = %s AND a.volunteer_id = %s
+            """, (assignment_id, volunteer_id))
+        row = cur.fetchone()
+        if not row:
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                mode="edit",
+                assignment_id=assignment_id,
+                error="Assignment not found for this volunteer.",
+                form={},
+                sites=[],
+                roles=_load_roles(cur),
+                current_assignments=[],
+                site_label="",
+            ), 404
+
+        site_label = row[5] + ((" – " + row[6]) if row[6] else "")
+        roles = _load_roles(cur)
+        form_from_db = {
+            "site_id": str(row[1]),
+            "role_id": "" if row[2] is None else str(row[2]),
+            "start_date": row[3] or "",
+            "end_date": row[4] or "",
+        }
+
+        if request.method == "GET":
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                mode="edit",
+                assignment_id=assignment_id,
+                error=None,
+                form=form_from_db,
+                sites=[],
+                roles=roles,
+                current_assignments=[],
+                site_label=site_label,
+            )
+
+        form = {
+            "site_id": form_from_db["site_id"],
+            "role_id": (request.form.get("role_id") or "").strip(),
+            "start_date": (request.form.get("start_date") or "").strip(),
+            "end_date": (request.form.get("end_date") or "").strip(),
+        }
+
+        def _form_error(msg):
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                mode="edit",
+                assignment_id=assignment_id,
+                error=msg,
+                form=form,
+                sites=[],
+                roles=roles,
+                current_assignments=[],
+                site_label=site_label,
+            ), 400
+
+        role_id = None
+        if form["role_id"]:
+            role_id, role_err = _parse_optional_int(form["role_id"])
+            if role_err or role_id is None:
+                return _form_error("Role selection is invalid.")
+            cur.execute("SELECT 1 FROM lst_role WHERE role_id = %s", (role_id,))
+            if not cur.fetchone():
+                return _form_error("Role selection is invalid.")
+
+        start_date, start_err = _parse_optional_date(form["start_date"])
+        if start_err:
+            return _form_error("Start date must be a valid date.")
+        end_date, end_err = _parse_optional_date(form["end_date"])
+        if end_err:
+            return _form_error("End date must be a valid date.")
+        if start_date and end_date and end_date < start_date:
+            return _form_error("End date cannot be before start date.")
+
+        try:
+            cur.execute(
+                """
+                UPDATE junc_assignments
+                SET role_id = %s, start_date = %s, end_date = %s
+                WHERE assignment_id = %s AND volunteer_id = %s
+                """,
+                (role_id, start_date, end_date, assignment_id, volunteer_id),
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                return _form_error("Assignment not found for this volunteer.")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "volunteer_assignment_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                mode="edit",
+                assignment_id=assignment_id,
+                error="Could not save assignment right now. Please try again in a moment.",
+                form=form,
+                sites=[],
+                roles=roles,
+                current_assignments=[],
+                site_label=site_label,
+            ), 500
+
+        return redirect(url_for("volunteer_detail_page", volunteer_id=volunteer_id))
+    finally:
+        conn.close()
+
+
+@app.route("/trainings/new", methods=["GET", "POST"])
+def training_session_new():
+    """
+    Create a training session/event (training table only).
+    Optional ?volunteer_id=N returns to that volunteer's attendance form after create.
+    """
+    volunteer_id_raw = (request.values.get("volunteer_id") or "").strip()
+    return_volunteer_id = None
+    if volunteer_id_raw:
+        return_volunteer_id, _ = _parse_optional_int(volunteer_id_raw)
+        if return_volunteer_id is None:
+            return_volunteer_id = None
+
+    today = date.today().isoformat()
+    empty_form = {
+        "training_type_id": "",
+        "training_date": today,
+        "trainer": "",
+        "location": "",
+        "notes": "",
+    }
+
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "training_new.html",
+            error="Service temporarily unavailable. Please try again in a moment.",
+            form=empty_form,
+            training_types=[],
+            volunteer_id=return_volunteer_id,
+            volunteer_name=None,
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        training_types = _load_training_types(cur)
+        volunteer_name = None
+        if return_volunteer_id is not None:
+            volunteer_name = _load_volunteer_name(cur, return_volunteer_id)
+            if not volunteer_name:
+                return_volunteer_id = None
+
+        if request.method == "GET":
+            return render_template(
+                "training_new.html",
+                error=None,
+                form=empty_form,
+                training_types=training_types,
+                volunteer_id=return_volunteer_id,
+                volunteer_name=volunteer_name,
+            )
+
+        form = {
+            "training_type_id": (request.form.get("training_type_id") or "").strip(),
+            "training_date": (request.form.get("training_date") or "").strip(),
+            "trainer": (request.form.get("trainer") or "").strip(),
+            "location": (request.form.get("location") or "").strip(),
+            "notes": (request.form.get("notes") or "").strip(),
+        }
+
+        def _form_error(msg):
+            return render_template(
+                "training_new.html",
+                error=msg,
+                form=form,
+                training_types=training_types,
+                volunteer_id=return_volunteer_id,
+                volunteer_name=volunteer_name,
+            ), 400
+
+        if not form["training_date"]:
+            return _form_error("Training date is required.")
+        training_date, date_err = _parse_optional_date(form["training_date"])
+        if date_err or training_date is None:
+            return _form_error("Training date must be a valid date.")
+
+        training_type_id = None
+        if form["training_type_id"]:
+            training_type_id, tt_err = _parse_optional_int(form["training_type_id"])
+            if tt_err or training_type_id is None:
+                return _form_error("Training type selection is invalid.")
+            cur.execute(
+                "SELECT 1 FROM lst_training_type WHERE training_type_id = %s",
+                (training_type_id,),
+            )
+            if not cur.fetchone():
+                return _form_error("Training type selection is invalid.")
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO training (
+                    training_type_id, training_date, trainer, location, notes, total_attendees
+                ) VALUES (%s, %s, %s, %s, %s, 0)
+                RETURNING training_id
+                """,
+                (
+                    training_type_id,
+                    training_date,
+                    form["trainer"] or None,
+                    form["location"] or None,
+                    form["notes"] or None,
+                ),
+            )
+            training_id = cur.fetchone()[0]
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "training_new.html",
+                error="Could not save training session right now. Please try again in a moment.",
+                form=form,
+                training_types=training_types,
+                volunteer_id=return_volunteer_id,
+                volunteer_name=volunteer_name,
+            ), 500
+
+        if return_volunteer_id is not None:
+            return redirect(
+                url_for(
+                    "volunteer_training_new",
+                    volunteer_id=return_volunteer_id,
+                    training_id=training_id,
+                )
+            )
+        return redirect(url_for("training_detail_page", training_id=training_id))
+    finally:
+        conn.close()
+
+
+@app.route("/trainings/<int:training_id>")
+def training_detail_page(training_id):
+    """Compact training session view with attendees."""
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "training_detail.html",
+            error="Service temporarily unavailable. Please try again in a moment.",
+            session=None,
+            attendees=[],
+        ), 503
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT t.training_id, t.training_date::text,
+                   COALESCE(tt.name, 'Unspecified') AS training_type,
+                   t.trainer, t.location, t.notes, t.total_attendees
+            FROM training t
+            LEFT JOIN lst_training_type tt ON tt.training_type_id = t.training_type_id
+            WHERE t.training_id = %s
+            """,
+            (training_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return render_template(
+                "training_detail.html",
+                error="Training session not found.",
+                session=None,
+                attendees=[],
+            ), 404
+        session = {
+            "training_id": row[0],
+            "training_date": row[1],
+            "training_type": row[2],
+            "trainer": row[3],
+            "location": row[4],
+            "notes": row[5],
+            "total_attendees": row[6],
+        }
+        cur.execute(
+            """
+            SELECT v.volunteer_id, v.first_name, v.last_name, tl.status, tl.expiration_date::text
+            FROM training_log tl
+            JOIN volunteer v ON v.volunteer_id = tl.volunteer_id
+            WHERE tl.training_id = %s
+            ORDER BY v.last_name, v.first_name, v.volunteer_id
+            """,
+            (training_id,),
+        )
+        attendees = [
+            {
+                "volunteer_id": r[0],
+                "name": ((r[1] or "") + " " + (r[2] or "")).strip() or ("Volunteer " + str(r[0])),
+                "status": r[3],
+                "expiration_date": r[4],
+            }
+            for r in cur.fetchall()
+        ]
+        return render_template(
+            "training_detail.html",
+            error=None,
+            session=session,
+            attendees=attendees,
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/volunteers/<int:volunteer_id>/training/new", methods=["GET", "POST"])
+def volunteer_training_new(volunteer_id):
+    """
+    Record attendance for an existing training session (training_log only).
+    Optional ?training_id=N preselects a session (e.g. after creating one).
+    """
+    preset_training_id = (request.values.get("training_id") or "").strip()
+    empty_form = {
+        "training_id": preset_training_id,
+        "status": "Passed",
+        "expiration_date": "",
+    }
+
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "volunteer_training_form.html",
+            volunteer_id=volunteer_id,
+            volunteer_name="Volunteer",
+            error="Service temporarily unavailable. Please try again in a moment.",
+            form=empty_form,
+            sessions=[],
+            statuses=_TRAINING_LOG_STATUSES,
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        volunteer_name = _load_volunteer_name(cur, volunteer_id)
+        if not volunteer_name:
+            return render_template(
+                "volunteer_training_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name="Volunteer",
+                error="Volunteer not found.",
+                form=empty_form,
+                sessions=[],
+                statuses=_TRAINING_LOG_STATUSES,
+            ), 404
+
+        sessions = _load_training_sessions(cur)
+
+        if request.method == "GET":
+            return render_template(
+                "volunteer_training_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                error=None,
+                form=empty_form,
+                sessions=sessions,
+                statuses=_TRAINING_LOG_STATUSES,
+            )
+
+        form = {
+            "training_id": (request.form.get("training_id") or "").strip(),
+            "status": (request.form.get("status") or "").strip(),
+            "expiration_date": (request.form.get("expiration_date") or "").strip(),
+        }
+
+        def _form_error(msg):
+            return render_template(
+                "volunteer_training_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                error=msg,
+                form=form,
+                sessions=sessions,
+                statuses=_TRAINING_LOG_STATUSES,
+            ), 400
+
+        training_id, tid_err = _parse_optional_int(form["training_id"])
+        if tid_err or training_id is None:
+            return _form_error("Training session is required.")
+        cur.execute("SELECT 1 FROM training WHERE training_id = %s", (training_id,))
+        if not cur.fetchone():
+            return _form_error("Training session selection is invalid.")
+
+        status_val = form["status"] or None
+        if status_val and status_val not in _TRAINING_LOG_STATUSES:
+            return _form_error("Attendance status is invalid.")
+
+        expiration_date, exp_err = _parse_optional_date(form["expiration_date"])
+        if exp_err:
+            return _form_error("Expiration date must be a valid date.")
+
+        cur.execute(
+            """
+            SELECT 1 FROM training_log
+            WHERE training_id = %s AND volunteer_id = %s
+            """,
+            (training_id, volunteer_id),
+        )
+        if cur.fetchone():
+            return _form_error(
+                "This volunteer is already recorded for that training session."
+            )
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO training_log (
+                    training_id, volunteer_id, status, expiration_date
+                ) VALUES (%s, %s, %s, %s)
+                """,
+                (training_id, volunteer_id, status_val, expiration_date),
+            )
+            _refresh_training_attendee_count(cur, training_id)
+            conn.commit()
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            return _form_error(
+                "This volunteer is already recorded for that training session."
+            )
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "volunteer_training_form.html",
+                volunteer_id=volunteer_id,
+                volunteer_name=volunteer_name,
+                error="Could not save attendance right now. Please try again in a moment.",
+                form=form,
+                sessions=sessions,
+                statuses=_TRAINING_LOG_STATUSES,
             ), 500
 
         return redirect(url_for("volunteer_detail_page", volunteer_id=volunteer_id))

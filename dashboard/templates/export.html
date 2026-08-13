@@ -1,35 +1,45 @@
 {% extends "base.html" %}
-{% block title %}StreamWatch – Export{% endblock %}
+{% block title %}StreamWatch – Export data{% endblock %}
 {% block content %}
-<h1>Export data</h1>
-<div class="card">
-  <p>Download monitoring data as WQX-compatible CSV for EPA Water Quality Exchange submission.</p>
-  <form id="export-form" class="form-row">
-    <div class="form-row">
-      <label>From date</label>
-      <input type="date" id="date-start" name="date_start">
+<div class="page-monitoring page-reporting">
+  <header class="page-header">
+    <h1>Export data</h1>
+    <p class="page-subtitle">Download StreamWatch records for analysis, reporting, or regulatory submission.</p>
+  </header>
+
+  <div class="export-layout">
+    <aside class="explore-filters panel" aria-label="Export filters">
+      <div class="filter-field">
+        <label for="site-select">Site</label>
+        <select id="site-select" name="site_code">
+          <option value="">All sites</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="date-start">From</label>
+        <input type="date" id="date-start" name="date_start">
+      </div>
+      <div class="filter-field">
+        <label for="date-end">To</label>
+        <input type="date" id="date-end" name="date_end">
+      </div>
+      <p class="muted export-scope" id="export-scope" aria-live="polite">Scope: all sites · all dates</p>
+      <p class="muted export-hint">Narrowing the site or date range can make large exports faster.</p>
+    </aside>
+
+    <div class="export-options">
+      <section class="panel export-option" aria-labelledby="export-csv-title">
+        <h2 class="home-panel-title" id="export-csv-title">Simple CSV</h2>
+        <p class="muted">Download StreamWatch data for analysis or reporting. One row per value (site, date, parameter, value, and related fields).</p>
+        <button type="button" class="btn-primary" id="btn-csv">Download CSV</button>
+      </section>
+
+      <section class="panel export-option" aria-labelledby="export-wqx-title">
+        <h2 class="home-panel-title" id="export-wqx-title">WQX export</h2>
+        <p class="muted">Download data formatted for Water Quality Exchange workflows. This is a WQX-style CSV for submission preparation; review before any regulatory upload.</p>
+        <button type="button" class="btn-secondary" id="btn-download">Download WQX</button>
+      </section>
     </div>
-    <div class="form-row">
-      <label>To date</label>
-      <input type="date" id="date-end" name="date_end">
-    </div>
-    <div class="form-row">
-      <label>Site (optional)</label>
-      <select id="site-select" name="site_code">
-        <option value="">All sites</option>
-      </select>
-      <span class="muted" style="margin-left:0.5rem;">Leave blank for all sites.</span>
-    </div>
-    <div class="form-row">
-      <button type="submit" id="btn-download">Download WQX CSV</button>
-    </div>
-  </form>
-</div>
-<div class="card">
-  <h2>Simple CSV (analysis)</h2>
-  <p>Flattened dataset: one row per value (site, date, parameter, value, data_condition, method). Use for Excel or other analysis. Same date range and site filter as above.</p>
-  <div class="form-row">
-    <button type="button" id="btn-csv">Download simple CSV</button>
   </div>
 </div>
 {% endblock %}
@@ -38,32 +48,56 @@
 (function() {
   var qs = new URLSearchParams(location.search);
   var presetSite = qs.get('site_code') || '';
-  fetch('/api/sites').then(r => r.json()).then(sites => {
-    var sel = document.getElementById('site-select');
-    sites.forEach(s => { sel.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code)); });
-    if (presetSite && sel.querySelector('option[value="' + presetSite + '"]')) sel.value = presetSite;
+  var siteSelect = document.getElementById('site-select');
+  var dateStart = document.getElementById('date-start');
+  var dateEnd = document.getElementById('date-end');
+  var scopeEl = document.getElementById('export-scope');
+
+  function updateScope() {
+    var site = siteSelect.value
+      ? (siteSelect.options[siteSelect.selectedIndex].text || siteSelect.value)
+      : 'all sites';
+    var from = dateStart.value || null;
+    var to = dateEnd.value || null;
+    var dates = 'all dates';
+    if (from && to) dates = from + ' to ' + to;
+    else if (from) dates = 'from ' + from;
+    else if (to) dates = 'through ' + to;
+    scopeEl.textContent = 'Scope: ' + site + ' · ' + dates;
+  }
+
+  function buildUrl(base) {
+    var url = base + '?';
+    if (dateStart.value) url += 'date_start=' + encodeURIComponent(dateStart.value) + '&';
+    if (dateEnd.value) url += 'date_end=' + encodeURIComponent(dateEnd.value) + '&';
+    if (siteSelect.value) url += 'site_code=' + encodeURIComponent(siteSelect.value);
+    return url;
+  }
+
+  siteSelect.addEventListener('change', updateScope);
+  dateStart.addEventListener('change', updateScope);
+  dateEnd.addEventListener('change', updateScope);
+
+  document.getElementById('btn-download').addEventListener('click', function() {
+    window.location.href = buildUrl('/export/wqx');
   });
+  document.getElementById('btn-csv').addEventListener('click', function() {
+    window.location.href = buildUrl('/export/csv');
+  });
+
+  fetch('/api/sites').then(function(r) { return r.json(); }).then(function(sites) {
+    if (!Array.isArray(sites)) return;
+    sites.forEach(function(s) {
+      siteSelect.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code));
+    });
+    if (presetSite && siteSelect.querySelector('option[value="' + presetSite + '"]')) {
+      siteSelect.value = presetSite;
+    }
+    updateScope();
+  }).catch(function() {
+    updateScope();
+  });
+  updateScope();
 })();
-document.getElementById('export-form').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const start = document.getElementById('date-start').value;
-  const end = document.getElementById('date-end').value;
-  const site = document.getElementById('site-select').value;
-  let url = '/export/wqx?';
-  if (start) url += 'date_start=' + encodeURIComponent(start) + '&';
-  if (end) url += 'date_end=' + encodeURIComponent(end) + '&';
-  if (site) url += 'site_code=' + encodeURIComponent(site);
-  window.location.href = url;
-});
-document.getElementById('btn-csv').addEventListener('click', function() {
-  const start = document.getElementById('date-start').value;
-  const end = document.getElementById('date-end').value;
-  const site = document.getElementById('site-select').value;
-  let url = '/export/csv?';
-  if (start) url += 'date_start=' + encodeURIComponent(start) + '&';
-  if (end) url += 'date_end=' + encodeURIComponent(end) + '&';
-  if (site) url += 'site_code=' + encodeURIComponent(site);
-  window.location.href = url;
-});
 </script>
 {% endblock %}

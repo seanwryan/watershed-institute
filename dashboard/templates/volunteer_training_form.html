@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Add training record{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/volunteers">Volunteers</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/volunteers/{{ volunteer_id }}">{{ volunteer_name }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Add training record</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Add training record</h1>
+    <p class="page-subtitle">Record attendance for {{ volunteer_name }} at an existing training session.</p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form class="form-shell panel" method="post" action="/volunteers/{{ volunteer_id }}/training/new" novalidate>
+    <section class="form-section" aria-labelledby="training-attendance-session">
+      <h2 class="form-section-title" id="training-attendance-session">Training session</h2>
+      <div class="form-grid">
+        <div class="form-field form-field-full">
+          <label for="training_id">Session <span class="req" aria-hidden="true">*</span></label>
+          <select id="training_id" name="training_id" required>
+            <option value="">Choose a training session…</option>
+            {% for s in sessions %}
+            <option value="{{ s.training_id }}" {% if form.training_id == (s.training_id|string) %}selected{% endif %}>{{ s.label }}</option>
+            {% endfor %}
+          </select>
+          <p class="form-help">
+            Sessions are shared across volunteers.
+            <a href="/trainings/new?volunteer_id={{ volunteer_id }}">Create new training session</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="training-attendance">
+      <h2 class="form-section-title" id="training-attendance">Attendance</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            <option value="" {% if not form.status %}selected{% endif %}>Not recorded</option>
+            {% for s in statuses %}
+            <option value="{{ s }}" {% if form.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="expiration_date">Expiration date</label>
+          <input type="date" id="expiration_date" name="expiration_date" value="{{ form.expiration_date or '' }}">
+          <p class="form-help">Optional credential expiration for this attendance record.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Save attendance</button>
+      <a class="btn-secondary" href="/volunteers/{{ volunteer_id }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

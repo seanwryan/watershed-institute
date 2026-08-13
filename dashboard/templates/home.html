@@ -279,8 +279,9 @@
       }, 100);
 
       if (mapNote) {
-        var note = latLngs.length + ' active sites with coordinates shown. Inactive sites are omitted from the map.';
-        if (skipped) note += ' ' + skipped + ' active site(s) skipped due to missing or invalid coordinates.';
+        var note = latLngs.length + ' mapped active sites';
+        if (skipped) note += '. ' + skipped + ' active sites without usable coordinates';
+        note += '. Inactive sites are omitted from the map.';
         mapNote.textContent = note;
       }
     })

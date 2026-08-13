@@ -1,51 +1,143 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Equipment{% endblock %}
 {% block content %}
-<h1>Equipment</h1>
-<p class="muted">CAT multiparameter meters (TWI inventory).</p>
-<div class="card">
-  <label for="equipment-search">Search:</label>
-  <input type="text" id="equipment-search" placeholder="Equipment code or serial…">
-</div>
-<div class="card">
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Equipment Code</th><th>Serial Number</th><th>Status</th><th>Last Test Date</th><th></th></tr>
-      </thead>
-      <tbody id="equipment-tbody"><tr><td colspan="5" class="loading">Loading…</td></tr></tbody>
-    </table>
+<div class="page-monitoring page-ops">
+  <header class="page-header">
+    <h1>Equipment</h1>
+    <p class="page-subtitle">Review StreamWatch meter inventory and testing history.</p>
+  </header>
+
+  <div class="toolbar panel">
+    <div class="toolbar-main">
+      <label for="equipment-search">Search</label>
+      <input type="search" id="equipment-search" placeholder="Equipment code or serial…" autocomplete="off">
+      <label for="equipment-status">Status</label>
+      <select id="equipment-status">
+        <option value="">All statuses</option>
+      </select>
+      <button type="button" class="btn-secondary" id="equipment-search-clear">Clear</button>
+    </div>
+    <p class="toolbar-count muted" id="equipment-count" aria-live="polite">Loading equipment…</p>
+  </div>
+
+  <div class="panel table-panel">
+    <div class="table-wrap">
+      <table class="data-table data-table-clickable" id="equipment-table">
+        <thead>
+          <tr>
+            <th scope="col">Equipment</th>
+            <th scope="col">Type</th>
+            <th scope="col">Serial number</th>
+            <th scope="col">Status</th>
+            <th scope="col">Last test</th>
+          </tr>
+        </thead>
+        <tbody id="equipment-tbody">
+          <tr><td colspan="5" class="muted">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
 (function() {
-  const tbody = document.getElementById('equipment-tbody');
-  const search = document.getElementById('equipment-search');
+  var tbody = document.getElementById('equipment-tbody');
+  var search = document.getElementById('equipment-search');
+  var statusSel = document.getElementById('equipment-status');
+  var clearBtn = document.getElementById('equipment-search-clear');
+  var countEl = document.getElementById('equipment-count');
+  var allItems = [];
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  function render(items, filter) {
-    const q = (filter || '').toLowerCase();
-    const list = q ? items.filter(function(e) {
-      return (e.equipment_code && e.equipment_code.toLowerCase().includes(q)) ||
-        (e.serial_number && String(e.serial_number).toLowerCase().includes(q));
-    }) : items;
-    tbody.innerHTML = list.length
-      ? list.map(function(e) {
-          return '<tr><td>' + esc(e.equipment_code) + '</td><td>' + esc(e.serial_number || '—') +
-            '</td><td>' + esc(e.status || '—') + '</td><td>' + esc(e.last_test_date || '—') +
-            '</td><td><a href="/equipment/' + encodeURIComponent(e.equipment_code) + '">View</a></td></tr>';
-        }).join('')
-      : '<tr><td colspan="5">No equipment match.</td></tr>';
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso);
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
   }
-  search.addEventListener('input', function() { render(window.__equipment || [], search.value); });
+  function statusBadge(status) {
+    if (!status) return '<span class="muted">—</span>';
+    var s = String(status);
+    var cls = 'badge';
+    var lower = s.toLowerCase();
+    if (lower.indexOf('active') !== -1) cls += ' badge-success';
+    else if (lower.indexOf('inactive') !== -1 || lower.indexOf('retired') !== -1) cls += ' badge-warning';
+    return '<span class="' + cls + '">' + esc(s) + '</span>';
+  }
+
+  function filtered() {
+    var q = (search.value || '').trim().toLowerCase();
+    var st = statusSel.value || '';
+    return allItems.filter(function(e) {
+      if (st && String(e.status || '') !== st) return false;
+      if (!q) return true;
+      return (e.equipment_code && e.equipment_code.toLowerCase().indexOf(q) !== -1) ||
+        (e.serial_number && String(e.serial_number).toLowerCase().indexOf(q) !== -1);
+    });
+  }
+
+  function render() {
+    var list = filtered();
+    countEl.textContent = list.length === allItems.length
+      ? (allItems.length + ' meters')
+      : (list.length + ' of ' + allItems.length + ' meters');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="muted">No equipment matches your filters.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function(e) {
+      var href = '/equipment/' + encodeURIComponent(e.equipment_code);
+      return '<tr class="row-link" tabindex="0" data-href="' + href + '" role="link" aria-label="Open equipment ' + esc(e.equipment_code) + '">' +
+        '<td><span class="cell-strong">' + esc(e.equipment_code) + '</span></td>' +
+        '<td>' + esc(e.equipment_type || '—') + '</td>' +
+        '<td>' + esc(e.serial_number || '—') + '</td>' +
+        '<td>' + statusBadge(e.status) + '</td>' +
+        '<td>' + esc(fmtDate(e.last_test_date)) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function go(tr) {
+    if (tr && tr.getAttribute('data-href')) window.location.href = tr.getAttribute('data-href');
+  }
+  tbody.addEventListener('click', function(e) { go(e.target.closest('tr.row-link')); });
+  tbody.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var tr = e.target.closest('tr.row-link');
+    if (!tr) return;
+    e.preventDefault();
+    go(tr);
+  });
+  search.addEventListener('input', render);
+  statusSel.addEventListener('change', render);
+  clearBtn.addEventListener('click', function() {
+    search.value = '';
+    statusSel.value = '';
+    search.focus();
+    render();
+  });
+
   fetch('/api/equipment')
-    .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(items) { window.__equipment = items; render(items, search.value); })
+    .then(function(r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+    .then(function(items) {
+      allItems = Array.isArray(items) ? items : [];
+      var statuses = [];
+      allItems.forEach(function(e) {
+        if (e.status && statuses.indexOf(e.status) === -1) statuses.push(e.status);
+      });
+      statuses.sort().forEach(function(s) {
+        statusSel.appendChild(new Option(s, s));
+      });
+      render();
+    })
     .catch(function() {
+      countEl.textContent = 'Unable to load equipment';
       tbody.innerHTML = '<tr><td colspan="5" class="error">We couldn\'t load equipment right now. Please try again in a moment.</td></tr>';
     });
 })();

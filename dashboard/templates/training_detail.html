@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Training session{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/volunteers">Volunteers</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Training session</span>
+  </nav>
+
+  {% if error %}
+  <div class="alert alert-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  {% if session %}
+  <header class="page-header">
+    <h1>{{ session.training_type }}</h1>
+    <p class="page-subtitle">Training session</p>
+  </header>
+
+  <section class="site-snapshot panel" aria-label="Session snapshot">
+    <div class="snapshot-grid">
+      <div>
+        <span class="muted" style="font-size:0.75rem;font-weight:600;letter-spacing:0.04em;">DATE</span>
+        <span class="snapshot-value">{{ session.training_date or '—' }}</span>
+      </div>
+      <div>
+        <span class="muted" style="font-size:0.75rem;font-weight:600;letter-spacing:0.04em;">TRAINER</span>
+        <span class="snapshot-value">{{ session.trainer or '—' }}</span>
+      </div>
+      <div>
+        <span class="muted" style="font-size:0.75rem;font-weight:600;letter-spacing:0.04em;">LOCATION</span>
+        <span class="snapshot-value">{{ session.location or '—' }}</span>
+      </div>
+      <div>
+        <span class="muted" style="font-size:0.75rem;font-weight:600;letter-spacing:0.04em;">ATTENDEES</span>
+        <span class="snapshot-value">{{ attendees|length }}</span>
+      </div>
+    </div>
+    {% if session.notes %}
+    <p class="site-desc" style="margin-top:0.85rem;">{{ session.notes }}</p>
+    {% endif %}
+  </section>
+
+  <section class="panel site-recent" aria-labelledby="attendees-title">
+    <h2 class="home-panel-title" id="attendees-title">Attendees</h2>
+    {% if not attendees %}
+    <p class="muted">No attendance records for this session yet.</p>
+    {% else %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Volunteer</th>
+            <th scope="col">Status</th>
+            <th scope="col">Expiration</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in attendees %}
+          <tr>
+            <td><a href="/volunteers/{{ a.volunteer_id }}">{{ a.name }}</a></td>
+            <td>{{ a.status or '—' }}</td>
+            <td>{{ a.expiration_date or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

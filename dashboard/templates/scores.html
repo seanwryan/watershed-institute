@@ -1,52 +1,103 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Biology scores{% endblock %}
-{% block content %}
-<h1>Biology scores</h1>
-<p class="muted">HGMI, NJIS, and CPMI indices from macroinvertebrate data. Use filters to narrow by site and date.</p>
-<div class="card">
-  <div class="form-row">
-    <label>Site</label>
-    <select id="filter-site"><option value="">All sites</option></select>
-    <label style="margin-left:1rem;">From</label>
-    <input type="date" id="filter-date-start">
-    <label>To</label>
-    <input type="date" id="filter-date-end">
-    <button id="btn-load" style="margin-left:1rem;">Load</button>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Site</th><th>Sample date</th><th>NJIS score</th><th>NJIS rating</th><th>HGMI genus</th><th>HGMI family</th><th>HGMI rating</th><th>CPMI score</th><th>CPMI rating</th></tr>
-      </thead>
-      <tbody id="scores-tbody"><tr><td colspan="9" class="muted">Click Load to load scores.</td></tr></tbody>
-    </table>
-  </div>
-</div>
-<div class="card">
-  <h2>Index over time (optional)</h2>
-  <p class="muted">Select a site and index to plot over time.</p>
-  <div class="form-row">
-    <label>Site</label>
-    <select id="chart-site"></select>
-    <label style="margin-left:1rem;">Index</label>
-    <select id="chart-index">
-      <option value="hgmi_genus">HGMI (genus)</option>
-      <option value="hgmi_family">HGMI (family)</option>
-      <option value="njis_score">NJIS score</option>
-      <option value="cpmi_score">CPMI score</option>
-    </select>
-    <button id="btn-chart" style="margin-left:1rem;">Plot</button>
-  </div>
-  <canvas id="scores-chart" height="220"></canvas>
-</div>
-{% endblock %}
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <header class="page-header">
+    <h1>Biology scores</h1>
+    <p class="page-subtitle">Review StreamWatch macroinvertebrate indices and ratings over time.</p>
+    <p class="muted scores-help">
+      HGMI and NJIS describe macroinvertebrate condition; CPMI also appears in StreamWatch results.
+      See <a href="/about">About</a> for context.
+    </p>
+  </header>
+
+  <div class="reporting-layout scores-layout">
+    <aside class="explore-filters panel" aria-label="Score filters">
+      <div class="filter-field">
+        <label for="filter-site">Site</label>
+        <select id="filter-site"><option value="">All sites</option></select>
+      </div>
+      <div class="filter-field">
+        <label for="filter-date-start">From</label>
+        <input type="date" id="filter-date-start">
+      </div>
+      <div class="filter-field">
+        <label for="filter-date-end">To</label>
+        <input type="date" id="filter-date-end">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn-primary" id="btn-load">Update results</button>
+      </div>
+    </aside>
+
+    <div class="scores-main">
+      <section class="panel scores-chart-panel" aria-labelledby="scores-chart-title">
+        <div class="home-panel-head">
+          <h2 class="home-panel-title" id="scores-chart-title">Index over time</h2>
+        </div>
+        <p class="muted">Select a site and index to chart existing scores.</p>
+        <div class="scores-chart-controls">
+          <div class="filter-field">
+            <label for="chart-site">Site</label>
+            <select id="chart-site"><option value="">Choose a site</option></select>
+          </div>
+          <div class="filter-field">
+            <label for="chart-index">Index</label>
+            <select id="chart-index">
+              <option value="hgmi_genus">HGMI (genus)</option>
+              <option value="hgmi_family">HGMI (family)</option>
+              <option value="njis_score">NJIS</option>
+              <option value="cpmi_score">CPMI</option>
+            </select>
+          </div>
+          <div class="filter-field filter-actions-inline">
+            <button type="button" class="btn-secondary" id="btn-chart">Update chart</button>
+          </div>
+        </div>
+        <p class="muted" id="chart-status" aria-live="polite"></p>
+        <div class="chart-canvas-wrap scores-chart-wrap">
+          <canvas id="scores-chart" aria-describedby="scores-chart-title"></canvas>
+        </div>
+      </section>
+
+      <section class="panel table-panel" aria-labelledby="scores-table-title">
+        <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
+          <h2 class="home-panel-title" id="scores-table-title">Index results</h2>
+          <p class="muted toolbar-count" id="scores-count" aria-live="polite"></p>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table data-table-sticky" id="scores-table">
+            <thead>
+              <tr>
+                <th scope="col">Site</th>
+                <th scope="col">Sample date</th>
+                <th scope="col" class="num">NJIS</th>
+                <th scope="col">NJIS rating</th>
+                <th scope="col" class="num">HGMI (genus)</th>
+                <th scope="col" class="num">HGMI (family)</th>
+                <th scope="col">HGMI rating</th>
+                <th scope="col" class="num">CPMI</th>
+                <th scope="col">CPMI rating</th>
+              </tr>
+            </thead>
+            <tbody id="scores-tbody">
+              <tr><td colspan="9" class="muted">Loading biology scores…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
 (function() {
   var tbody = document.getElementById('scores-tbody');
+  var countEl = document.getElementById('scores-count');
   var filterSite = document.getElementById('filter-site');
   var filterDateStart = document.getElementById('filter-date-start');
   var filterDateEnd = document.getElementById('filter-date-end');
@@ -54,54 +105,151 @@
   var chartSite = document.getElementById('chart-site');
   var chartIndex = document.getElementById('chart-index');
   var btnChart = document.getElementById('btn-chart');
+  var chartStatus = document.getElementById('chart-status');
   var scoresData = [];
   var chart = null;
+  var ACCENT = '#1f5c63';
+  var qs = new URLSearchParams(location.search);
+  var presetSite = qs.get('site_code') || '';
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso);
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+  }
+  function fmtScore(n) {
+    if (n == null || n === '') return '—';
+    var x = Number(n);
+    if (!isFinite(x)) return '—';
+    return (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(1)).replace(/\.0$/, '');
+  }
+  function ratingBadge(rating) {
+    if (!rating) return '—';
+    var r = String(rating);
+    var cls = 'badge';
+    var lower = r.toLowerCase();
+    if (lower.indexOf('excellent') !== -1 || lower.indexOf('good') !== -1) cls += ' badge-success';
+    else if (lower.indexOf('fair') !== -1) cls += ' badge-warning';
+    else if (lower.indexOf('poor') !== -1) cls += ' badge-danger';
+    return '<span class="' + cls + '">' + esc(r) + '</span>';
+  }
 
   function loadScores() {
+    countEl.textContent = 'Updating…';
     var url = '/api/bio_scores?limit=500';
     if (filterSite.value) url += '&site_code=' + encodeURIComponent(filterSite.value);
     if (filterDateStart.value) url += '&date_start=' + encodeURIComponent(filterDateStart.value);
     if (filterDateEnd.value) url += '&date_end=' + encodeURIComponent(filterDateEnd.value);
-    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    fetch(url).then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(data) {
       scoresData = data.scores || [];
-      if (scoresData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="muted">No biological scores found for the selected filters.</td></tr>';
+      countEl.textContent = scoresData.length
+        ? (scoresData.length + ' result' + (scoresData.length === 1 ? '' : 's'))
+        : '';
+      if (!scoresData.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="muted">No biology scores match these filters.</td></tr>';
         return;
       }
       tbody.innerHTML = scoresData.map(function(r) {
-        var siteLink = '<a href="/site/' + encodeURIComponent(r.site_code) + '">' + r.site_code + '</a>';
-        return '<tr><td>' + siteLink + '</td><td>' + (r.sample_date || '—') + '</td><td>' + (r.njis_score != null ? r.njis_score : '—') + '</td><td>' + (r.njis_rating || '—') + '</td><td>' + (r.hgmi_genus != null ? r.hgmi_genus : '—') + '</td><td>' + (r.hgmi_family != null ? r.hgmi_family : '—') + '</td><td>' + (r.hgmi_rating || '—') + '</td><td>' + (r.cpmi_score != null ? r.cpmi_score : '—') + '</td><td>' + (r.cpmi_rating || '—') + '</td></tr>';
+        var siteLink = '<a href="/site/' + encodeURIComponent(r.site_code) + '">' + esc(r.site_code) + '</a>';
+        return '<tr>' +
+          '<td><span class="cell-strong">' + siteLink + '</span></td>' +
+          '<td>' + esc(fmtDate(r.sample_date)) + '</td>' +
+          '<td class="num">' + esc(fmtScore(r.njis_score)) + '</td>' +
+          '<td>' + ratingBadge(r.njis_rating) + '</td>' +
+          '<td class="num">' + esc(fmtScore(r.hgmi_genus)) + '</td>' +
+          '<td class="num">' + esc(fmtScore(r.hgmi_family)) + '</td>' +
+          '<td>' + ratingBadge(r.hgmi_rating) + '</td>' +
+          '<td class="num">' + esc(fmtScore(r.cpmi_score)) + '</td>' +
+          '<td>' + ratingBadge(r.cpmi_rating) + '</td>' +
+          '</tr>';
       }).join('');
-    }).catch(function() { tbody.innerHTML = '<tr><td colspan="9" class="error">Failed to load scores.</td></tr>'; });
+    }).catch(function() {
+      countEl.textContent = '';
+      tbody.innerHTML = '<tr><td colspan="9" class="error">We couldn\'t load biology scores right now. Please try again in a moment.</td></tr>';
+    });
   }
 
   function plotChart() {
     var site = chartSite.value;
     var indexKey = chartIndex.value;
-    if (!site) return;
+    if (!site) {
+      chartStatus.textContent = 'Choose a site to update the chart.';
+      if (chart) { chart.destroy(); chart = null; }
+      return;
+    }
+    chartStatus.textContent = 'Updating chart…';
     var filtered = scoresData.filter(function(r) { return r.site_code === site && r[indexKey] != null; });
-    if (filtered.length === 0) { filtered = scoresData.filter(function(r) { return r.site_code === site; }); }
     var labels = filtered.map(function(r) { return r.sample_date; }).reverse();
     var values = filtered.map(function(r) { return r[indexKey]; }).reverse();
+    if (!values.length) {
+      if (chart) { chart.destroy(); chart = null; }
+      chartStatus.textContent = 'No values available for this site and index.';
+      return;
+    }
     if (chart) chart.destroy();
+    var indexLabel = chartIndex.options[chartIndex.selectedIndex].text;
     chart = new Chart(document.getElementById('scores-chart'), {
       type: 'line',
-      data: { labels: labels, datasets: [{ label: chartIndex.options[chartIndex.selectedIndex].text + ' – ' + site, data: values, borderColor: '#58a6ff', fill: false }] },
-      options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: true } } }
+      data: {
+        labels: labels,
+        datasets: [{
+          label: indexLabel + ' · ' + site,
+          data: values,
+          borderColor: ACCENT,
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0.1,
+          pointRadius: 2,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 12, color: '#5b6572' } }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Sample date', color: '#5b6572' },
+            ticks: { maxRotation: 45, color: '#5b6572', autoSkip: true, maxTicksLimit: 12 },
+            grid: { color: 'rgba(213,221,227,0.7)' }
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: indexLabel, color: '#5b6572' },
+            ticks: { color: '#5b6572' },
+            grid: { color: 'rgba(213,221,227,0.7)' }
+          }
+        }
+      }
     });
+    chartStatus.textContent = '';
   }
 
   btnLoad.addEventListener('click', loadScores);
   btnChart.addEventListener('click', plotChart);
   fetch('/api/sites').then(function(r) { return r.json(); }).then(function(sites) {
-    if (!Array.isArray(sites)) return;
+    if (!Array.isArray(sites)) throw new Error('sites');
     sites.forEach(function(s) {
-      var opt = new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code);
-      filterSite.appendChild(opt.cloneNode(true));
-      chartSite.appendChild(opt);
+      var label = s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : '');
+      filterSite.appendChild(new Option(label, s.site_code));
+      chartSite.appendChild(new Option(label, s.site_code));
     });
+    if (presetSite && filterSite.querySelector('option[value="' + presetSite + '"]')) {
+      filterSite.value = presetSite;
+      chartSite.value = presetSite;
+    }
     loadScores();
-  }).catch(function() { tbody.innerHTML = '<tr><td colspan="9" class="error">Failed to load sites.</td></tr>'; });
+  }).catch(function() {
+    tbody.innerHTML = '<tr><td colspan="9" class="error">We couldn\'t load sites right now. Please try again in a moment.</td></tr>';
+  });
 })();
 </script>
 {% endblock %}

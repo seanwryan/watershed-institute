@@ -1,10 +1,14 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Map{% endblock %}
 {% block content %}
-<h1>Monitoring sites map</h1>
-<p class="muted">Click a marker to open the site detail page.</p>
-<div id="map" class="card"></div>
-<div id="map-legend" class="muted" style="margin-top: 0.5rem; font-size: 0.875rem;"></div>
+<div class="page-monitoring">
+  <header class="page-header">
+    <h1>Monitoring sites map</h1>
+    <p class="page-subtitle">Active StreamWatch locations with usable coordinates. Click a marker to open the site detail page.</p>
+  </header>
+  <div id="map" class="map-panel"></div>
+  <p id="map-legend" class="muted map-legend" aria-live="polite">Loading map…</p>
+</div>
 {% endblock %}
 {% block head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
@@ -13,26 +17,45 @@
 {% block scripts %}
 <script>
 (function() {
-  const map = L.map('map').setView([40.0, -74.5], 8);
+  var map = L.map('map').setView([40.2, -74.7], 9);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+  var legend = document.getElementById('map-legend');
   fetch('/api/sites')
-    .then(r => r.json())
-    .then(sites => {
-      let count = 0;
-      sites.forEach(s => {
-        const lat = Number(s.latitude);
-        const lng = Number(s.longitude);
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          const m = L.marker([lat, lng]).addTo(map);
-          const last = s.last_sample_date ? 'Last sample: ' + s.last_sample_date : '';
-          const visits = s.visit_count != null ? (s.visit_count + ' visits') : '';
-          m.bindPopup('<a href="/site/' + encodeURIComponent(s.site_code) + '">' + s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : '') + '</a>' + (last || visits ? '<br><span class="muted">' + [last, visits].filter(Boolean).join(' · ') + '</span>' : ''));
-          count++;
+    .then(function(r) { return r.json(); })
+    .then(function(sites) {
+      if (!Array.isArray(sites)) throw new Error('sites');
+      var count = 0;
+      var skipped = 0;
+      var bounds = [];
+      sites.forEach(function(s) {
+        if (s.latitude == null || s.longitude == null || s.latitude === '' || s.longitude === '') {
+          skipped++;
+          return;
         }
+        var lat = Number(s.latitude);
+        var lng = Number(s.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          skipped++;
+          return;
+        }
+        var m = L.marker([lat, lng]).addTo(map);
+        var last = s.last_sample_date ? 'Last sample: ' + s.last_sample_date : '';
+        var visits = s.visit_count != null ? (s.visit_count + ' visits') : '';
+        m.bindPopup('<a href="/site/' + encodeURIComponent(s.site_code) + '">' + s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : '') + '</a>' + (last || visits ? '<br><span class="muted">' + [last, visits].filter(Boolean).join(' · ') + '</span>' : ''));
+        bounds.push([lat, lng]);
+        count++;
       });
-      document.getElementById('map-legend').textContent = count + ' sites with coordinates shown.';
+      if (bounds.length) {
+        map.fitBounds(bounds, { padding: [28, 28], maxZoom: 11 });
+      }
+      var note = count + ' mapped active sites';
+      if (skipped) note += '. ' + skipped + ' active sites without usable coordinates';
+      note += '.';
+      legend.textContent = note;
     })
-    .catch(() => { document.getElementById('map-legend').innerHTML = '<span class="error">We couldn\'t load sites right now. Please try again in a moment.</span>'; });
+    .catch(function() {
+      legend.innerHTML = '<span class="error">We couldn\'t load sites right now. Please try again in a moment.</span>';
+    });
 })();
 </script>
 {% endblock %}

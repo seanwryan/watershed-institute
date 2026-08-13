@@ -1,60 +1,131 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Volunteer {{ volunteer_id }}{% endblock %}
 {% block content %}
-<p class="muted"><a href="/volunteers">← Volunteers</a></p>
-<h1 id="volunteer-heading">Volunteer</h1>
-<div id="volunteer-meta" class="loading">Loading…</div>
-<div id="volunteer-error" class="error" style="display:none;"></div>
+<div class="page-monitoring page-ops" id="volunteer-profile" data-volunteer-id="{{ volunteer_id }}">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/volunteers">Volunteers</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page" id="volunteer-crumb">Profile</span>
+  </nav>
 
-<div class="card" id="actions-card" style="display:none;">
-  <a class="btn-primary" id="edit-link" href="/volunteers/{{ volunteer_id }}/edit" style="padding:0.45rem 0.75rem; border:1px solid; border-radius:6px; text-decoration:none;">Edit Volunteer</a>
-</div>
+  <div id="volunteer-error" class="alert alert-error" style="display:none;" role="alert"></div>
 
-<div class="card" id="trainings-card" style="display:none;">
-  <h2>Training history</h2>
-  <div id="trainings-empty" class="muted" style="display:none;">No training records for this volunteer.</div>
-  <div class="table-wrap" id="trainings-wrap" style="display:none;">
-    <table>
-      <thead>
-        <tr>
-          <th>Training Type</th><th>Training Date</th><th>Status</th>
-          <th>Expiration Date</th><th>Trainer</th>
-        </tr>
-      </thead>
-      <tbody id="trainings-tbody"></tbody>
-    </table>
+  <header class="site-header-block" id="volunteer-header">
+    <p class="muted">Loading volunteer profile…</p>
+  </header>
+
+  <div class="site-detail-grid">
+    <section class="panel" id="volunteer-profile-panel" hidden aria-labelledby="volunteer-profile-title">
+      <h2 class="home-panel-title" id="volunteer-profile-title">Profile</h2>
+      <div id="volunteer-profile-body"></div>
+    </section>
+
+    <section class="panel" id="volunteer-actions" hidden aria-labelledby="volunteer-actions-title">
+      <h2 class="home-panel-title" id="volunteer-actions-title">Actions</h2>
+      <div class="site-actions" id="volunteer-actions-body"></div>
+    </section>
   </div>
-</div>
 
-<div class="card" id="assignments-card" style="display:none;">
-  <h2>Site assignments</h2>
-  <div id="assignments-empty" class="muted" style="display:none;">No site assignments for this volunteer.</div>
-  <div class="table-wrap" id="assignments-wrap" style="display:none;">
-    <table>
-      <thead>
-        <tr>
-          <th>Site Code</th><th>Waterbody</th><th>Role</th>
-          <th>Start Date</th><th>End Date</th>
-        </tr>
-      </thead>
-      <tbody id="assignments-tbody"></tbody>
-    </table>
-  </div>
+  <section class="panel" id="volunteer-program" hidden aria-labelledby="volunteer-program-title">
+    <h2 class="home-panel-title" id="volunteer-program-title">Program participation</h2>
+    <div id="volunteer-program-body"></div>
+  </section>
+
+  <section class="panel site-recent" id="trainings-card" hidden aria-labelledby="trainings-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="trainings-title">Training</h2>
+      <a class="home-panel-action" id="add-training-link" href="/volunteers/{{ volunteer_id }}/training/new">Add training record</a>
+    </div>
+    <p class="muted" id="trainings-empty" hidden>No training records for this volunteer.</p>
+    <div class="table-wrap" id="trainings-wrap" hidden>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Training type</th>
+            <th scope="col">Date</th>
+            <th scope="col">Status</th>
+            <th scope="col">Expiration</th>
+            <th scope="col">Trainer</th>
+          </tr>
+        </thead>
+        <tbody id="trainings-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel site-recent" id="assignments-card" hidden aria-labelledby="assignments-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="assignments-title">Site assignments</h2>
+      <a class="home-panel-action" id="add-assignment-link" href="/volunteers/{{ volunteer_id }}/assignments/new">Add site assignment</a>
+    </div>
+    <p class="muted" id="assignments-empty" hidden>No site assignments for this volunteer.</p>
+    <div class="table-wrap" id="assignments-wrap" hidden>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Site</th>
+            <th scope="col">Waterbody</th>
+            <th scope="col">Role</th>
+            <th scope="col">Start</th>
+            <th scope="col">Status</th>
+            <th scope="col">Edit</th>
+          </tr>
+        </thead>
+        <tbody id="assignments-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel definitions-panel" id="volunteer-internal" hidden aria-labelledby="volunteer-internal-title">
+    <h2 class="home-panel-title" id="volunteer-internal-title">Internal details</h2>
+    <div id="volunteer-internal-body" class="muted"></div>
+  </section>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
 (function() {
-  const volunteerId = {{ volunteer_id|tojson }};
-  const meta = document.getElementById('volunteer-meta');
-  const errEl = document.getElementById('volunteer-error');
-  const heading = document.getElementById('volunteer-heading');
+  var volunteerId = document.getElementById('volunteer-profile').getAttribute('data-volunteer-id');
+  var header = document.getElementById('volunteer-header');
+  var errEl = document.getElementById('volunteer-error');
+  var crumb = document.getElementById('volunteer-crumb');
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function fmt(v) { return v == null || v === '' ? '—' : v; }
-  function yn(v) { return v ? 'Yes' : 'No'; }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso);
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+  }
+  function statusBadge(status) {
+    if (!status) return '';
+    var s = String(status);
+    var cls = 'badge';
+    var lower = s.toLowerCase();
+    if (lower === 'active' || lower === 'passed') cls += ' badge-success';
+    else if (lower === 'inactive' || lower === 'not started') cls += ' badge-warning';
+    return '<span class="' + cls + '">' + esc(s) + '</span>';
+  }
+  function programBadge(label, active) {
+    return active
+      ? '<span class="badge badge-program">' + esc(label) + '</span>'
+      : '<span class="badge">' + esc(label) + ' inactive</span>';
+  }
+  function trainingStatusCell(status) {
+    if (!status) return '—';
+    return statusBadge(status);
+  }
+  function assignmentStatusCell(a) {
+    if (a.is_active || !a.end_date) {
+      return '<span class="badge badge-success">Active</span>';
+    }
+    return '<span class="badge">Ended ' + esc(fmtDate(a.end_date)) + '</span>';
+  }
 
   fetch('/api/volunteers/' + encodeURIComponent(volunteerId))
     .then(function(r) {
@@ -63,66 +134,92 @@
       return r.json();
     })
     .then(function(v) {
-      const name = ((v.first_name || '') + ' ' + (v.last_name || '')).trim() || ('Volunteer ' + v.volunteer_id);
-      heading.textContent = name;
+      var name = ((v.first_name || '') + ' ' + (v.last_name || '')).trim() || ('Volunteer ' + v.volunteer_id);
+      crumb.textContent = name;
       document.title = 'StreamWatch – ' + name;
-      meta.classList.remove('loading');
-      meta.innerHTML = '<div class="card">' +
-        '<h2>Identity</h2>' +
-        '<p><strong>Volunteer ID:</strong> ' + esc(v.volunteer_id) + '</p>' +
-        '<p><strong>Name:</strong> ' + esc(name) + '</p>' +
-        '<p><strong>Perfect ID:</strong> ' + esc(fmt(v.perfect_id)) + '</p>' +
-        '<h2>Contact</h2>' +
-        '<p><strong>Email:</strong> ' + esc(fmt(v.email)) + '</p>' +
-        '<p><strong>Alt email:</strong> ' + esc(fmt(v.alt_email)) + '</p>' +
-        '<p><strong>Phone:</strong> ' + esc(fmt(v.phone)) + '</p>' +
-        '<p><strong>Alt phone:</strong> ' + esc(fmt(v.alt_phone)) + '</p>' +
-        '<p><strong>Address:</strong> ' + esc(fmt(v.address)) + '</p>' +
-        '<p><strong>Municipality:</strong> ' + esc(fmt(v.city_name)) + '</p>' +
-        '<p><strong>State:</strong> ' + esc(fmt(v.state)) + '</p>' +
-        '<p><strong>ZIP:</strong> ' + esc(fmt(v.zip_code)) + '</p>' +
-        '<h2>Program</h2>' +
-        '<p><strong>Status:</strong> ' + esc(fmt(v.status)) + '</p>' +
-        '<p><strong>Active CAT:</strong> ' + yn(v.active_cat) +
-          ' · <strong>BAT:</strong> ' + yn(v.active_bat) +
-          ' · <strong>BACT:</strong> ' + yn(v.active_bact) + '</p>' +
-        '<p><strong>Under 17:</strong> ' + yn(v.is_under_17) + '</p>' +
-        '<p><strong>Notes:</strong> ' + esc(fmt(v.notes)) + '</p>' +
-        '</div>';
-      document.getElementById('actions-card').style.display = 'block';
-      document.getElementById('edit-link').href = '/volunteers/' + encodeURIComponent(v.volunteer_id) + '/edit';
 
-      const trainings = v.trainings || [];
-      document.getElementById('trainings-card').style.display = 'block';
+      header.innerHTML =
+        '<h1>' + esc(name) + '</h1>' +
+        '<p class="site-kicker">StreamWatch volunteer</p>' +
+        '<div class="site-meta-row">' + statusBadge(v.status) + '</div>';
+
+      document.getElementById('volunteer-profile-panel').hidden = false;
+      document.getElementById('volunteer-profile-body').innerHTML =
+        '<dl class="profile-dl">' +
+          '<div><dt>Email</dt><dd>' + esc(fmt(v.email)) + '</dd></div>' +
+          '<div><dt>Alt email</dt><dd>' + esc(fmt(v.alt_email)) + '</dd></div>' +
+          '<div><dt>Phone</dt><dd>' + esc(fmt(v.phone)) + '</dd></div>' +
+          '<div><dt>Alt phone</dt><dd>' + esc(fmt(v.alt_phone)) + '</dd></div>' +
+          '<div><dt>Address</dt><dd>' + esc(fmt(v.address)) + '</dd></div>' +
+          '<div><dt>Municipality</dt><dd>' + esc(fmt(v.city_name)) + '</dd></div>' +
+          '<div><dt>State</dt><dd>' + esc(fmt(v.state)) + '</dd></div>' +
+          '<div><dt>ZIP</dt><dd>' + esc(fmt(v.zip_code)) + '</dd></div>' +
+        '</dl>';
+
+      var vid = encodeURIComponent(v.volunteer_id);
+      document.getElementById('volunteer-actions').hidden = false;
+      document.getElementById('volunteer-actions-body').innerHTML =
+        '<a class="btn-primary" href="/volunteers/' + vid + '/edit">Edit volunteer</a>' +
+        '<a class="btn-secondary" href="/volunteers/' + vid + '/training/new">Add training record</a>' +
+        '<a class="btn-secondary" href="/volunteers/' + vid + '/assignments/new">Add site assignment</a>' +
+        '<a class="btn-secondary" href="/volunteers">Back to volunteers</a>';
+
+      document.getElementById('volunteer-program').hidden = false;
+      var programHtml =
+        '<div class="program-badges program-badges-lg">' +
+          programBadge('CAT', v.active_cat) + ' ' +
+          programBadge('BAT', v.active_bat) + ' ' +
+          programBadge('BACT', v.active_bact) +
+        '</div>';
+      if (v.is_under_17) {
+        programHtml += '<p class="muted" style="margin-top:0.65rem;">Under 17: Yes</p>';
+      }
+      if (v.notes) {
+        programHtml += '<p class="site-desc" style="margin-top:0.65rem;">' + esc(v.notes) + '</p>';
+      }
+      document.getElementById('volunteer-program-body').innerHTML = programHtml;
+
+      var trainings = v.trainings || [];
+      document.getElementById('trainings-card').hidden = false;
       if (!trainings.length) {
-        document.getElementById('trainings-empty').style.display = 'block';
+        document.getElementById('trainings-empty').hidden = false;
       } else {
-        document.getElementById('trainings-wrap').style.display = 'block';
+        document.getElementById('trainings-wrap').hidden = false;
         document.getElementById('trainings-tbody').innerHTML = trainings.map(function(t) {
-          return '<tr><td>' + esc(fmt(t.training_type)) + '</td><td>' + esc(fmt(t.training_date)) +
-            '</td><td>' + esc(fmt(t.status)) + '</td><td>' + esc(fmt(t.expiration_date)) +
+          return '<tr><td>' + esc(fmt(t.training_type)) + '</td><td>' + esc(fmtDate(t.training_date)) +
+            '</td><td>' + trainingStatusCell(t.status) + '</td><td>' + esc(fmtDate(t.expiration_date)) +
             '</td><td>' + esc(fmt(t.trainer)) + '</td></tr>';
         }).join('');
       }
 
-      const assignments = v.assignments || [];
-      document.getElementById('assignments-card').style.display = 'block';
+      var assignments = v.assignments || [];
+      document.getElementById('assignments-card').hidden = false;
       if (!assignments.length) {
-        document.getElementById('assignments-empty').style.display = 'block';
+        document.getElementById('assignments-empty').hidden = false;
       } else {
-        document.getElementById('assignments-wrap').style.display = 'block';
+        document.getElementById('assignments-wrap').hidden = false;
         document.getElementById('assignments-tbody').innerHTML = assignments.map(function(a) {
-          return '<tr><td>' + esc(fmt(a.site_code)) + '</td><td>' + esc(fmt(a.waterbody_name)) +
-            '</td><td>' + esc(fmt(a.role)) + '</td><td>' + esc(fmt(a.start_date)) +
-            '</td><td>' + esc(fmt(a.end_date)) + '</td></tr>';
+          var siteCell = a.site_code
+            ? '<a href="/site/' + encodeURIComponent(a.site_code) + '">' + esc(a.site_code) + '</a>'
+            : '—';
+          var editCell = a.assignment_id
+            ? '<a href="/volunteers/' + vid + '/assignments/' + encodeURIComponent(a.assignment_id) + '/edit">Edit</a>'
+            : '—';
+          return '<tr><td>' + siteCell + '</td><td>' + esc(fmt(a.waterbody_name)) +
+            '</td><td>' + esc(fmt(a.role)) + '</td><td>' + esc(fmtDate(a.start_date)) +
+            '</td><td>' + assignmentStatusCell(a) + '</td><td>' + editCell + '</td></tr>';
         }).join('');
       }
+
+      document.getElementById('volunteer-internal').hidden = false;
+      document.getElementById('volunteer-internal-body').innerHTML =
+        '<p>Volunteer ID: ' + esc(v.volunteer_id) +
+        (v.perfect_id ? ' · Perfect ID: ' + esc(v.perfect_id) : '') + '</p>';
     })
     .catch(function(e) {
-      meta.classList.remove('loading');
-      meta.innerHTML = '';
-      errEl.textContent = e.message || 'Something went wrong. Please try again.';
+      header.innerHTML = '';
       errEl.style.display = 'block';
+      errEl.textContent = e.message || 'Something went wrong. Please try again.';
     });
 })();
 </script>

@@ -1,59 +1,90 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Add Meter Test – {{ equipment_code }}{% endblock %}
 {% block content %}
-<p class="muted"><a href="/equipment/{{ equipment_code }}">← {{ equipment_code }}</a></p>
-<h1>Add Meter Test</h1>
-<p class="muted">Record a meter test for <strong>{{ equipment_code }}</strong>.</p>
-{% if error %}
-<div class="card error">{{ error }}</div>
-{% endif %}
-<div class="card">
-  <form method="post" action="/equipment/{{ equipment_code }}/meter-tests/new">
-    <div class="form-row">
-      <label for="test_date">Test Date <span class="muted">(required)</span></label>
-      <input type="date" id="test_date" name="test_date" required value="{{ form.test_date or '' }}">
-    </div>
-    <div class="form-row">
-      <label for="staff">Staff</label>
-      <input type="text" id="staff" name="staff" value="{{ form.staff or '' }}" maxlength="200">
-    </div>
-    <div class="form-row">
-      <label for="parameter_type">Parameter <span class="muted">(required)</span></label>
-      <select id="parameter_type" name="parameter_type" required>
-        <option value="">Select…</option>
-        {% for p in parameters %}
-        <option value="{{ p }}" {% if form.parameter_type == p %}selected{% endif %}>{{ p }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="form-row">
-      <label for="round_number">Round Number</label>
-      <input type="number" id="round_number" name="round_number" step="1" value="{{ form.round_number or '' }}">
-    </div>
-    <div class="form-row">
-      <label for="reference_value">Reference Value</label>
-      <input type="number" id="reference_value" name="reference_value" step="any" value="{{ form.reference_value or '' }}">
-    </div>
-    <div class="form-row">
-      <label for="measured_value">Measured Value <span class="muted">(required)</span></label>
-      <input type="number" id="measured_value" name="measured_value" step="any" required value="{{ form.measured_value or '' }}">
-    </div>
-    <div class="form-row">
-      <label for="pass_fail">Pass/Fail</label>
-      <select id="pass_fail" name="pass_fail">
-        <option value="">—</option>
-        {% for pf in pass_fail_options %}
-        <option value="{{ pf }}" {% if form.pass_fail == pf %}selected{% endif %}>{{ pf }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="form-row">
-      <label for="action_taken">Action / Notes</label>
-      <textarea id="action_taken" name="action_taken" maxlength="2000">{{ form.action_taken or '' }}</textarea>
-    </div>
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/equipment">Equipment</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/equipment/{{ equipment_code }}">{{ equipment_code }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Add meter test</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Add meter test</h1>
+    <p class="page-subtitle">Record a calibration or verification test for {{ equipment_code }}.</p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form class="form-shell panel" method="post" action="/equipment/{{ equipment_code }}/meter-tests/new" novalidate>
+    <section class="form-section" aria-labelledby="meter-test-details">
+      <h2 class="form-section-title" id="meter-test-details">Test details</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="test_date">Test date <span class="req" aria-hidden="true">*</span></label>
+          <input type="date" id="test_date" name="test_date" required value="{{ form.test_date or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="staff">Staff</label>
+          <input type="text" id="staff" name="staff" value="{{ form.staff or '' }}" maxlength="200" autocomplete="name">
+          <p class="form-help">Optional name of the person who performed the test.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="meter-measurement">
+      <h2 class="form-section-title" id="meter-measurement">Measurement</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="parameter_type">Parameter <span class="req" aria-hidden="true">*</span></label>
+          <select id="parameter_type" name="parameter_type" required>
+            <option value="">Choose parameter…</option>
+            {% for p in parameters %}
+            <option value="{{ p }}" {% if form.parameter_type == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="round_number">Round</label>
+          <input type="number" id="round_number" name="round_number" step="1" value="{{ form.round_number or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="reference_value">Reference value</label>
+          <input type="number" id="reference_value" name="reference_value" step="any" value="{{ form.reference_value or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="measured_value">Measured value <span class="req" aria-hidden="true">*</span></label>
+          <input type="number" id="measured_value" name="measured_value" step="any" required value="{{ form.measured_value or '' }}">
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="meter-outcome">
+      <h2 class="form-section-title" id="meter-outcome">Outcome</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="pass_fail">Pass/Fail</label>
+          <select id="pass_fail" name="pass_fail">
+            <option value="">Not recorded</option>
+            {% for pf in pass_fail_options %}
+            <option value="{{ pf }}" {% if form.pass_fail == pf %}selected{% endif %}>{{ pf }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field form-field-full">
+          <label for="action_taken">Notes / action taken</label>
+          <textarea id="action_taken" name="action_taken" rows="4" maxlength="2000">{{ form.action_taken or '' }}</textarea>
+          <p class="form-help">Optional notes about adjustments, recalibration, or follow-up.</p>
+        </div>
+      </div>
+    </section>
+
     <div class="form-actions">
       <button type="submit" class="btn-primary">Save meter test</button>
-      <a href="/equipment/{{ equipment_code }}">Cancel</a>
+      <a class="btn-secondary" href="/equipment/{{ equipment_code }}">Cancel</a>
     </div>
   </form>
 </div>
