@@ -1,14 +1,293 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Home{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endblock %}
 {% block content %}
-<h1>StreamWatch</h1>
-<p class="card">Water quality monitoring data for streams and waterbodies. Browse sites, explore trends, check data quality, and export for reporting.</p>
-<p class="muted" style="font-size: 0.875rem; margin-top: -0.5rem;">If this is your first visit or the site was idle, the server may take up to a minute to respond. Please wait and refresh if needed.</p>
-<ul style="list-style: none; padding: 0;">
-  <li style="margin-bottom: 0.5rem;"><a href="/map">Map</a> – View monitoring sites on an interactive map</li>
-  <li style="margin-bottom: 0.5rem;"><a href="/sites">Sites</a> – List and search all sites</li>
-  <li style="margin-bottom: 0.5rem;"><a href="/explore">Explore data</a> – Time series charts by site and parameter</li>
-  <li style="margin-bottom: 0.5rem;"><a href="/qa">QA</a> – Data quality and flag summary</li>
-  <li style="margin-bottom: 0.5rem;"><a href="/export">Export</a> – Download WQX CSV for regulatory submission</li>
-</ul>
+<div class="home-dashboard">
+  <section class="home-hero">
+    <h1>StreamWatch</h1>
+    <p class="page-subtitle">Watershed Institute water quality monitoring and operations</p>
+    <p class="page-intro">
+      Review monitoring locations, explore historical water-quality measurements,
+      check data-quality flags, manage program operations, and export data for reporting.
+    </p>
+  </section>
+
+  <section class="home-metrics" aria-label="Monitoring summary">
+    <div class="metric">
+      <span class="metric-label" id="metric-sites-label">Total sites</span>
+      <span class="metric-value is-muted" id="metric-sites" aria-labelledby="metric-sites-label">Loading…</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label" id="metric-visits-label">Sampling visits</span>
+      <span class="metric-value is-muted" id="metric-visits" aria-labelledby="metric-visits-label">Loading…</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label" id="metric-chem-label">Chemistry results</span>
+      <span class="metric-value is-muted" id="metric-chem" aria-labelledby="metric-chem-label">Loading…</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label" id="metric-qa-label">Current QA flags</span>
+      <span class="metric-value is-muted" id="metric-qa" aria-labelledby="metric-qa-label">Loading…</span>
+    </div>
+  </section>
+
+  <section class="home-monitor-grid" aria-label="Monitoring overview">
+    <div class="home-map-panel">
+      <div class="home-panel-head">
+        <h2 class="home-panel-title">Monitoring network</h2>
+        <a class="home-panel-action" href="/map">Open full map</a>
+      </div>
+      <p class="muted home-map-note" id="home-map-note">Loading map…</p>
+      <div id="home-map" class="home-map" role="img" aria-label="Map of StreamWatch monitoring sites"></div>
+    </div>
+
+    <aside class="home-qa-panel" aria-labelledby="home-qa-title">
+      <div class="home-panel-head">
+        <h2 class="home-panel-title" id="home-qa-title">Data quality</h2>
+        <a class="home-panel-action" href="/qa">Review QA</a>
+      </div>
+      <p class="muted" id="home-qa-status">Loading data-quality summary…</p>
+      <dl class="home-qa-stats" id="home-qa-stats" hidden>
+        <div>
+          <dt>Flagged chemistry results</dt>
+          <dd id="qa-flagged">—</dd>
+        </div>
+        <div>
+          <dt>Exceedance flags</dt>
+          <dd id="qa-exceedance">—</dd>
+        </div>
+        <div>
+          <dt>Meter-related flags</dt>
+          <dd id="qa-meter">—</dd>
+        </div>
+      </dl>
+      <p class="muted home-qa-footnote">
+        Flagged results indicate review status; they are not automatically urgent problems.
+      </p>
+    </aside>
+  </section>
+
+  <section class="home-section" aria-labelledby="home-recent-title">
+    <div class="home-panel-head">
+      <h2 class="home-section-title" id="home-recent-title" style="border:0;padding:0;margin:0;">Recent monitoring activity</h2>
+      <a class="home-panel-action" href="/sites">Browse sites</a>
+    </div>
+    <div class="home-activity panel">
+      <p class="muted" id="home-activity-status">Loading recent monitoring activity…</p>
+      <div class="table-wrap" id="home-activity-wrap" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Site</th>
+              <th scope="col">Waterbody</th>
+              <th scope="col">Latest sample</th>
+              <th scope="col">Sampling visits</th>
+            </tr>
+          </thead>
+          <tbody id="home-activity-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section" aria-labelledby="home-ops-title">
+    <h2 class="home-section-title" id="home-ops-title">Program operations</h2>
+    <div class="home-ops-grid">
+      <div class="home-ops-block panel">
+        <h3 class="home-ops-heading">Volunteers</h3>
+        <p class="home-ops-count"><span id="ops-volunteers" class="is-muted">Loading…</span></p>
+        <p class="muted">Review profiles, training, and site assignments.</p>
+        <a href="/volunteers">Open Volunteers</a>
+      </div>
+      <div class="home-ops-block panel">
+        <h3 class="home-ops-heading">Equipment</h3>
+        <p class="home-ops-count"><span id="ops-equipment" class="is-muted">Loading…</span></p>
+        <p class="muted">Review CAT meter inventory and testing history.</p>
+        <a href="/equipment">Open Equipment</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section" aria-labelledby="home-actions-title">
+    <h2 class="home-section-title" id="home-actions-title">Quick actions</h2>
+    <div class="home-actions">
+      <a class="btn-secondary" href="/explore">Explore water-quality data</a>
+      <a class="btn-secondary" href="/sites">Browse sites</a>
+      <a class="btn-secondary" href="/qa">Review QA</a>
+      <a class="btn-secondary" href="/export">Export data</a>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  function fmtNumber(n) {
+    if (n == null || !isFinite(Number(n))) return null;
+    return Number(n).toLocaleString('en-US');
+  }
+
+  function setText(id, text, muted) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('is-muted', !!muted);
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function failSummary() {
+    ['metric-sites', 'metric-visits', 'metric-chem', 'metric-qa'].forEach(function(id) {
+      setText(id, 'Unavailable', true);
+    });
+    setText('ops-volunteers', 'Unavailable', true);
+    setText('ops-equipment', 'Unavailable', true);
+    var qaStatus = document.getElementById('home-qa-status');
+    if (qaStatus) qaStatus.textContent = 'Unable to load summary';
+    var act = document.getElementById('home-activity-status');
+    if (act) act.textContent = 'Unable to load recent monitoring activity';
+  }
+
+  fetch('/api/home_summary')
+    .then(function(r) {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    })
+    .then(function(data) {
+      setText('metric-sites', fmtNumber(data.sites_total) || '—', false);
+      setText('metric-visits', fmtNumber(data.sampling_visits) || '—', false);
+      setText('metric-chem', fmtNumber(data.chemistry_results) || '—', false);
+      setText('metric-qa', fmtNumber(data.qa_flags) || '—', false);
+
+      setText('ops-volunteers', (fmtNumber(data.volunteers) || '—') + ' records', false);
+      setText('ops-equipment', (fmtNumber(data.equipment) || '—') + ' meters', false);
+
+      var qaStatus = document.getElementById('home-qa-status');
+      var qaStats = document.getElementById('home-qa-stats');
+      if (qaStatus && qaStats) {
+        qaStatus.hidden = true;
+        qaStats.hidden = false;
+        setText('qa-flagged', fmtNumber(data.flagged_chemistry_results) || '—', false);
+        setText('qa-exceedance', fmtNumber(data.exceedance_flags) || '—', false);
+        setText('qa-meter', fmtNumber(data.meter_related_flags) || '—', false);
+      }
+
+      var actStatus = document.getElementById('home-activity-status');
+      var actWrap = document.getElementById('home-activity-wrap');
+      var tbody = document.getElementById('home-activity-tbody');
+      var recent = data.recent_sites || [];
+      if (!recent.length) {
+        if (actStatus) actStatus.textContent = 'No recent monitoring activity available';
+        return;
+      }
+      if (actStatus) actStatus.hidden = true;
+      if (actWrap) actWrap.hidden = false;
+      if (tbody) {
+        tbody.innerHTML = recent.map(function(row) {
+          var code = esc(row.site_code);
+          return '<tr>' +
+            '<td><a href="/site/' + encodeURIComponent(row.site_code) + '">' + code + '</a></td>' +
+            '<td>' + esc(row.waterbody_name || '—') + '</td>' +
+            '<td>' + esc(row.last_sample_date || '—') + '</td>' +
+            '<td>' + esc(fmtNumber(row.visit_count) || '—') + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+    })
+    .catch(failSummary);
+
+  /* Lightweight Home map: active sites from existing /api/sites (same source as Map page). */
+  var mapNote = document.getElementById('home-map-note');
+  var mapEl = document.getElementById('home-map');
+  if (!mapEl || typeof L === 'undefined') {
+    if (mapNote) mapNote.textContent = 'Map unavailable in this browser.';
+    return;
+  }
+
+  function isValidCoord(lat, lng) {
+    return Number.isFinite(lat) && Number.isFinite(lng)
+      && lat >= -90 && lat <= 90
+      && lng >= -180 && lng <= 180;
+  }
+
+  function frameNetwork(map, latLngs) {
+    if (!latLngs.length) return;
+    if (latLngs.length === 1) {
+      map.setView(latLngs[0], 12);
+      return;
+    }
+    var bounds = L.latLngBounds(latLngs);
+    map.fitBounds(bounds, { padding: [36, 36], maxZoom: 12 });
+  }
+
+  fetch('/api/sites')
+    .then(function(r) {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    })
+    .then(function(sites) {
+      if (!Array.isArray(sites)) throw new Error('bad sites');
+      var map = L.map('home-map', { scrollWheelZoom: false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      var latLngs = [];
+      var skipped = 0;
+      sites.forEach(function(s) {
+        if (s.latitude == null || s.longitude == null || s.latitude === '' || s.longitude === '') {
+          skipped += 1;
+          return;
+        }
+        var lat = Number(s.latitude);
+        var lng = Number(s.longitude);
+        if (!isValidCoord(lat, lng)) {
+          skipped += 1;
+          return;
+        }
+        var ll = L.latLng(lat, lng);
+        var m = L.marker(ll).addTo(map);
+        var label = s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : '');
+        var last = s.last_sample_date ? 'Last sample: ' + s.last_sample_date : '';
+        m.bindPopup(
+          '<a href="/site/' + encodeURIComponent(s.site_code) + '">' + label + '</a>' +
+          (last ? '<br><span class="muted">' + last + '</span>' : '')
+        );
+        latLngs.push(ll);
+      });
+
+      if (!latLngs.length) {
+        if (mapNote) mapNote.textContent = 'No sites with valid coordinates are available to map.';
+        mapEl.style.display = 'none';
+        map.remove();
+        return;
+      }
+
+      // Size the container first, then fit to markers (avoids world-scale initial framing).
+      map.invalidateSize();
+      frameNetwork(map, latLngs);
+      setTimeout(function() {
+        map.invalidateSize();
+        frameNetwork(map, latLngs);
+      }, 100);
+
+      if (mapNote) {
+        var note = latLngs.length + ' active sites with coordinates shown. Inactive sites are omitted from the map.';
+        if (skipped) note += ' ' + skipped + ' active site(s) skipped due to missing or invalid coordinates.';
+        mapNote.textContent = note;
+      }
+    })
+    .catch(function() {
+      if (mapNote) mapNote.textContent = 'Unable to load monitoring network map.';
+      if (mapEl) mapEl.style.display = 'none';
+    });
+})();
+</script>
 {% endblock %}

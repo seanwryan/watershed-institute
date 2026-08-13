@@ -8,34 +8,70 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-  <header class="header">
-    <a href="/" class="logo">StreamWatch</a>
-    <nav class="nav">
-      <a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Home</a>
-      <a href="/map" class="nav-link {% if request.endpoint == 'map_page' %}active{% endif %}">Map</a>
-      <a href="/sites" class="nav-link {% if request.endpoint == 'sites_page' %}active{% endif %}">Sites</a>
-      <a href="/equipment" class="nav-link {% if request.endpoint in ('equipment_page', 'equipment_detail_page', 'meter_test_new') %}active{% endif %}">Equipment</a>
-      <a href="/volunteers" class="nav-link {% if request.endpoint in ('volunteers_page', 'volunteer_detail_page', 'volunteer_edit') %}active{% endif %}">Volunteers</a>
-      <a href="/explore" class="nav-link {% if request.endpoint == 'explore_page' %}active{% endif %}">Explore data</a>
-      <a href="/scores" class="nav-link {% if request.endpoint == 'scores_page' %}active{% endif %}">Scores</a>
-      <a href="/qa" class="nav-link {% if request.endpoint == 'qa_page' %}active{% endif %}">QA</a>
-      <a href="/export" class="nav-link {% if request.endpoint == 'export_page' %}active{% endif %}">Export</a>
-      <a href="/about" class="nav-link {% if request.endpoint == 'about_page' %}active{% endif %}">About</a>
-    </nav>
-    <span id="health-indicator" class="health-dot" title="Checking connection…" aria-hidden="true"></span>
+  {% set ep = request.endpoint or '' %}
+  {% set monitoring_active = ep in ('map_page', 'sites_page', 'site_detail_page', 'explore_page', 'scores_page') %}
+  {% set operations_active = ep in ('equipment_page', 'equipment_detail_page', 'meter_test_new', 'volunteers_page', 'volunteer_detail_page', 'volunteer_edit') %}
+  {% set qa_active = ep == 'qa_page' %}
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a href="/" class="logo">StreamWatch</a>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-controls="site-nav" aria-expanded="false">Menu</button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary">
+        <a href="/" class="nav-link {% if ep == 'index' %}active{% endif %}">Home</a>
+
+        <div class="nav-group {% if monitoring_active %}active{% endif %}" data-nav-group>
+          <button type="button" class="nav-group-label" aria-expanded="false" aria-controls="nav-monitoring" id="nav-monitoring-btn">Monitoring</button>
+          <div class="nav-submenu" id="nav-monitoring" role="group" aria-labelledby="nav-monitoring-btn" hidden>
+            <a href="/map" class="{% if ep == 'map_page' %}active{% endif %}">Map</a>
+            <a href="/sites" class="{% if ep in ('sites_page', 'site_detail_page') %}active{% endif %}">Sites</a>
+            <a href="/explore" class="{% if ep == 'explore_page' %}active{% endif %}">Explore data</a>
+            <a href="/scores" class="{% if ep == 'scores_page' %}active{% endif %}">Biology scores</a>
+          </div>
+        </div>
+
+        <a href="/qa" class="nav-link {% if qa_active %}active{% endif %}">QA</a>
+
+        <div class="nav-group {% if operations_active %}active{% endif %}" data-nav-group>
+          <button type="button" class="nav-group-label" aria-expanded="false" aria-controls="nav-ops" id="nav-ops-btn">Operations</button>
+          <div class="nav-submenu" id="nav-ops" role="group" aria-labelledby="nav-ops-btn" hidden>
+            <a href="/volunteers" class="{% if ep in ('volunteers_page', 'volunteer_detail_page', 'volunteer_edit') %}active{% endif %}">Volunteers</a>
+            <a href="/equipment" class="{% if ep in ('equipment_page', 'equipment_detail_page', 'meter_test_new') %}active{% endif %}">Equipment</a>
+          </div>
+        </div>
+
+        <a href="/export" class="nav-link {% if ep == 'export_page' %}active{% endif %}">Export</a>
+      </nav>
+      <div id="conn-status" class="conn-status" data-status="unknown" role="status" aria-live="polite">
+        <span class="conn-status-dot" aria-hidden="true"></span>
+        <span class="conn-status-label">Checking…</span>
+      </div>
+    </div>
   </header>
+
   <div id="global-filter-bar" class="global-filter-bar" style="display:none;">
-    <span class="global-filter-label">Filter:</span>
-    <label>From</label><input type="date" id="global-date-start">
-    <label>To</label><input type="date" id="global-date-end">
-    <label>Site</label><select id="global-site"><option value="">All sites</option></select>
+    <span class="global-filter-label">Viewing</span>
+    <label for="global-date-start">From</label>
+    <input type="date" id="global-date-start">
+    <label for="global-date-end">To</label>
+    <input type="date" id="global-date-end">
+    <label for="global-site">Site</label>
+    <select id="global-site"><option value="">All sites</option></select>
   </div>
+
   <main class="main">
     {% block content %}{% endblock %}
   </main>
+
   <footer class="footer">
-    <p>StreamWatch water quality monitoring data. <a href="/about">About &amp; data use</a> — what the data mean, QA status, and parameter guide.</p>
+    <div class="footer-inner">
+      <div>
+        <span class="footer-brand">StreamWatch</span>
+        <span class="footer-tagline">Water quality monitoring data</span>
+      </div>
+      <a href="/about">About &amp; data use</a>
+    </div>
   </footer>
+
   {% block scripts %}{% endblock %}
   <script>
   (function() {
@@ -44,19 +80,102 @@
     var STORAGE_KEYS = { dateStart: 'streamwatch_global_date_start', dateEnd: 'streamwatch_global_date_end', siteCode: 'streamwatch_global_site_code' };
 
     function loadHealth() {
-      var el = document.getElementById('health-indicator');
+      var el = document.getElementById('conn-status');
       if (!el) return;
+      var label = el.querySelector('.conn-status-label');
       fetch('/health').then(function(r) {
         var ok = r.ok;
         el.setAttribute('data-status', ok ? 'ok' : 'degraded');
-        el.setAttribute('title', ok ? 'Database connected' : 'Database unavailable');
+        if (label) label.textContent = ok ? 'Data available' : 'Data unavailable';
       }).catch(function() {
         el.setAttribute('data-status', 'degraded');
-        el.setAttribute('title', 'Database unavailable');
+        if (label) label.textContent = 'Data unavailable';
       });
     }
     loadHealth();
     setInterval(loadHealth, 60000);
+
+    /* Mobile nav + accessible submenu toggles */
+    var nav = document.getElementById('site-nav');
+    var toggle = document.getElementById('nav-toggle');
+    var groups = Array.prototype.slice.call(document.querySelectorAll('[data-nav-group]'));
+
+    function closeAllGroups(except) {
+      groups.forEach(function(g) {
+        if (except && g === except) return;
+        g.classList.remove('is-open');
+        var btn = g.querySelector('.nav-group-label');
+        var menu = g.querySelector('.nav-submenu');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (menu) menu.hidden = true;
+      });
+    }
+
+    function setGroupOpen(group, open) {
+      var btn = group.querySelector('.nav-group-label');
+      var menu = group.querySelector('.nav-submenu');
+      if (!btn || !menu) return;
+      group.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      menu.hidden = !open;
+    }
+
+    if (toggle && nav) {
+      toggle.addEventListener('click', function() {
+        var open = !nav.classList.contains('is-open');
+        nav.classList.toggle('is-open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (!open) closeAllGroups();
+      });
+    }
+
+    groups.forEach(function(group) {
+      var btn = group.querySelector('.nav-group-label');
+      if (!btn) return;
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var willOpen = !group.classList.contains('is-open');
+        closeAllGroups(group);
+        setGroupOpen(group, willOpen);
+      });
+      btn.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setGroupOpen(group, true);
+          var first = group.querySelector('.nav-submenu a');
+          if (first) first.focus();
+        } else if (e.key === 'Escape') {
+          setGroupOpen(group, false);
+          btn.focus();
+        }
+      });
+      var links = group.querySelectorAll('.nav-submenu a');
+      links.forEach(function(link) {
+        link.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            setGroupOpen(group, false);
+            btn.focus();
+          }
+        });
+      });
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('[data-nav-group]') && !e.target.closest('.nav-toggle')) {
+        closeAllGroups();
+      }
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeAllGroups();
+        if (nav && toggle && nav.classList.contains('is-open')) {
+          nav.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.focus();
+        }
+      }
+    });
 
     if (showGlobalFilter) {
       var bar = document.getElementById('global-filter-bar');
@@ -64,29 +183,29 @@
       var gEnd = document.getElementById('global-date-end');
       var gSite = document.getElementById('global-site');
       if (bar && gStart && gEnd && gSite) {
-        bar.style.display = 'block';
+        bar.style.display = 'flex';
         try {
           var s = window.sessionStorage;
           if (s.getItem(STORAGE_KEYS.dateStart)) gStart.value = s.getItem(STORAGE_KEYS.dateStart);
           if (s.getItem(STORAGE_KEYS.dateEnd)) gEnd.value = s.getItem(STORAGE_KEYS.dateEnd);
           if (s.getItem(STORAGE_KEYS.siteCode)) gSite.value = s.getItem(STORAGE_KEYS.siteCode);
-        } catch (e) {}
+        } catch (err) {}
         function saveGlobalFilter() {
           try {
             window.sessionStorage.setItem(STORAGE_KEYS.dateStart, gStart.value || '');
             window.sessionStorage.setItem(STORAGE_KEYS.dateEnd, gEnd.value || '');
             window.sessionStorage.setItem(STORAGE_KEYS.siteCode, gSite.value || '');
-          } catch (e) {}
+          } catch (err) {}
         }
         gStart.addEventListener('change', saveGlobalFilter);
         gEnd.addEventListener('change', saveGlobalFilter);
         gSite.addEventListener('change', saveGlobalFilter);
         fetch('/api/sites').then(function(r) { return r.json(); }).then(function(sites) {
           if (!Array.isArray(sites)) return;
-          sites.forEach(function(s) {
-            gSite.appendChild(new Option(s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : ''), s.site_code));
+          sites.forEach(function(site) {
+            gSite.appendChild(new Option(site.site_code + (site.waterbody_name ? ' – ' + site.waterbody_name : ''), site.site_code));
           });
-          try { if (window.sessionStorage.getItem(STORAGE_KEYS.siteCode)) gSite.value = window.sessionStorage.getItem(STORAGE_KEYS.siteCode); } catch (e) {}
+          try { if (window.sessionStorage.getItem(STORAGE_KEYS.siteCode)) gSite.value = window.sessionStorage.getItem(STORAGE_KEYS.siteCode); } catch (err) {}
         }).catch(function() {});
       }
     }

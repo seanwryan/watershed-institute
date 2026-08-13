@@ -148,6 +148,90 @@ def api_qa_summary():
         conn.close()
 
 
+@app.route("/api/home_summary")
+def api_home_summary():
+    """
+    Read-only aggregate counts and recent sampling activity for the Home dashboard.
+    No business rules beyond simple COUNT / ORDER BY last sample date.
+    """
+    conn, err = get_db_or_503()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM site")
+        sites_total = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM site WHERE is_active = true")
+        sites_active = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM visit")
+        visits = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM chemical")
+        chemistry = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM result_flag")
+        qa_flags = cur.fetchone()[0]
+        cur.execute(
+            "SELECT COUNT(*) FROM chemical c "
+            "JOIN data_condition dc ON dc.data_condition_id = c.data_condition_id "
+            "WHERE dc.code = 'Flagged'"
+        )
+        flagged_chemistry = cur.fetchone()[0]
+        cur.execute(
+            "SELECT COUNT(*) FROM result_flag WHERE flag_type_id IN "
+            "(SELECT flag_type_id FROM flag_type WHERE code = 'Exceedance')"
+        )
+        exceedance_flags = cur.fetchone()[0]
+        cur.execute(
+            "SELECT COUNT(*) FROM result_flag WHERE flag_type_id IN "
+            "(SELECT flag_type_id FROM flag_type WHERE code = 'Meter_Failed_Test')"
+        )
+        meter_fail_flags = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM volunteer")
+        volunteers = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM equipment WHERE equipment_code ~* '^TWI[0-9]{3}$'")
+        equipment = cur.fetchone()[0]
+        cur.execute(
+            """
+            SELECT s.site_code,
+                   w.name AS waterbody_name,
+                   MAX(v.sample_date)::text AS last_sample_date,
+                   COUNT(v.visit_id) AS visit_count
+            FROM site s
+            JOIN visit v ON v.site_id = s.site_id
+            LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
+            GROUP BY s.site_id, s.site_code, w.name
+            HAVING MAX(v.sample_date) IS NOT NULL
+            ORDER BY MAX(v.sample_date) DESC, s.site_code
+            LIMIT 8
+            """
+        )
+        recent = [
+            {
+                "site_code": r[0],
+                "waterbody_name": r[1],
+                "last_sample_date": r[2],
+                "visit_count": r[3],
+            }
+            for r in cur.fetchall()
+        ]
+        return jsonify(
+            {
+                "sites_total": sites_total,
+                "sites_active": sites_active,
+                "sampling_visits": visits,
+                "chemistry_results": chemistry,
+                "qa_flags": qa_flags,
+                "flagged_chemistry_results": flagged_chemistry,
+                "exceedance_flags": exceedance_flags,
+                "meter_related_flags": meter_fail_flags,
+                "volunteers": volunteers,
+                "equipment": equipment,
+                "recent_sites": recent,
+            }
+        )
+    finally:
+        conn.close()
+
+
 @app.route("/api/data_conditions")
 def api_data_conditions():
     """List data_condition codes and descriptions for QA legend."""
