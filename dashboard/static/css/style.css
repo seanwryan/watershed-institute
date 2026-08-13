@@ -1517,6 +1517,19 @@ tr:hover {
   display: block;
   font-size: 0.75rem;
 }
+
+.btn-link-danger {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #a33;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+.btn-link-danger:hover {
+  color: #7a2020;
+}
 @media (max-width: 560px) {
   .form-shell {
     padding: 1rem;

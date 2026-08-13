@@ -85,6 +85,8 @@
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/edit">Edit visit</a>
         <a class="btn-primary" href="/visits/{{ visit.visit_id }}/chemistry/new">Add chemistry result</a>
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/bacteria/new">Add bacteria result</a>
+        <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/habitat/new">Add habitat assessment</a>
+        <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/macro">Macroinvertebrates</a>
         <a class="btn-secondary" href="/explore?site_code={{ visit.site_code }}">Explore trends</a>
       </div>
     </section>
@@ -165,6 +167,80 @@
       </article>
       {% endfor %}
     </div>
+    {% endif %}
+  </section>
+
+  <section class="panel site-recent" aria-labelledby="visit-hab-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="visit-hab-title">Habitat assessments</h2>
+      <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/habitat/new">Add habitat assessment</a>
+    </div>
+    {% if not habitats %}
+    <p class="muted">No habitat assessment recorded for this visit.</p>
+    {% else %}
+    <div class="result-package-list">
+      {% for h in habitats %}
+      <article class="result-package">
+        <div class="result-package-head">
+          <div>
+            <strong>Assessment {{ loop.index }}</strong>
+            {% if h.data_condition %}<span class="badge">{{ h.data_condition }}</span>{% endif %}
+          </div>
+          <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/habitat/{{ h.habitat_id }}/edit">Edit</a>
+        </div>
+        {% if h.measured %}
+        <ul class="result-measure-list">
+          {% for m in h.measured %}
+          <li><span class="metric-label">{{ m.label }}</span> <span class="num">{{ m.value }}</span></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% if h.component_total is not none %}
+        <p class="form-help" style="margin-top:0.5rem;"><strong>Component total:</strong> {{ h.component_total }} (sum of recorded components; not a formal rating)</p>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="panel site-recent" aria-labelledby="visit-macro-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="visit-macro-title">Macroinvertebrates</h2>
+      <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/macro">Manage counts</a>
+    </div>
+    {% if not macro_summary or not macro_summary.has_counts %}
+    <p class="muted">No macroinvertebrate counts recorded for this visit.</p>
+    {% else %}
+    <div class="snapshot-grid">
+      <div>
+        <span class="metric-label">Total organisms</span>
+        <span class="snapshot-value">{{ macro_summary.total_organisms }}</span>
+      </div>
+      <div>
+        <span class="metric-label">Taxa</span>
+        <span class="snapshot-value">{{ macro_summary.taxa_count }}</span>
+      </div>
+      {% if macro_summary.scores and macro_summary.scores.hgmi_rating %}
+      <div>
+        <span class="metric-label">HGMI</span>
+        <span class="snapshot-value">{{ macro_summary.scores.hgmi_rating }}</span>
+      </div>
+      {% endif %}
+      {% if macro_summary.scores and macro_summary.scores.njis_rating %}
+      <div>
+        <span class="metric-label">NJIS</span>
+        <span class="snapshot-value">{{ macro_summary.scores.njis_rating }}</span>
+      </div>
+      {% endif %}
+    </div>
+    {% if not macro_summary.scores %}
+    <p class="muted" style="margin-top:0.65rem;">Scores are not yet available for this sample.</p>
+    {% endif %}
+    <p style="margin-top:0.75rem;">
+      <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/macro">Manage counts</a>
+      <a class="btn-secondary" href="/scores?site_code={{ visit.site_code }}">View Scores</a>
+    </p>
     {% endif %}
   </section>
   {% endif %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {% if mode == 'edit' %}Edit taxon{% else %}Add taxon{% endif %}{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% if visit and visit.site_code %}
+    <a href="/site/{{ visit.site_code }}">{{ visit.site_code }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% endif %}
+    {% if visit and visit.visit_id %}
+    <a href="/visits/{{ visit.visit_id }}">Visit{% if visit.sample_date %} {{ visit.sample_date }}{% endif %}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/visits/{{ visit.visit_id }}/macro">Macroinvertebrates</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% endif %}
+    <span aria-current="page">{% if mode == 'edit' %}Edit taxon{% else %}Add taxon{% endif %}</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>{% if mode == 'edit' %}Edit taxon count{% else %}Add taxon count{% endif %}</h1>
+    <p class="page-subtitle">
+      {% if visit and visit.site_code %}
+      {{ visit.site_code }}{% if visit.sample_date %} · {{ visit.sample_date }}{% endif %}.
+      {% endif %}
+      Select an existing taxon from the StreamWatch bug list.
+    </p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+
+  {% if visit and visit.visit_id %}
+  <form class="form-shell panel" method="post"
+        action="{% if mode == 'edit' %}/visits/{{ visit.visit_id }}/macro/taxa/{{ bug_count_id }}/edit{% else %}/visits/{{ visit.visit_id }}/macro/taxa/new{% endif %}"
+        novalidate>
+    <section class="form-section" aria-labelledby="taxon-fields">
+      <h2 class="form-section-title" id="taxon-fields">Observation</h2>
+      <div class="form-grid">
+        <div class="form-field form-field-full">
+          <label for="taxon-filter">Filter taxa</label>
+          <input type="search" id="taxon-filter" placeholder="Type family, genus, or code…" autocomplete="off">
+          <p class="form-help">Filters the list below. Only existing bug list taxa can be selected.</p>
+        </div>
+        <div class="form-field form-field-full">
+          <label for="bug_id">Taxon <span class="req" aria-hidden="true">*</span></label>
+          <select id="bug_id" name="bug_id" size="12" required>
+            <option value="">Choose taxon…</option>
+            {% for t in taxa %}
+            <option value="{{ t.bug_id }}"
+                    data-label="{{ t.label|lower }}"
+                    {% if form.bug_id == (t.bug_id|string) %}selected{% endif %}>
+              {{ t.label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="amount">Count <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" inputmode="numeric" id="amount" name="amount" required value="{{ form.amount or '' }}">
+          <p class="form-help">Whole number, at least 1.</p>
+        </div>
+        <div class="form-field">
+          <span class="form-group-label">Scoring</span>
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" name="exclude" value="1" {% if form.exclude %}checked{% endif %}>
+              Exclude from scoring
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">{% if mode == 'edit' %}Save taxon count{% else %}Save taxon count{% endif %}</button>
+      <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/macro">Cancel</a>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var filter = document.getElementById('taxon-filter');
+  var select = document.getElementById('bug_id');
+  if (!filter || !select) return;
+  filter.addEventListener('input', function () {
+    var q = (filter.value || '').trim().toLowerCase();
+    Array.prototype.forEach.call(select.options, function (opt, i) {
+      if (i === 0) { opt.hidden = false; return; }
+      var label = opt.getAttribute('data-label') || (opt.textContent || '').toLowerCase();
+      opt.hidden = q && label.indexOf(q) === -1;
+    });
+  });
+})();
+</script>
+{% endblock %}

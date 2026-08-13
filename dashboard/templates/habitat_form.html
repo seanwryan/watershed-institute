@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {% if mode == 'edit' %}Edit habitat{% else %}Add habitat{% endif %}{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% if visit and visit.site_code %}
+    <a href="/site/{{ visit.site_code }}">{{ visit.site_code }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% endif %}
+    {% if visit and visit.visit_id %}
+    <a href="/visits/{{ visit.visit_id }}">Visit{% if visit.sample_date %} {{ visit.sample_date }}{% endif %}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% endif %}
+    <span aria-current="page">{% if mode == 'edit' %}Edit habitat{% else %}Add habitat{% endif %}</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>{% if mode == 'edit' %}Edit habitat assessment{% else %}Add habitat assessment{% endif %}</h1>
+    <p class="page-subtitle">
+      {% if visit and visit.site_code %}
+      {{ visit.site_code }}{% if visit.sample_date %} · {{ visit.sample_date }}{% endif %}.
+      {% endif %}
+      RBP-style habitat component scores. Multiple assessments may be recorded per visit.
+    </p>
+    {% if visit and visit.habitat_type %}
+    <p class="form-help">Site habitat type: {{ visit.habitat_type }}</p>
+    {% endif %}
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+  {% if warnings %}
+  <div class="alert alert-warning" role="status">
+    <p><strong>Historical range notice</strong> — values outside commonly observed ranges are allowed; official score domains are not yet confirmed.</p>
+    <ul>
+      {% for w in warnings %}
+      <li>{{ w }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if entry_blocked %}
+  <div class="alert alert-warning" role="status">
+    <p>{{ block_message or "Habitat scoring is not yet defined for this site type." }}</p>
+    {% if visit and visit.visit_id %}
+    <p><a href="/visits/{{ visit.visit_id }}">Return to visit</a></p>
+    {% endif %}
+  </div>
+  {% elif visit and visit.visit_id %}
+  <form class="form-shell panel" method="post"
+        action="{% if mode == 'edit' %}/visits/{{ visit.visit_id }}/habitat/{{ habitat_id }}/edit{% else %}/visits/{{ visit.visit_id }}/habitat/new{% endif %}"
+        novalidate>
+    <section class="form-section" aria-labelledby="hab-context">
+      <h2 class="form-section-title" id="hab-context">Result context</h2>
+      <div class="form-grid">
+        <div class="form-field form-field-full">
+          <label for="data_condition_id">Data condition</label>
+          <select id="data_condition_id" name="data_condition_id">
+            <option value="">—</option>
+            {% for c in conditions %}
+            <option value="{{ c.data_condition_id }}" {% if form.data_condition_id == (c.data_condition_id|string) %}selected{% endif %}>
+              {{ c.code }}{% if c.description %} — {{ c.description }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="hab-shared">
+      <h2 class="form-section-title" id="hab-shared">Shared metrics</h2>
+      <p class="form-help">Integer RBP habitat component scores. Enter at least one metric overall.</p>
+      <div class="form-grid">
+        {% for key, label, kind in shared_fields %}
+        <div class="form-field">
+          <label for="{{ key }}">{{ label }}</label>
+          <input type="text" inputmode="numeric" id="{{ key }}" name="{{ key }}" value="{{ form[key] or '' }}">
+          {% if kind == 'bank' %}
+          <p class="form-help">Historically observed up to 10 (not a hard limit).</p>
+          {% else %}
+          <p class="form-help">Historically observed up to 20 (not a hard limit).</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if high_fields %}
+    <section class="form-section" aria-labelledby="hab-high">
+      <h2 class="form-section-title" id="hab-high">High-gradient metrics</h2>
+      <div class="form-grid">
+        {% for key, label, kind in high_fields %}
+        <div class="form-field">
+          <label for="{{ key }}">{{ label }}</label>
+          <input type="text" inputmode="numeric" id="{{ key }}" name="{{ key }}" value="{{ form[key] or '' }}">
+          <p class="form-help">Historically observed up to 20 (not a hard limit).</p>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if low_fields %}
+    <section class="form-section" aria-labelledby="hab-low">
+      <h2 class="form-section-title" id="hab-low">Low-gradient metrics</h2>
+      <div class="form-grid">
+        {% for key, label, kind in low_fields %}
+        <div class="form-field">
+          <label for="{{ key }}">{{ label }}</label>
+          <input type="text" inputmode="numeric" id="{{ key }}" name="{{ key }}" value="{{ form[key] or '' }}">
+          <p class="form-help">Historically observed up to 20 (not a hard limit).</p>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if component_total is not none %}
+    <p class="form-help"><strong>Component total (current values):</strong> {{ component_total }} — sum of entered components only; not a formal habitat rating.</p>
+    {% endif %}
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">{% if mode == 'edit' %}Save habitat assessment{% else %}Save habitat assessment{% endif %}</button>
+      <a class="btn-secondary" href="/visits/{{ visit.visit_id }}">Cancel</a>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

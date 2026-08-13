@@ -16,6 +16,7 @@ from flask import Flask, jsonify, request, send_from_directory, render_template,
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
+from etl.biological_indices import calculate_visit_indices
 
 # Strip quotes so pasting 'postgresql://...' in Render Environment still works
 _raw = os.getenv("DATABASE_URL", "postgresql://localhost/streamwatch") or ""
@@ -1415,7 +1416,7 @@ def _load_visit_header(cur, visit_id):
                v.sample_date, v.sample_time, v.sample_code,
                v.method_id, m.name AS method_name,
                v.equipment_id, e.equipment_code,
-               v.notes
+               v.notes, s.habitat_type::text
         FROM visit v
         JOIN site s ON s.site_id = v.site_id
         LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
@@ -1443,6 +1444,7 @@ def _load_visit_header(cur, visit_id):
         "equipment_id": r[9],
         "equipment_code": r[10],
         "notes": r[11],
+        "habitat_type": r[12],
     }
 
 
@@ -1915,6 +1917,8 @@ def visit_detail_page(visit_id):
             visit=None,
             chemistry=[],
             bacteria=[],
+            habitats=[],
+            macro_summary=None,
             error="Service temporarily unavailable. Please try again in a moment.",
             notice=None,
         ), 503
@@ -1927,11 +1931,15 @@ def visit_detail_page(visit_id):
                 visit=None,
                 chemistry=[],
                 bacteria=[],
+                habitats=[],
+                macro_summary=None,
                 error="Visit not found.",
                 notice=None,
             ), 404
         chemistry = _load_visit_chemistry(cur, visit_id)
         bacteria = _load_visit_bacteria(cur, visit_id)
+        habitats = _load_visit_habitats(cur, visit_id, visit.get("habitat_type"))
+        macro_summary = _load_macro_summary(cur, visit_id)
         notice = None
         if request.args.get("qa_warn") == "1":
             notice = (
@@ -1943,6 +1951,8 @@ def visit_detail_page(visit_id):
             visit=visit,
             chemistry=chemistry,
             bacteria=bacteria,
+            habitats=habitats,
+            macro_summary=macro_summary,
             error=None,
             notice=notice,
         )
@@ -2624,6 +2634,1008 @@ def bacteria_edit(visit_id, bacteria_id):
             )
 
         return redirect(url_for("visit_detail_page", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+# —— Habitat assessment + Macroinvertebrate counts ——
+
+_HABITAT_SHARED_FIELDS = [
+    ("epifaunal_substrate", "Epifaunal substrate", "general"),
+    ("sediment_deposition", "Sediment deposition", "general"),
+    ("channel_flow_status", "Channel flow status", "general"),
+    ("channel_alteration", "Channel alteration", "general"),
+    ("bank_stability_left", "Bank stability — left", "bank"),
+    ("bank_stability_right", "Bank stability — right", "bank"),
+    ("bank_veg_protection_left", "Bank vegetative protection — left", "bank"),
+    ("bank_veg_protection_right", "Bank vegetative protection — right", "bank"),
+    ("riparian_zone_left", "Riparian / vegetative zone — left", "bank"),
+    ("riparian_zone_right", "Riparian / vegetative zone — right", "bank"),
+]
+
+_HABITAT_HIGH_FIELDS = [
+    ("embeddedness", "Embeddedness", "general"),
+    ("velocity_depth", "Velocity / depth combination", "general"),
+    ("freq_riffles", "Frequency of riffles", "general"),
+]
+
+_HABITAT_LOW_FIELDS = [
+    ("pool_substrate", "Pool substrate characterization", "general"),
+    ("pool_variability", "Pool variability", "general"),
+    ("channel_sinuosity", "Channel sinuosity", "general"),
+]
+
+_HABITAT_ALL_METRIC_KEYS = [
+    f[0] for f in (_HABITAT_SHARED_FIELDS + _HABITAT_HIGH_FIELDS + _HABITAT_LOW_FIELDS)
+]
+
+
+def _habitat_gradient_mode(habitat_type):
+    """Return 'high', 'low', or None when habitat entry is not supported."""
+    if habitat_type == "High Gradient":
+        return "high"
+    if habitat_type == "Low Gradient":
+        return "low"
+    return None
+
+
+def _habitat_fields_for_mode(mode):
+    if mode == "high":
+        return _HABITAT_SHARED_FIELDS + _HABITAT_HIGH_FIELDS
+    if mode == "low":
+        return _HABITAT_SHARED_FIELDS + _HABITAT_LOW_FIELDS
+    return []
+
+
+def _habitat_component_total(values, mode):
+    total = 0
+    any_val = False
+    for key, _label, _kind in _habitat_fields_for_mode(mode):
+        v = values.get(key)
+        if v is not None:
+            total += int(v)
+            any_val = True
+    return total if any_val else None
+
+
+def _empty_habitat_form(overrides=None):
+    form = {"data_condition_id": ""}
+    for key in _HABITAT_ALL_METRIC_KEYS:
+        form[key] = ""
+    if overrides:
+        for k, v in overrides.items():
+            form[k] = "" if v is None else str(v)
+    return form
+
+
+def _habitat_form_from_request():
+    form = {"data_condition_id": (request.form.get("data_condition_id") or "").strip()}
+    for key in _HABITAT_ALL_METRIC_KEYS:
+        form[key] = (request.form.get(key) or "").strip()
+    return form
+
+
+def _parse_optional_habitat_int(raw, label):
+    if raw is None or str(raw).strip() == "":
+        return None, None
+    text = str(raw).strip()
+    try:
+        val = int(float(text))
+    except ValueError:
+        return None, f"Enter a whole number for {label}."
+    if float(text) != val:
+        return None, f"{label} must be a whole number."
+    return val, None
+
+
+def _habitat_domain_warnings(values, fields):
+    warnings = []
+    for key, label, kind in fields:
+        v = values.get(key)
+        if v is None:
+            continue
+        if kind == "bank":
+            if v < 0 or v > 10:
+                warnings.append(
+                    f"{label}: {v} is outside the historically observed 0–10 range for bank/riparian components."
+                )
+        else:
+            if v < 0 or v > 20:
+                warnings.append(
+                    f"{label}: {v} is outside the historically observed 0–20 range for RBP habitat components."
+                )
+    return warnings
+
+
+def _validate_habitat_form(cur, form, mode):
+    if mode not in ("high", "low"):
+        return (
+            "Habitat scoring is not yet defined for this site's habitat type.",
+            None,
+            [],
+        )
+
+    data_condition_id, err = _parse_optional_int_id(
+        form.get("data_condition_id"), "data condition"
+    )
+    if err:
+        return err, None, []
+    if data_condition_id is not None:
+        cur.execute(
+            "SELECT data_condition_id FROM data_condition WHERE data_condition_id = %s",
+            (data_condition_id,),
+        )
+        if not cur.fetchone():
+            return "Choose a valid data condition.", None, []
+
+    fields = _habitat_fields_for_mode(mode)
+    values = {k: None for k in _HABITAT_ALL_METRIC_KEYS}
+    for key, label, _kind in fields:
+        val, err = _parse_optional_habitat_int(form.get(key), label)
+        if err:
+            return err, None, []
+        values[key] = val
+
+    if all(values.get(k) is None for k, _l, _kd in fields):
+        return "Enter at least one habitat component score.", None, []
+
+    warnings = _habitat_domain_warnings(values, fields)
+    return None, {
+        "data_condition_id": data_condition_id,
+        "values": values,
+        "component_total": _habitat_component_total(values, mode),
+    }, warnings
+
+
+def _load_visit_habitats(cur, visit_id, habitat_type):
+    mode = _habitat_gradient_mode(habitat_type)
+    fields = _habitat_fields_for_mode(mode) if mode else (
+        _HABITAT_SHARED_FIELDS + _HABITAT_HIGH_FIELDS + _HABITAT_LOW_FIELDS
+    )
+    cols = [f[0] for f in fields]
+    cur.execute(
+        """
+        SELECT h.habitat_id, dc.code AS data_condition,
+               h.epifaunal_substrate, h.sediment_deposition, h.channel_flow_status,
+               h.channel_alteration, h.bank_stability_left, h.bank_stability_right,
+               h.bank_veg_protection_left, h.bank_veg_protection_right,
+               h.riparian_zone_left, h.riparian_zone_right,
+               h.embeddedness, h.velocity_depth, h.freq_riffles,
+               h.pool_substrate, h.pool_variability, h.channel_sinuosity
+        FROM habitat_assessment h
+        LEFT JOIN data_condition dc ON dc.data_condition_id = h.data_condition_id
+        WHERE h.visit_id = %s
+        ORDER BY h.habitat_id
+        """,
+        (visit_id,),
+    )
+    col_index = {
+        "epifaunal_substrate": 2,
+        "sediment_deposition": 3,
+        "channel_flow_status": 4,
+        "channel_alteration": 5,
+        "bank_stability_left": 6,
+        "bank_stability_right": 7,
+        "bank_veg_protection_left": 8,
+        "bank_veg_protection_right": 9,
+        "riparian_zone_left": 10,
+        "riparian_zone_right": 11,
+        "embeddedness": 12,
+        "velocity_depth": 13,
+        "freq_riffles": 14,
+        "pool_substrate": 15,
+        "pool_variability": 16,
+        "channel_sinuosity": 17,
+    }
+    rows = []
+    for r in cur.fetchall():
+        measured = []
+        values = {}
+        for key, label, _kind in fields:
+            val = r[col_index[key]]
+            values[key] = val
+            if val is not None:
+                measured.append({"key": key, "label": label, "value": val})
+        rows.append(
+            {
+                "habitat_id": r[0],
+                "data_condition": r[1],
+                "measured": measured,
+                "component_total": _habitat_component_total(values, mode) if mode else sum(
+                    v for v in values.values() if v is not None
+                )
+                or None,
+                "gradient_mode": mode,
+            }
+        )
+    return rows
+
+
+def _load_habitat_row(cur, visit_id, habitat_id):
+    cur.execute(
+        """
+        SELECT habitat_id, data_condition_id,
+               epifaunal_substrate, sediment_deposition, channel_flow_status,
+               channel_alteration, bank_stability_left, bank_stability_right,
+               bank_veg_protection_left, bank_veg_protection_right,
+               riparian_zone_left, riparian_zone_right,
+               embeddedness, velocity_depth, freq_riffles,
+               pool_substrate, pool_variability, channel_sinuosity
+        FROM habitat_assessment
+        WHERE habitat_id = %s AND visit_id = %s
+        """,
+        (habitat_id, visit_id),
+    )
+    r = cur.fetchone()
+    if not r:
+        return None
+    keys = [
+        "habitat_id",
+        "data_condition_id",
+        "epifaunal_substrate",
+        "sediment_deposition",
+        "channel_flow_status",
+        "channel_alteration",
+        "bank_stability_left",
+        "bank_stability_right",
+        "bank_veg_protection_left",
+        "bank_veg_protection_right",
+        "riparian_zone_left",
+        "riparian_zone_right",
+        "embeddedness",
+        "velocity_depth",
+        "freq_riffles",
+        "pool_substrate",
+        "pool_variability",
+        "channel_sinuosity",
+    ]
+    return dict(zip(keys, r))
+
+
+def _habitat_form_render(
+    visit,
+    form,
+    conditions,
+    mode,
+    gradient_mode,
+    habitat_id=None,
+    error=None,
+    warnings=None,
+    entry_blocked=False,
+    block_message=None,
+    status=200,
+):
+    fields = _habitat_fields_for_mode(gradient_mode) if gradient_mode else []
+    values = {}
+    for key, _l, _k in fields:
+        raw = form.get(key)
+        if raw not in ("", None):
+            try:
+                values[key] = int(float(raw))
+            except ValueError:
+                values[key] = None
+        else:
+            values[key] = None
+    component_total = (
+        _habitat_component_total(values, gradient_mode) if gradient_mode else None
+    )
+    return (
+        render_template(
+            "habitat_form.html",
+            visit=visit,
+            form=form,
+            conditions=conditions,
+            mode=mode,
+            habitat_id=habitat_id,
+            gradient_mode=gradient_mode,
+            shared_fields=_HABITAT_SHARED_FIELDS,
+            high_fields=_HABITAT_HIGH_FIELDS if gradient_mode == "high" else [],
+            low_fields=_HABITAT_LOW_FIELDS if gradient_mode == "low" else [],
+            component_total=component_total,
+            error=error,
+            warnings=warnings or [],
+            entry_blocked=entry_blocked,
+            block_message=block_message,
+        ),
+        status,
+    )
+
+
+def _load_macro_summary(cur, visit_id):
+    cur.execute(
+        """
+        SELECT
+            COALESCE(SUM(amount), 0),
+            COUNT(*),
+            COALESCE(SUM(CASE WHEN exclude THEN 1 ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN NOT exclude THEN amount ELSE 0 END), 0)
+        FROM bug_count
+        WHERE visit_id = %s
+        """,
+        (visit_id,),
+    )
+    total, taxa, excluded, scoring_total = cur.fetchone()
+    cur.execute(
+        """
+        SELECT total_organisms, total_taxa, hgmi_genus, hgmi_family, hgmi_rating,
+               njis_score, njis_rating, hbi, fbi, dominant_taxon, pct_dominance
+        FROM macro_analysis
+        WHERE visit_id = %s
+        """,
+        (visit_id,),
+    )
+    m = cur.fetchone()
+    scores = None
+    if m:
+        scores = {
+            "total_organisms": m[0],
+            "total_taxa": m[1],
+            "hgmi_genus": float(m[2]) if m[2] is not None else None,
+            "hgmi_family": float(m[3]) if m[3] is not None else None,
+            "hgmi_rating": m[4],
+            "njis_score": float(m[5]) if m[5] is not None else None,
+            "njis_rating": m[6],
+            "hbi": float(m[7]) if m[7] is not None else None,
+            "fbi": float(m[8]) if m[8] is not None else None,
+            "dominant_taxon": m[9],
+            "pct_dominance": float(m[10]) if m[10] is not None else None,
+        }
+    return {
+        "has_counts": taxa > 0,
+        "total_organisms": int(total or 0),
+        "taxa_count": int(taxa or 0),
+        "excluded_count": int(excluded or 0),
+        "scoring_organisms": int(scoring_total or 0),
+        "scores": scores,
+    }
+
+
+def _load_bug_counts(cur, visit_id):
+    cur.execute(
+        """
+        SELECT bc.bug_count_id, bc.bug_id, bl.bug_code, bl.family, bl.genus_species,
+               bc.amount, bc.exclude
+        FROM bug_count bc
+        JOIN bug_list bl ON bl.bug_id = bc.bug_id
+        WHERE bc.visit_id = %s
+        ORDER BY bl.family, bl.genus_species NULLS LAST, bl.bug_code, bc.bug_count_id
+        """,
+        (visit_id,),
+    )
+    return [
+        {
+            "bug_count_id": r[0],
+            "bug_id": r[1],
+            "bug_code": r[2],
+            "family": r[3],
+            "genus_species": r[4],
+            "amount": r[5],
+            "exclude": bool(r[6]),
+            "label": _taxon_label(r[3], r[4], r[2]),
+        }
+        for r in cur.fetchall()
+    ]
+
+
+def _taxon_label(family, genus_species, bug_code):
+    parts = [family or "Unknown family"]
+    if genus_species:
+        parts.append(genus_species)
+    if bug_code:
+        parts.append(f"[{bug_code}]")
+    return " — ".join(parts)
+
+
+def _load_bug_list_options(cur):
+    cur.execute(
+        """
+        SELECT bug_id, bug_code, family, genus_species
+        FROM bug_list
+        ORDER BY family, genus_species NULLS LAST, bug_code, bug_id
+        """
+    )
+    return [
+        {
+            "bug_id": r[0],
+            "bug_code": r[1],
+            "family": r[2],
+            "genus_species": r[3],
+            "label": _taxon_label(r[2], r[3], r[1]),
+        }
+        for r in cur.fetchall()
+    ]
+
+
+def _empty_taxon_form(overrides=None):
+    form = {"bug_id": "", "amount": "", "exclude": False}
+    if overrides:
+        form.update(overrides)
+    return form
+
+
+def _taxon_form_from_request():
+    return {
+        "bug_id": (request.form.get("bug_id") or "").strip(),
+        "amount": (request.form.get("amount") or "").strip(),
+        "exclude": request.form.get("exclude") == "1",
+    }
+
+
+def _validate_taxon_form(cur, form):
+    bug_id, err = _parse_optional_int_id(form.get("bug_id"), "taxon")
+    if err or bug_id is None:
+        return "Choose a taxon from the list.", None
+    cur.execute("SELECT bug_id FROM bug_list WHERE bug_id = %s", (bug_id,))
+    if not cur.fetchone():
+        return "Choose a taxon from the list.", None
+
+    amount_raw = (form.get("amount") or "").strip()
+    if not amount_raw:
+        return "Enter a count of at least 1.", None
+    try:
+        amount = int(float(amount_raw))
+    except ValueError:
+        return "Count must be a whole number.", None
+    if float(amount_raw) != amount or amount < 1:
+        return "Count must be an integer of at least 1.", None
+
+    return None, {
+        "bug_id": bug_id,
+        "amount": amount,
+        "exclude": bool(form.get("exclude")),
+    }
+
+
+def _bug_count_exists(cur, visit_id, bug_id, exclude_bug_count_id=None):
+    cur.execute(
+        """
+        SELECT bug_count_id FROM bug_count
+        WHERE visit_id = %s AND bug_id = %s
+          AND (%s::int IS NULL OR bug_count_id <> %s)
+        LIMIT 1
+        """,
+        (visit_id, bug_id, exclude_bug_count_id, exclude_bug_count_id),
+    )
+    return cur.fetchone() is not None
+
+
+def _recalc_visit_macro(conn, visit_id):
+    """Recalculate macro_analysis for one visit; clear if insufficient."""
+    return calculate_visit_indices(conn, visit_id, clear_if_empty=True)
+
+
+@app.route("/visits/<int:visit_id>/habitat/new", methods=["GET", "POST"])
+def habitat_new(visit_id):
+    conn, err = get_db_or_503()
+    if err:
+        return _habitat_form_render(
+            {"visit_id": visit_id},
+            _empty_habitat_form(),
+            [],
+            "new",
+            None,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            entry_blocked=True,
+            status=503,
+        )[0], 503
+
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            return _habitat_form_render(
+                {"visit_id": visit_id},
+                _empty_habitat_form(),
+                [],
+                "new",
+                None,
+                error="Visit not found.",
+                entry_blocked=True,
+                status=404,
+            )[0], 404
+
+        conditions = _load_data_conditions(cur)
+        gradient_mode = _habitat_gradient_mode(visit.get("habitat_type"))
+        blocked = gradient_mode is None
+        block_message = None
+        if blocked:
+            ht = visit.get("habitat_type") or "not recorded"
+            block_message = (
+                f"This site's habitat type is “{ht}”. Habitat scoring forms are currently "
+                "defined only for High Gradient and Low Gradient sites. Canal, Lake, and "
+                "unset types need a confirmed scoring model before entry is enabled."
+            )
+
+        if request.method == "GET":
+            return _habitat_form_render(
+                visit,
+                _empty_habitat_form(),
+                conditions,
+                "new",
+                gradient_mode,
+                entry_blocked=blocked,
+                block_message=block_message,
+            )[0]
+
+        if blocked:
+            return _habitat_form_render(
+                visit,
+                _habitat_form_from_request(),
+                conditions,
+                "new",
+                gradient_mode,
+                error=block_message,
+                entry_blocked=True,
+                block_message=block_message,
+                status=400,
+            )
+
+        form = _habitat_form_from_request()
+        val_err, parsed, warnings = _validate_habitat_form(cur, form, gradient_mode)
+        if val_err:
+            return _habitat_form_render(
+                visit,
+                form,
+                conditions,
+                "new",
+                gradient_mode,
+                error=val_err,
+                warnings=warnings,
+                status=400,
+            )
+
+        cols = ["visit_id", "data_condition_id"]
+        vals = [visit_id, parsed["data_condition_id"]]
+        for key, _l, _k in _habitat_fields_for_mode(gradient_mode):
+            if parsed["values"].get(key) is not None:
+                cols.append(key)
+                vals.append(parsed["values"][key])
+
+        try:
+            cur.execute(
+                "INSERT INTO habitat_assessment ("
+                + ", ".join(cols)
+                + ") VALUES ("
+                + ", ".join(["%s"] * len(cols))
+                + ") RETURNING habitat_id",
+                vals,
+            )
+            cur.fetchone()
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return _habitat_form_render(
+                visit,
+                form,
+                conditions,
+                "new",
+                gradient_mode,
+                error="Could not save habitat assessment right now. Please try again in a moment.",
+                warnings=warnings,
+                status=500,
+            )
+
+        return redirect(url_for("visit_detail_page", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/visits/<int:visit_id>/habitat/<int:habitat_id>/edit", methods=["GET", "POST"]
+)
+def habitat_edit(visit_id, habitat_id):
+    conn, err = get_db_or_503()
+    if err:
+        return _habitat_form_render(
+            {"visit_id": visit_id},
+            _empty_habitat_form(),
+            [],
+            "edit",
+            None,
+            habitat_id=habitat_id,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            entry_blocked=True,
+            status=503,
+        )[0], 503
+
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            abort(404)
+        row = _load_habitat_row(cur, visit_id, habitat_id)
+        if not row:
+            abort(404)
+
+        conditions = _load_data_conditions(cur)
+        gradient_mode = _habitat_gradient_mode(visit.get("habitat_type"))
+        blocked = gradient_mode is None
+        block_message = None
+        if blocked:
+            ht = visit.get("habitat_type") or "not recorded"
+            block_message = (
+                f"This site's habitat type is “{ht}”. Habitat scoring forms are currently "
+                "defined only for High Gradient and Low Gradient sites."
+            )
+
+        if request.method == "GET":
+            form = _empty_habitat_form(
+                {
+                    "data_condition_id": row["data_condition_id"] or "",
+                    **{k: row[k] for k in _HABITAT_ALL_METRIC_KEYS},
+                }
+            )
+            fields = _habitat_fields_for_mode(gradient_mode) if gradient_mode else []
+            values = {k: row[k] for k, _l, _kd in fields} if fields else {}
+            warnings = (
+                _habitat_domain_warnings(values, fields) if fields else []
+            )
+            return _habitat_form_render(
+                visit,
+                form,
+                conditions,
+                "edit",
+                gradient_mode,
+                habitat_id=habitat_id,
+                warnings=warnings,
+                entry_blocked=blocked,
+                block_message=block_message,
+            )[0]
+
+        if blocked:
+            return _habitat_form_render(
+                visit,
+                _habitat_form_from_request(),
+                conditions,
+                "edit",
+                gradient_mode,
+                habitat_id=habitat_id,
+                error=block_message,
+                entry_blocked=True,
+                block_message=block_message,
+                status=400,
+            )
+
+        form = _habitat_form_from_request()
+        val_err, parsed, warnings = _validate_habitat_form(cur, form, gradient_mode)
+        if val_err:
+            return _habitat_form_render(
+                visit,
+                form,
+                conditions,
+                "edit",
+                gradient_mode,
+                habitat_id=habitat_id,
+                error=val_err,
+                warnings=warnings,
+                status=400,
+            )
+
+        # Clear gradient-irrelevant metrics on save so hidden fields do not linger.
+        set_parts = ["data_condition_id = %s"]
+        vals = [parsed["data_condition_id"]]
+        for key in _HABITAT_ALL_METRIC_KEYS:
+            set_parts.append(f"{key} = %s")
+            if any(key == f[0] for f in _habitat_fields_for_mode(gradient_mode)):
+                vals.append(parsed["values"].get(key))
+            else:
+                vals.append(None)
+        vals.extend([habitat_id, visit_id])
+
+        try:
+            cur.execute(
+                "UPDATE habitat_assessment SET "
+                + ", ".join(set_parts)
+                + " WHERE habitat_id = %s AND visit_id = %s",
+                vals,
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                abort(404)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return _habitat_form_render(
+                visit,
+                form,
+                conditions,
+                "edit",
+                gradient_mode,
+                habitat_id=habitat_id,
+                error="Could not save habitat assessment right now. Please try again in a moment.",
+                warnings=warnings,
+                status=500,
+            )
+
+        return redirect(url_for("visit_detail_page", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+@app.route("/visits/<int:visit_id>/macro")
+def macro_workspace(visit_id):
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "macro_workspace.html",
+            visit=None,
+            counts=[],
+            summary=None,
+            error="Service temporarily unavailable. Please try again in a moment.",
+        ), 503
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            return render_template(
+                "macro_workspace.html",
+                visit=None,
+                counts=[],
+                summary=None,
+                error="Visit not found.",
+            ), 404
+        counts = _load_bug_counts(cur, visit_id)
+        summary = _load_macro_summary(cur, visit_id)
+        return render_template(
+            "macro_workspace.html",
+            visit=visit,
+            counts=counts,
+            summary=summary,
+            error=None,
+        )
+    finally:
+        conn.close()
+
+
+def _taxon_form_render(
+    visit, form, taxa, mode, bug_count_id=None, error=None, status=200
+):
+    return (
+        render_template(
+            "taxon_form.html",
+            visit=visit,
+            form=form,
+            taxa=taxa,
+            mode=mode,
+            bug_count_id=bug_count_id,
+            error=error,
+        ),
+        status,
+    )
+
+
+@app.route("/visits/<int:visit_id>/macro/taxa/new", methods=["GET", "POST"])
+def taxon_new(visit_id):
+    conn, err = get_db_or_503()
+    if err:
+        return _taxon_form_render(
+            {"visit_id": visit_id},
+            _empty_taxon_form(),
+            [],
+            "new",
+            error="Service temporarily unavailable. Please try again in a moment.",
+            status=503,
+        )[0], 503
+
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            return _taxon_form_render(
+                {"visit_id": visit_id},
+                _empty_taxon_form(),
+                [],
+                "new",
+                error="Visit not found.",
+                status=404,
+            )[0], 404
+
+        taxa = _load_bug_list_options(cur)
+
+        if request.method == "GET":
+            return _taxon_form_render(
+                visit, _empty_taxon_form(), taxa, "new"
+            )[0]
+
+        form = _taxon_form_from_request()
+        val_err, parsed = _validate_taxon_form(cur, form)
+        if val_err:
+            return _taxon_form_render(
+                visit, form, taxa, "new", error=val_err, status=400
+            )
+
+        if _bug_count_exists(cur, visit_id, parsed["bug_id"]):
+            return _taxon_form_render(
+                visit,
+                form,
+                taxa,
+                "new",
+                error=(
+                    "This taxon is already recorded for this visit. "
+                    "Edit the existing count instead."
+                ),
+                status=400,
+            )
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO bug_count (visit_id, bug_id, amount, exclude)
+                VALUES (%s, %s, %s, %s)
+                RETURNING bug_count_id
+                """,
+                (visit_id, parsed["bug_id"], parsed["amount"], parsed["exclude"]),
+            )
+            cur.fetchone()
+            _recalc_visit_macro(conn, visit_id)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return _taxon_form_render(
+                visit,
+                form,
+                taxa,
+                "new",
+                error="Could not save taxon count right now. Please try again in a moment.",
+                status=500,
+            )
+
+        return redirect(url_for("macro_workspace", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/visits/<int:visit_id>/macro/taxa/<int:bug_count_id>/edit",
+    methods=["GET", "POST"],
+)
+def taxon_edit(visit_id, bug_count_id):
+    conn, err = get_db_or_503()
+    if err:
+        return _taxon_form_render(
+            {"visit_id": visit_id},
+            _empty_taxon_form(),
+            [],
+            "edit",
+            bug_count_id=bug_count_id,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            status=503,
+        )[0], 503
+
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            abort(404)
+
+        cur.execute(
+            """
+            SELECT bug_count_id, bug_id, amount, exclude
+            FROM bug_count
+            WHERE bug_count_id = %s AND visit_id = %s
+            """,
+            (bug_count_id, visit_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            abort(404)
+
+        taxa = _load_bug_list_options(cur)
+
+        if request.method == "GET":
+            form = _empty_taxon_form(
+                {
+                    "bug_id": str(row[1]),
+                    "amount": str(row[2]),
+                    "exclude": bool(row[3]),
+                }
+            )
+            return _taxon_form_render(
+                visit, form, taxa, "edit", bug_count_id=bug_count_id
+            )[0]
+
+        form = _taxon_form_from_request()
+        val_err, parsed = _validate_taxon_form(cur, form)
+        if val_err:
+            return _taxon_form_render(
+                visit,
+                form,
+                taxa,
+                "edit",
+                bug_count_id=bug_count_id,
+                error=val_err,
+                status=400,
+            )
+
+        if _bug_count_exists(
+            cur, visit_id, parsed["bug_id"], exclude_bug_count_id=bug_count_id
+        ):
+            return _taxon_form_render(
+                visit,
+                form,
+                taxa,
+                "edit",
+                bug_count_id=bug_count_id,
+                error=(
+                    "This taxon is already recorded for this visit. "
+                    "Edit the existing count instead."
+                ),
+                status=400,
+            )
+
+        try:
+            cur.execute(
+                """
+                UPDATE bug_count
+                SET bug_id = %s, amount = %s, exclude = %s
+                WHERE bug_count_id = %s AND visit_id = %s
+                """,
+                (
+                    parsed["bug_id"],
+                    parsed["amount"],
+                    parsed["exclude"],
+                    bug_count_id,
+                    visit_id,
+                ),
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                abort(404)
+            _recalc_visit_macro(conn, visit_id)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return _taxon_form_render(
+                visit,
+                form,
+                taxa,
+                "edit",
+                bug_count_id=bug_count_id,
+                error="Could not save taxon count right now. Please try again in a moment.",
+                status=500,
+            )
+
+        return redirect(url_for("macro_workspace", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/visits/<int:visit_id>/macro/taxa/<int:bug_count_id>/delete",
+    methods=["POST"],
+)
+def taxon_delete(visit_id, bug_count_id):
+    conn, err = get_db_or_503()
+    if err:
+        abort(503)
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            abort(404)
+        cur.execute(
+            """
+            SELECT bug_count_id FROM bug_count
+            WHERE bug_count_id = %s AND visit_id = %s
+            """,
+            (bug_count_id, visit_id),
+        )
+        if not cur.fetchone():
+            abort(404)
+        try:
+            cur.execute(
+                "DELETE FROM bug_count WHERE bug_count_id = %s AND visit_id = %s",
+                (bug_count_id, visit_id),
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                abort(404)
+            _recalc_visit_macro(conn, visit_id)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return redirect(url_for("macro_workspace", visit_id=visit_id))
+        return redirect(url_for("macro_workspace", visit_id=visit_id))
     finally:
         conn.close()
 
