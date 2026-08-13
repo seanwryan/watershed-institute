@@ -76,7 +76,8 @@
   <script>
   (function() {
     var path = window.location.pathname;
-    var showGlobalFilter = path === '/map' || path === '/sites' || path === '/explore';
+    /* Viewing bar retired: Sites/Explore have local filters; Map does not filter markers. */
+    var showGlobalFilter = false;
     var STORAGE_KEYS = { dateStart: 'streamwatch_global_date_start', dateEnd: 'streamwatch_global_date_end', siteCode: 'streamwatch_global_site_code' };
 
     function loadHealth() {
@@ -183,6 +184,7 @@
       var gEnd = document.getElementById('global-date-end');
       var gSite = document.getElementById('global-site');
       if (bar && gStart && gEnd && gSite) {
+        bar.hidden = false;
         bar.style.display = 'flex';
         try {
           var s = window.sessionStorage;
@@ -207,6 +209,12 @@
           });
           try { if (window.sessionStorage.getItem(STORAGE_KEYS.siteCode)) gSite.value = window.sessionStorage.getItem(STORAGE_KEYS.siteCode); } catch (err) {}
         }).catch(function() {});
+      }
+    } else {
+      var hideBar = document.getElementById('global-filter-bar');
+      if (hideBar) {
+        hideBar.hidden = true;
+        hideBar.style.display = 'none';
       }
     }
   })();

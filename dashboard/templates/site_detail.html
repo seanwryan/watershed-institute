@@ -81,6 +81,13 @@
     if (!isFinite(x)) return '—';
     return (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(1)).replace(/\.0$/, '');
   }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso);
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+  }
 
   var RECENT_COLS = [
     'sample_date', 'water_temp_c', 'dissolved_oxygen_ppm', 'nitrate_ug_l',
@@ -111,7 +118,7 @@
       snapshot.hidden = false;
       snapshot.innerHTML =
         '<div class="snapshot-grid">' +
-          '<div><span class="metric-label">Latest sample</span><span class="snapshot-value">' + esc(site.last_sample_date || '—') + '</span></div>' +
+          '<div><span class="metric-label">Latest sample</span><span class="snapshot-value">' + esc(fmtDate(site.last_sample_date)) + '</span></div>' +
           '<div><span class="metric-label">Sampling visits</span><span class="snapshot-value">' + esc(fmtNum(site.visit_count)) + '</span></div>' +
         '</div>';
 
@@ -162,7 +169,7 @@
       recentTable.querySelector('thead').innerHTML = thead;
       recentTable.querySelector('tbody').innerHTML = recent.map(function(r) {
         return '<tr>' + RECENT_COLS.map(function(c) {
-          if (c === 'sample_date') return '<td>' + esc(r[c] || '—') + '</td>';
+          if (c === 'sample_date') return '<td>' + esc(fmtDate(r[c])) + '</td>';
           return '<td class="num">' + esc(fmtVal(r[c])) + '</td>';
         }).join('') + '</tr>';
       }).join('');

@@ -54,6 +54,14 @@
     return Number(n).toLocaleString('en-US');
   }
 
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso);
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+  }
+
   function filtered() {
     var q = (search.value || '').trim().toLowerCase();
     if (!q) return allSites.slice();
@@ -79,7 +87,7 @@
       return '<tr class="row-link" tabindex="0" data-href="' + href + '" role="link" aria-label="Open site ' + esc(s.site_code) + '">' +
         '<td><span class="cell-strong">' + esc(s.site_code) + '</span></td>' +
         '<td>' + esc(s.waterbody_name || '—') + '</td>' +
-        '<td>' + esc(s.last_sample_date || '—') + '</td>' +
+        '<td>' + esc(fmtDate(s.last_sample_date)) + '</td>' +
         '<td class="num">' + esc(fmtNum(s.visit_count)) + '</td>' +
         '</tr>';
     }).join('');
