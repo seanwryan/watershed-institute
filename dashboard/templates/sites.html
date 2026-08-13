@@ -1,32 +1,123 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Sites{% endblock %}
 {% block content %}
-<h1>Sites</h1>
-<div class="card">
-  <label for="site-search">Search:</label>
-  <input type="text" id="site-search" placeholder="Site code or waterbody...">
-</div>
-<div class="card">
-  <table>
-    <thead>
-      <tr><th>Site</th><th>Waterbody</th><th>Last sample</th><th>Visits</th><th></th></tr>
-    </thead>
-    <tbody id="sites-tbody"><tr><td colspan="5" class="loading">Loading…</td></tr></tbody>
-  </table>
+<div class="page-monitoring">
+  <header class="page-header">
+    <h1>Sites</h1>
+    <p class="page-subtitle">Browse StreamWatch monitoring locations and recent sampling activity.</p>
+  </header>
+
+  <div class="toolbar panel">
+    <div class="toolbar-main">
+      <label for="site-search">Search</label>
+      <input type="search" id="site-search" placeholder="Site code or waterbody…" autocomplete="off">
+      <button type="button" class="btn-secondary" id="site-search-clear">Clear</button>
+    </div>
+    <p class="toolbar-count muted" id="sites-count" aria-live="polite">Loading sites…</p>
+  </div>
+
+  <div class="panel table-panel">
+    <div class="table-wrap">
+      <table class="data-table data-table-clickable" id="sites-table">
+        <thead>
+          <tr>
+            <th scope="col">Site</th>
+            <th scope="col">Waterbody</th>
+            <th scope="col">Latest sample</th>
+            <th scope="col" class="num">Sampling visits</th>
+          </tr>
+        </thead>
+        <tbody id="sites-tbody">
+          <tr><td colspan="4" class="muted">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
 (function() {
-  const tbody = document.getElementById('sites-tbody');
-  const search = document.getElementById('site-search');
-  function render(sites, filter) {
-    const q = (filter || '').toLowerCase();
-    const list = q ? sites.filter(s => (s.site_code && s.site_code.toLowerCase().includes(q)) || (s.waterbody_name && s.waterbody_name.toLowerCase().includes(q))) : sites;
-    tbody.innerHTML = list.length ? list.map(s => '<tr><td>' + s.site_code + '</td><td>' + (s.waterbody_name || '—') + '</td><td>' + (s.last_sample_date || '—') + '</td><td>' + s.visit_count + '</td><td><a href="/site/' + encodeURIComponent(s.site_code) + '">View</a></td></tr>').join('') : '<tr><td colspan="5">No sites match.</td></tr>';
+  var tbody = document.getElementById('sites-tbody');
+  var search = document.getElementById('site-search');
+  var clearBtn = document.getElementById('site-search-clear');
+  var countEl = document.getElementById('sites-count');
+  var allSites = [];
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  search.addEventListener('input', function() { render(window.__sites || [], search.value); });
-  fetch('/api/sites').then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(sites) { window.__sites = sites; render(sites, search.value); }).catch(function() { tbody.innerHTML = '<tr><td colspan="5" class="error">We couldn\'t load sites right now. Please try again in a moment.</td></tr>'; });
+
+  function fmtNum(n) {
+    if (n == null || n === '') return '—';
+    return Number(n).toLocaleString('en-US');
+  }
+
+  function filtered() {
+    var q = (search.value || '').trim().toLowerCase();
+    if (!q) return allSites.slice();
+    return allSites.filter(function(s) {
+      return (s.site_code && s.site_code.toLowerCase().indexOf(q) !== -1) ||
+        (s.waterbody_name && s.waterbody_name.toLowerCase().indexOf(q) !== -1);
+    });
+  }
+
+  function render() {
+    var list = filtered();
+    countEl.textContent = list.length === allSites.length
+      ? (allSites.length + ' active sites')
+      : (list.length + ' of ' + allSites.length + ' active sites');
+
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No sites match your search.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(function(s) {
+      var href = '/site/' + encodeURIComponent(s.site_code);
+      return '<tr class="row-link" tabindex="0" data-href="' + href + '" role="link" aria-label="Open site ' + esc(s.site_code) + '">' +
+        '<td><span class="cell-strong">' + esc(s.site_code) + '</span></td>' +
+        '<td>' + esc(s.waterbody_name || '—') + '</td>' +
+        '<td>' + esc(s.last_sample_date || '—') + '</td>' +
+        '<td class="num">' + esc(fmtNum(s.visit_count)) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function go(tr) {
+    if (tr && tr.getAttribute('data-href')) window.location.href = tr.getAttribute('data-href');
+  }
+
+  tbody.addEventListener('click', function(e) {
+    var tr = e.target.closest('tr.row-link');
+    go(tr);
+  });
+  tbody.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var tr = e.target.closest('tr.row-link');
+    if (!tr) return;
+    e.preventDefault();
+    go(tr);
+  });
+
+  search.addEventListener('input', render);
+  clearBtn.addEventListener('click', function() {
+    search.value = '';
+    search.focus();
+    render();
+  });
+
+  fetch('/api/sites')
+    .then(function(r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+    .then(function(sites) {
+      allSites = Array.isArray(sites) ? sites : [];
+      render();
+    })
+    .catch(function() {
+      countEl.textContent = 'Unable to load sites';
+      tbody.innerHTML = '<tr><td colspan="4" class="error">We couldn\'t load sites right now. Please try again in a moment.</td></tr>';
+    });
 })();
 </script>
 {% endblock %}

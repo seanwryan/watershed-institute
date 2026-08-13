@@ -449,16 +449,16 @@ def api_scatter():
 
 @app.route("/api/parameters")
 def api_parameters():
-    """List available parameters for time series dropdown."""
+    """List available parameters for time series dropdown (human labels + units)."""
     return jsonify([
-        {"id": "water_temp_c", "label": "Water temperature (°C)"},
-        {"id": "nitrate_ug_l", "label": "Nitrate (µg/L)"},
-        {"id": "phosphate_mg_l", "label": "Phosphate (mg/L)"},
-        {"id": "ph", "label": "pH"},
-        {"id": "turbidity_ntu", "label": "Turbidity (NTU)"},
-        {"id": "dissolved_oxygen_ppm", "label": "Dissolved oxygen (mg/L)"},
-        {"id": "chloride_mg_l", "label": "Chloride (mg/L)"},
-        {"id": "e_coli_mpn_100ml", "label": "E. coli (MPN/100mL)"},
+        {"id": "water_temp_c", "label": "Water temperature", "unit": "°C"},
+        {"id": "nitrate_ug_l", "label": "Nitrate", "unit": "µg/L"},
+        {"id": "phosphate_mg_l", "label": "Phosphate", "unit": "mg/L"},
+        {"id": "ph", "label": "pH", "unit": ""},
+        {"id": "turbidity_ntu", "label": "Turbidity", "unit": "NTU"},
+        {"id": "dissolved_oxygen_ppm", "label": "Dissolved oxygen", "unit": "mg/L"},
+        {"id": "chloride_mg_l", "label": "Chloride", "unit": "mg/L"},
+        {"id": "e_coli_mpn_100ml", "label": "E. coli", "unit": "MPN/100mL"},
     ])
 
 
@@ -472,24 +472,37 @@ def api_site(site_code):
         cur = conn.cursor()
         cur.execute("""
             SELECT s.site_id, s.site_code, w.name AS waterbody_name, s.description, s.latitude, s.longitude,
+                   s.is_active, s.site_type::text,
                    (SELECT MAX(v.sample_date)::text FROM visit v WHERE v.site_id = s.site_id),
                    (SELECT COUNT(*) FROM visit v WHERE v.site_id = s.site_id)
             FROM site s
             LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
-            WHERE s.site_code = %s AND s.is_active = true
+            WHERE s.site_code = %s
             """, (site_code,))
         row = cur.fetchone()
         if not row:
             return jsonify({"error": "Site not found"}), 404
+
+        def _safe_float(val):
+            if val is None:
+                return None
+            try:
+                f = float(val)
+            except (TypeError, ValueError):
+                return None
+            return f if math.isfinite(f) else None
+
         site = {
             "site_id": row[0],
             "site_code": row[1],
             "waterbody_name": row[2],
             "description": row[3],
-            "latitude": float(row[4]) if (row[4] is not None and math.isfinite(float(row[4]))) else None,
-            "longitude": float(row[5]) if (row[5] is not None and math.isfinite(float(row[5]))) else None,
-            "last_sample_date": row[6],
-            "visit_count": row[7],
+            "latitude": _safe_float(row[4]),
+            "longitude": _safe_float(row[5]),
+            "is_active": bool(row[6]),
+            "site_type": row[7],
+            "last_sample_date": row[8],
+            "visit_count": row[9],
         }
         cur.execute("""
             SELECT v.sample_date::text, c.water_temp_c, c.nitrate_ug_l, c.phosphate_mg_l, c.ph, c.turbidity_ntu, c.dissolved_oxygen_ppm, c.chloride_mg_l, b.e_coli_mpn_100ml

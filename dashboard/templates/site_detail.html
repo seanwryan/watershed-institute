@@ -1,43 +1,177 @@
 {% extends "base.html" %}
 {% block title %}StreamWatch – Site {{ site_code }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="/static/js/streamwatch_params.js"></script>
+{% endblock %}
 {% block content %}
-<h1>Site <span id="site-code">{{ site_code }}</span></h1>
-<div id="site-content" class="loading">Loading…</div>
-<div id="site-error" class="error" style="display:none;"></div>
-<div class="card" id="recent-card" style="display:none;">
-  <h2>Recent results (last 5 visits)</h2>
-  <div class="table-wrap" style="overflow-x:auto;">
-    <table id="recent-table"></table>
+<div class="page-monitoring site-profile" id="site-profile" data-site-code="{{ site_code }}">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">{{ site_code }}</span>
+  </nav>
+
+  <div id="site-error" class="alert alert-error" style="display:none;" role="alert"></div>
+
+  <header class="site-header-block" id="site-header-block">
+    <p class="muted">Loading site profile…</p>
+  </header>
+
+  <section class="site-snapshot panel" id="site-snapshot" hidden aria-label="Monitoring snapshot"></section>
+
+  <div class="site-detail-grid">
+    <section class="site-location panel" id="site-location" hidden aria-labelledby="site-location-title">
+      <h2 class="home-panel-title" id="site-location-title">Location</h2>
+      <div id="site-location-body"></div>
+    </section>
+
+    <section class="site-actions-panel panel" id="site-actions" hidden aria-labelledby="site-actions-title">
+      <h2 class="home-panel-title" id="site-actions-title">Actions</h2>
+      <div class="site-actions" id="site-actions-body"></div>
+    </section>
   </div>
-  <p style="margin-top:0.75rem;">
-    <a href="/explore?site_code={{ site_code }}">Explore time series for this site</a>
-    · <a href="/scores?site_code={{ site_code }}">View biological scores</a>
-    · <a href="/export?site_code={{ site_code }}" id="export-link">Download WQX for this site</a>
-    · <a href="/export/csv?site_code={{ site_code }}">Download simple CSV for this site</a>
-  </p>
+
+  <section class="site-recent panel" id="site-recent" hidden aria-labelledby="site-recent-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="site-recent-title">Recent monitoring</h2>
+      <a class="home-panel-action" id="site-explore-link" href="/explore?site_code={{ site_code }}">Explore trends</a>
+    </div>
+    <p class="muted" id="site-recent-empty" hidden>No recent monitoring results are available for this site.</p>
+    <div class="table-wrap" id="site-recent-wrap" hidden>
+      <table class="data-table" id="recent-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
 (function() {
-  const code = document.getElementById('site-code').textContent.trim();
-  const content = document.getElementById('site-content');
-  const errEl = document.getElementById('site-error');
-  const recentCard = document.getElementById('recent-card');
-  const recentTable = document.getElementById('recent-table');
+  var code = document.getElementById('site-profile').getAttribute('data-site-code');
+  var header = document.getElementById('site-header-block');
+  var errEl = document.getElementById('site-error');
+  var snapshot = document.getElementById('site-snapshot');
+  var locationPanel = document.getElementById('site-location');
+  var locationBody = document.getElementById('site-location-body');
+  var actionsPanel = document.getElementById('site-actions');
+  var actionsBody = document.getElementById('site-actions-body');
+  var recentPanel = document.getElementById('site-recent');
+  var recentEmpty = document.getElementById('site-recent-empty');
+  var recentWrap = document.getElementById('site-recent-wrap');
+  var recentTable = document.getElementById('recent-table');
+  var P = window.StreamWatchParams;
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmtNum(n) {
+    if (n == null || n === '') return '—';
+    var x = Number(n);
+    if (!isFinite(x)) return '—';
+    return x.toLocaleString('en-US');
+  }
+  function fmtVal(n) {
+    if (n == null || n === '') return '—';
+    var x = Number(n);
+    if (!isFinite(x)) return '—';
+    return (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(1)).replace(/\.0$/, '');
+  }
+
+  var RECENT_COLS = [
+    'sample_date', 'water_temp_c', 'dissolved_oxygen_ppm', 'nitrate_ug_l',
+    'phosphate_mg_l', 'ph', 'turbidity_ntu', 'chloride_mg_l', 'e_coli_mpn_100ml'
+  ];
+
   fetch('/api/site/' + encodeURIComponent(code))
-    .then(r => { if (!r.ok) throw new Error('Site not found'); return r.json(); })
-    .then(site => {
-      content.innerHTML = '<div class="card"><p><strong>Waterbody:</strong> ' + (site.waterbody_name || '—') + '</p><p><strong>Description:</strong> ' + (site.description || '—') + '</p><p><strong>Last sample:</strong> ' + (site.last_sample_date || '—') + '</p><p><strong>Visit count:</strong> ' + site.visit_count + '</p>' + (site.latitude != null && site.longitude != null ? '<p><a href="https://www.google.com/maps?q=' + site.latitude + ',' + site.longitude + '" target="_blank" rel="noopener">View on map</a></p>' : '') + '</div>';
-      content.classList.remove('loading');
-      if (site.recent_results && site.recent_results.length) {
-        const cols = ['sample_date', 'water_temp_c', 'nitrate_ug_l', 'phosphate_mg_l', 'ph', 'turbidity_ntu', 'dissolved_oxygen_ppm', 'chloride_mg_l', 'e_coli_mpn_100ml'];
-        const labels = { sample_date: 'Date', water_temp_c: 'Temp °C', nitrate_ug_l: 'Nitrate', phosphate_mg_l: 'Phosphate', ph: 'pH', turbidity_ntu: 'Turbidity', dissolved_oxygen_ppm: 'DO', chloride_mg_l: 'Chloride', e_coli_mpn_100ml: 'E. coli' };
-        recentTable.innerHTML = '<thead><tr>' + cols.map(c => '<th>' + labels[c] + '</th>').join('') + '</tr></thead><tbody>' + site.recent_results.map(r => '<tr>' + cols.map(c => '<td>' + (r[c] != null ? r[c] : '—') + '</td>').join('') + '</tr>').join('') + '</tbody>';
-        recentCard.style.display = 'block';
-      }
+    .then(function(r) {
+      if (r.status === 404) throw new Error('Site not found');
+      if (!r.ok) throw new Error('Could not load site');
+      return r.json();
     })
-    .catch(e => { content.classList.remove('loading'); content.innerHTML = ''; errEl.textContent = e.message; errEl.style.display = 'block'; });
+    .then(function(site) {
+      document.title = 'StreamWatch – ' + site.site_code;
+
+      var statusBadge = site.is_active
+        ? '<span class="badge badge-success">Active</span>'
+        : '<span class="badge badge-warning">Inactive</span>';
+      var typeLine = site.site_type ? '<span class="site-meta-item">' + esc(site.site_type) + '</span>' : '';
+
+      header.innerHTML =
+        '<h1>' + esc(site.site_code) + '</h1>' +
+        '<p class="page-subtitle">' + esc(site.waterbody_name || 'Waterbody not recorded') + '</p>' +
+        '<p class="site-kicker">StreamWatch monitoring location</p>' +
+        '<div class="site-meta-row">' + statusBadge + typeLine + '</div>' +
+        (site.description ? '<p class="site-desc">' + esc(site.description) + '</p>' : '');
+
+      snapshot.hidden = false;
+      snapshot.innerHTML =
+        '<div class="snapshot-grid">' +
+          '<div><span class="metric-label">Latest sample</span><span class="snapshot-value">' + esc(site.last_sample_date || '—') + '</span></div>' +
+          '<div><span class="metric-label">Sampling visits</span><span class="snapshot-value">' + esc(fmtNum(site.visit_count)) + '</span></div>' +
+        '</div>';
+
+      locationPanel.hidden = false;
+      var hasCoords = site.latitude != null && site.longitude != null &&
+        isFinite(Number(site.latitude)) && isFinite(Number(site.longitude));
+      var locHtml = '';
+      if (hasCoords) {
+        locHtml += '<p class="site-coords"><span class="metric-label">Coordinates</span> ' +
+          esc(Number(site.latitude).toFixed(5)) + ', ' + esc(Number(site.longitude).toFixed(5)) + '</p>';
+        locHtml += '<div id="site-mini-map" class="site-mini-map" role="img" aria-label="Map showing site location"></div>';
+      } else {
+        locHtml += '<p class="muted">Coordinates are not available for this site.</p>';
+      }
+      locHtml += '<p class="site-map-links"><a href="/map">View on monitoring map</a></p>';
+      locationBody.innerHTML = locHtml;
+
+      if (hasCoords && typeof L !== 'undefined') {
+        var map = L.map('site-mini-map', { scrollWheelZoom: false, zoomControl: true })
+          .setView([Number(site.latitude), Number(site.longitude)], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+        L.marker([Number(site.latitude), Number(site.longitude)]).addTo(map)
+          .bindPopup(esc(site.site_code));
+        setTimeout(function() { map.invalidateSize(); }, 100);
+      }
+
+      actionsPanel.hidden = false;
+      actionsBody.innerHTML =
+        '<a class="btn-primary" href="/explore?site_code=' + encodeURIComponent(site.site_code) + '">Explore trends</a>' +
+        '<a class="btn-secondary" href="/scores?site_code=' + encodeURIComponent(site.site_code) + '">View biology scores</a>' +
+        '<a class="btn-secondary" href="/export?site_code=' + encodeURIComponent(site.site_code) + '">Export site data</a>';
+
+      recentPanel.hidden = false;
+      document.getElementById('site-explore-link').href = '/explore?site_code=' + encodeURIComponent(site.site_code);
+      var recent = site.recent_results || [];
+      if (!recent.length) {
+        recentEmpty.hidden = false;
+        return;
+      }
+      recentWrap.hidden = false;
+      var thead = '<tr>' + RECENT_COLS.map(function(c) {
+        if (c === 'sample_date') return '<th scope="col">Date</th>';
+        var m = P.meta(c);
+        return '<th scope="col">' + esc(m.label) + (m.unit ? '<span class="th-unit"> (' + esc(m.unit) + ')</span>' : '') + '</th>';
+      }).join('') + '</tr>';
+      recentTable.querySelector('thead').innerHTML = thead;
+      recentTable.querySelector('tbody').innerHTML = recent.map(function(r) {
+        return '<tr>' + RECENT_COLS.map(function(c) {
+          if (c === 'sample_date') return '<td>' + esc(r[c] || '—') + '</td>';
+          return '<td class="num">' + esc(fmtVal(r[c])) + '</td>';
+        }).join('') + '</tr>';
+      }).join('');
+    })
+    .catch(function(e) {
+      header.innerHTML = '';
+      errEl.style.display = 'block';
+      errEl.textContent = e.message || 'Something went wrong. Please try again.';
+    });
 })();
 </script>
 {% endblock %}

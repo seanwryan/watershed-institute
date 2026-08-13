@@ -1,52 +1,102 @@
 {% extends "base.html" %}
-{% block title %}StreamWatch – Explore data{% endblock %}
-{% block content %}
-<h1>Explore data</h1>
-<div class="card">
-  <p id="explore-error" class="error" style="display:none; margin-bottom: 0.75rem;"></p>
-  <div class="form-row">
-    <label>Chart type</label>
-    <select id="chart-type">
-      <option value="line">Time series (line)</option>
-      <option value="scatter">Scatter (X vs Y)</option>
-    </select>
-  </div>
-  <div id="line-controls" class="form-row">
-    <label>Mode</label>
-    <select id="mode">
-      <option value="single">Single site</option>
-      <option value="compare">Compare sites</option>
-    </select>
-    <span style="margin-left:1rem;"></span>
-    <label>Site</label>
-    <select id="site-select"><option value="">All sites</option></select>
-    <span id="compare-sites-wrap" style="display:none; margin-left:0.5rem;">
-      <label>Site B</label><select id="site-b"><option value="">—</option></select>
-      <label style="margin-left:0.5rem;">Site C</label><select id="site-c"><option value="">—</option></select>
-    </span>
-  </div>
-  <div class="form-row">
-    <label>Parameter</label>
-    <select id="param-select"></select>
-    <span id="scatter-params" style="display:none; margin-left:1rem;">
-      <label>X</label><select id="param-x"></select>
-      <label style="margin-left:0.5rem;">Y</label><select id="param-y"></select>
-    </span>
-  </div>
-  <div class="form-row">
-    <label>From</label>
-    <input type="date" id="date-start">
-    <label style="margin-left:1rem;">To</label>
-    <input type="date" id="date-end">
-    <label style="margin-left:1rem;"><input type="checkbox" id="show-threshold" checked> Show threshold line</label>
-    <button id="btn-load" style="margin-left:1rem;">Load</button>
-    <button id="btn-download-csv" style="margin-left:0.5rem;">Download CSV</button>
-  </div>
-  <canvas id="chart" height="280"></canvas>
-</div>
-{% endblock %}
+{% block title %}StreamWatch – Explore water-quality data{% endblock %}
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/static/js/streamwatch_params.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-monitoring explore-workspace">
+  <header class="page-header">
+    <h1>Explore water-quality data</h1>
+    <p class="page-subtitle">Chart historical StreamWatch measurements by site and parameter.</p>
+  </header>
+
+  <div class="explore-layout">
+    <aside class="explore-filters panel" aria-label="Chart filters">
+      <p id="explore-error" class="alert alert-error" style="display:none;" role="alert"></p>
+
+      <div class="filter-field">
+        <label for="chart-type">Chart type</label>
+        <select id="chart-type">
+          <option value="line">Time series</option>
+          <option value="scatter">Scatter (X vs Y)</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <label for="site-select">Site</label>
+        <select id="site-select"><option value="">All sites</option></select>
+      </div>
+
+      <div id="line-controls">
+        <div class="filter-field">
+          <label for="mode">Mode</label>
+          <select id="mode">
+            <option value="single">Single site</option>
+            <option value="compare">Compare sites</option>
+          </select>
+        </div>
+        <div id="compare-sites-wrap" style="display:none;">
+          <div class="filter-field">
+            <label for="site-b">Site B</label>
+            <select id="site-b"><option value="">—</option></select>
+          </div>
+          <div class="filter-field">
+            <label for="site-c">Site C</label>
+            <select id="site-c"><option value="">—</option></select>
+          </div>
+        </div>
+        <div class="filter-field">
+          <label for="param-select">Parameter</label>
+          <select id="param-select"></select>
+        </div>
+      </div>
+
+      <div id="scatter-params" style="display:none;">
+        <div class="filter-field">
+          <label for="param-x">X axis</label>
+          <select id="param-x"></select>
+        </div>
+        <div class="filter-field">
+          <label for="param-y">Y axis</label>
+          <select id="param-y"></select>
+        </div>
+      </div>
+
+      <div class="filter-field filter-dates">
+        <label for="date-start">From</label>
+        <input type="date" id="date-start">
+      </div>
+      <div class="filter-field">
+        <label for="date-end">To</label>
+        <input type="date" id="date-end">
+      </div>
+
+      <div class="filter-field">
+        <label class="checkbox-label">
+          <input type="checkbox" id="show-threshold" checked>
+          Show reference threshold line
+        </label>
+      </div>
+
+      <div class="filter-actions">
+        <button type="button" class="btn-primary" id="btn-load">Update chart</button>
+        <button type="button" class="btn-secondary" id="btn-download-csv">Download CSV</button>
+      </div>
+    </aside>
+
+    <section class="explore-chart-panel panel" aria-label="Chart">
+      <div class="chart-header" id="chart-header">
+        <h2 class="chart-title" id="chart-title">Select filters and update the chart</h2>
+        <p class="chart-meta muted" id="chart-meta"></p>
+      </div>
+      <p class="muted" id="chart-status" aria-live="polite">Loading chart options…</p>
+      <div class="chart-canvas-wrap">
+        <canvas id="chart" aria-describedby="chart-title chart-meta"></canvas>
+      </div>
+    </section>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -67,13 +117,22 @@
   var btnCsv = document.getElementById('btn-download-csv');
   var compareWrap = document.getElementById('compare-sites-wrap');
   var scatterWrap = document.getElementById('scatter-params');
+  var lineControls = document.getElementById('line-controls');
+  var chartTitle = document.getElementById('chart-title');
+  var chartMeta = document.getElementById('chart-meta');
+  var chartStatus = document.getElementById('chart-status');
   var qs = new URLSearchParams(location.search);
   var presetSite = qs.get('site_code') || '';
-  var COMPARE_COLORS = ['#58a6ff', '#3fb950', '#d29922', '#db61a2', '#79c0ff'];
+  var ACCENT = '#1f5c63';
+  var ACCENT_SOFT = 'rgba(31, 92, 99, 0.45)';
+  var COMPARE_COLORS = ['#1f5c63', '#2f6b4f', '#9a6700', '#3d6b8a', '#5b6572'];
+  var THRESHOLD_COLOR = '#b42318';
   var sitesList = [];
   var paramList = [];
   var thresholds = {};
+  var P = window.StreamWatchParams;
   var STORAGE_KEYS = { dateStart: 'streamwatch_global_date_start', dateEnd: 'streamwatch_global_date_end', siteCode: 'streamwatch_global_site_code' };
+
   function saveToGlobalFilter() {
     try {
       window.sessionStorage.setItem(STORAGE_KEYS.dateStart, dateStart.value || '');
@@ -84,13 +143,12 @@
   function applyGlobalFilter() {
     try {
       var s = window.sessionStorage;
-      if (s.getItem(STORAGE_KEYS.dateStart)) dateStart.value = s.getItem(STORAGE_KEYS.dateStart);
-      if (s.getItem(STORAGE_KEYS.dateEnd)) dateEnd.value = s.getItem(STORAGE_KEYS.dateEnd);
-      var code = s.getItem(STORAGE_KEYS.siteCode);
+      if (!presetSite && s.getItem(STORAGE_KEYS.dateStart)) dateStart.value = s.getItem(STORAGE_KEYS.dateStart);
+      if (!presetSite && s.getItem(STORAGE_KEYS.dateEnd)) dateEnd.value = s.getItem(STORAGE_KEYS.dateEnd);
+      var code = presetSite || s.getItem(STORAGE_KEYS.siteCode);
       if (code && siteSelect.querySelector('option[value="' + code + '"]')) siteSelect.value = code;
     } catch (e) {}
   }
-
   function setDefaultDates() {
     var end = new Date();
     var start = new Date(end);
@@ -98,26 +156,49 @@
     if (!dateEnd.value) dateEnd.value = end.toISOString().slice(0, 10);
     if (!dateStart.value) dateStart.value = start.toISOString().slice(0, 10);
   }
+
   var errEl = document.getElementById('explore-error');
   function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
   function hideErr() { errEl.style.display = 'none'; }
+  function setStatus(msg) { chartStatus.textContent = msg || ''; chartStatus.style.display = msg ? 'block' : 'none'; }
 
   function isScatter() { return chartType.value === 'scatter'; }
   function isCompare() { return !isScatter() && mode.value === 'compare'; }
 
+  function paramOptionLabel(p) {
+    if (p.label && p.unit) return p.label + ' (' + p.unit + ')';
+    if (p.label) return p.label;
+    return P.displayLabel(p.id);
+  }
+
   function getSelectedSiteCodes() {
     if (isCompare()) {
-      var codes = [];
-      if (siteSelect.value) codes.push(siteSelect.value);
-      if (siteB.value) codes.push(siteB.value);
-      if (siteC.value) codes.push(siteC.value);
-      return codes.filter(Boolean);
+      return [siteSelect.value, siteB.value, siteC.value].filter(Boolean);
     }
     return siteSelect.value ? [siteSelect.value] : [];
   }
 
+  function siteLabel(code) {
+    if (!code) return 'All sites';
+    var s = sitesList.find(function(x) { return x.site_code === code; });
+    return s ? (s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : '')) : code;
+  }
+
+  function yearRangeText() {
+    var a = (dateStart.value || '').slice(0, 4);
+    var b = (dateEnd.value || '').slice(0, 4);
+    if (a && b && a !== b) return a + '–' + b;
+    if (a || b) return a || b;
+    return '';
+  }
+
+  function updateChartHeader(opts) {
+    opts = opts || {};
+    chartTitle.textContent = opts.title || 'Chart';
+    chartMeta.textContent = opts.meta || '';
+  }
+
   function buildCompareOptions(sel, exclude) {
-    var opts = sel.options;
     sel.innerHTML = '<option value="">—</option>';
     sitesList.forEach(function(s) {
       if (exclude.indexOf(s.site_code) !== -1) return;
@@ -125,103 +206,243 @@
     });
   }
 
+  function baseChartOptions(xTitle, yTitle) {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { boxWidth: 12, color: '#5b6572' } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              var v = ctx.parsed.y != null ? ctx.parsed.y : ctx.parsed;
+              if (typeof v === 'object' && v !== null) {
+                return 'x: ' + ctx.parsed.x + ', y: ' + ctx.parsed.y;
+              }
+              var unit = '';
+              if (!isScatter()) unit = P.unit(paramSelect.value);
+              return (ctx.dataset.label || '') + ': ' + v + (unit ? ' ' + unit : '');
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: !!xTitle, text: xTitle || '', color: '#5b6572' },
+          ticks: { maxRotation: 45, color: '#5b6572', autoSkip: true, maxTicksLimit: 12 },
+          grid: { color: 'rgba(213,221,227,0.7)' }
+        },
+        y: {
+          beginAtZero: false,
+          title: { display: !!yTitle, text: yTitle || '', color: '#5b6572' },
+          ticks: { color: '#5b6572' },
+          grid: { color: 'rgba(213,221,227,0.7)' }
+        }
+      }
+    };
+  }
+
   function loadThresholds() {
-    fetch('/api/thresholds').then(function(r) { return r.json(); }).then(function(t) { thresholds = t; }).catch(function() {});
+    return fetch('/api/thresholds').then(function(r) { return r.json(); }).then(function(t) { thresholds = t || {}; }).catch(function() { thresholds = {}; });
   }
 
   function load() {
     hideErr();
+    setStatus('Updating chart…');
+    saveToGlobalFilter();
+
     if (isScatter()) {
-      var url = '/api/scatter?param_x=' + encodeURIComponent(paramX.value) + '&param_y=' + encodeURIComponent(paramY.value) + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
+      var url = '/api/scatter?param_x=' + encodeURIComponent(paramX.value) + '&param_y=' + encodeURIComponent(paramY.value) +
+        (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
       if (siteSelect.value) url += '&site_code=' + encodeURIComponent(siteSelect.value);
       fetch(url).then(function(r) { if (!r.ok) throw new Error('API error'); return r.json(); }).then(function(data) {
-        if (data.error) { showErr(data.error); if (chart) chart.destroy(); return; }
+        if (data.error) { showErr(data.error); setStatus(''); if (chart) chart.destroy(); return; }
         var pts = data.points || [];
+        var xLab = P.displayLabel(paramX.value);
+        var yLab = P.displayLabel(paramY.value);
+        updateChartHeader({
+          title: xLab + ' vs ' + yLab,
+          meta: siteLabel(siteSelect.value) + (yearRangeText() ? ' · ' + yearRangeText() : '') + (pts.length ? ' · ' + pts.length + ' points' : '')
+        });
+        if (!pts.length) {
+          if (chart) chart.destroy();
+          chart = null;
+          setStatus('No data available for the selected filters.');
+          return;
+        }
         if (chart) chart.destroy();
         chart = new Chart(document.getElementById('chart'), {
           type: 'scatter',
           data: {
             datasets: [{
-              label: paramX.options[paramX.selectedIndex].text + ' vs ' + paramY.options[paramY.selectedIndex].text,
+              label: xLab + ' vs ' + yLab,
               data: pts.map(function(p) { return { x: p.x, y: p.y }; }),
-              backgroundColor: 'rgba(88, 166, 255, 0.5)',
-              borderColor: '#58a6ff'
+              backgroundColor: ACCENT_SOFT,
+              borderColor: ACCENT
             }]
           },
-          options: { responsive: true, scales: { x: { title: { display: true, text: paramX.options[paramX.selectedIndex].text } }, y: { title: { display: true, text: paramY.options[paramY.selectedIndex].text } } } }
+          options: baseChartOptions(xLab, yLab)
         });
-      }).catch(function() { showErr('Could not load scatter data.'); if (chart) chart.destroy(); });
+        setStatus('');
+      }).catch(function() { showErr('Could not load scatter data.'); setStatus(''); if (chart) chart.destroy(); });
       return;
     }
+
     if (isCompare() && getSelectedSiteCodes().length > 0) {
       var codes = getSelectedSiteCodes();
-      var url = '/api/time_series_multi?site_codes=' + encodeURIComponent(codes.join(',')) + '&parameter=' + encodeURIComponent(paramSelect.value) + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
+      var url = '/api/time_series_multi?site_codes=' + encodeURIComponent(codes.join(',')) +
+        '&parameter=' + encodeURIComponent(paramSelect.value) +
+        (dateStart.value ? '&date_start=' + dateStart.value : '') +
+        (dateEnd.value ? '&date_end=' + dateEnd.value : '');
       fetch(url).then(function(r) { if (!r.ok) throw new Error('API error'); return r.json(); }).then(function(data) {
-        if (data.error) { showErr(data.error); if (chart) chart.destroy(); return; }
-        var paramId = data.parameter;
+        if (data.error) { showErr(data.error); setStatus(''); if (chart) chart.destroy(); return; }
+        var paramId = data.parameter || paramSelect.value;
+        var yLab = P.displayLabel(paramId);
         var thresh = showThreshold.checked && thresholds[paramId] != null ? thresholds[paramId] : null;
         var datasets = (data.series || []).map(function(s, i) {
           return {
             label: s.label,
             data: s.data.map(function(d) { return d.value; }),
             borderColor: COMPARE_COLORS[i % COMPARE_COLORS.length],
-            fill: false
+            backgroundColor: 'transparent',
+            fill: false,
+            tension: 0.1,
+            pointRadius: 0,
+            borderWidth: 2
           };
         });
         var labels = (data.series && data.series[0]) ? data.series[0].data.map(function(d) { return d.date; }) : [];
+        var hasPoints = datasets.some(function(d) { return d.data.some(function(v) { return v != null; }); });
+        updateChartHeader({
+          title: P.titleLabel(paramId) + (P.unit(paramId) ? ' (' + P.unit(paramId) + ')' : ''),
+          meta: codes.map(siteLabel).join(' · ') + (yearRangeText() ? ' · ' + yearRangeText() : '')
+        });
+        if (!hasPoints) {
+          if (chart) chart.destroy();
+          chart = null;
+          setStatus('No data available for the selected filters.');
+          return;
+        }
         if (thresh != null && labels.length) {
-          datasets.push({ label: 'Threshold ' + thresh, data: labels.map(function() { return thresh; }), borderColor: '#f85149', borderWidth: 1, borderDash: [4, 2], fill: false, pointRadius: 0 });
+          datasets.push({
+            label: 'Reference threshold (' + thresh + (P.unit(paramId) ? ' ' + P.unit(paramId) : '') + ')',
+            data: labels.map(function() { return thresh; }),
+            borderColor: THRESHOLD_COLOR,
+            borderWidth: 1.5,
+            borderDash: [5, 4],
+            fill: false,
+            pointRadius: 0
+          });
         }
         if (chart) chart.destroy();
-        chart = new Chart(document.getElementById('chart'), { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: false } } } });
-      }).catch(function() { showErr('Could not load comparison data.'); if (chart) chart.destroy(); });
+        chart = new Chart(document.getElementById('chart'), {
+          type: 'line',
+          data: { labels: labels, datasets: datasets },
+          options: baseChartOptions('Sample date', yLab)
+        });
+        setStatus('');
+      }).catch(function() { showErr('Could not load comparison data.'); setStatus(''); if (chart) chart.destroy(); });
       return;
     }
-    var url = '/api/time_series?parameter=' + encodeURIComponent(paramSelect.value) + (siteSelect.value ? '&site_code=' + encodeURIComponent(siteSelect.value) : '') + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
+
+    var url = '/api/time_series?parameter=' + encodeURIComponent(paramSelect.value) +
+      (siteSelect.value ? '&site_code=' + encodeURIComponent(siteSelect.value) : '') +
+      (dateStart.value ? '&date_start=' + dateStart.value : '') +
+      (dateEnd.value ? '&date_end=' + dateEnd.value : '');
     fetch(url).then(function(r) { if (!r.ok) throw new Error('API error'); return r.json(); }).then(function(data) {
-      if (data.error) { showErr(data.error + (data.hint ? ' ' + data.hint : '')); if (chart) chart.destroy(); return; }
+      if (data.error) { showErr(data.error + (data.hint ? ' ' + data.hint : '')); setStatus(''); if (chart) chart.destroy(); return; }
       var labels = data.map(function(d) { return d.date; });
       var values = data.map(function(d) { return d.value; });
       var paramId = paramSelect.value;
+      var yLab = P.displayLabel(paramId);
       var thresh = showThreshold.checked && thresholds[paramId] != null ? thresholds[paramId] : null;
-      var datasets = [{ label: paramSelect.options[paramSelect.selectedIndex].text, data: values, borderColor: '#58a6ff', fill: false }];
+      var hasPoints = values.some(function(v) { return v != null; });
+      updateChartHeader({
+        title: P.titleLabel(paramId) + (P.unit(paramId) ? ' (' + P.unit(paramId) + ')' : ''),
+        meta: siteLabel(siteSelect.value) + (yearRangeText() ? ' · ' + yearRangeText() : '') + (hasPoints ? ' · ' + values.filter(function(v){return v!=null;}).length + ' values' : '')
+      });
+      if (!hasPoints) {
+        if (chart) chart.destroy();
+        chart = null;
+        setStatus('No data available for the selected filters.');
+        return;
+      }
+      var datasets = [{
+        label: yLab,
+        data: values,
+        borderColor: ACCENT,
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.1,
+        pointRadius: 0,
+        borderWidth: 2
+      }];
       if (thresh != null && labels.length) {
-        datasets.push({ label: 'Threshold ' + thresh, data: labels.map(function() { return thresh; }), borderColor: '#f85149', borderWidth: 1, borderDash: [4, 2], fill: false, pointRadius: 0 });
+        datasets.push({
+          label: 'Reference threshold (' + thresh + (P.unit(paramId) ? ' ' + P.unit(paramId) : '') + ')',
+          data: labels.map(function() { return thresh; }),
+          borderColor: THRESHOLD_COLOR,
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          fill: false,
+          pointRadius: 0
+        });
       }
       if (chart) chart.destroy();
-      chart = new Chart(document.getElementById('chart'), { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive: true, scales: { x: { ticks: { maxRotation: 45 } }, y: { beginAtZero: false } } } });
-    }).catch(function() { showErr('Could not load data.'); if (chart) chart.destroy(); });
+      chart = new Chart(document.getElementById('chart'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: baseChartOptions('Sample date', yLab)
+      });
+      setStatus('');
+    }).catch(function() { showErr('Could not load data.'); setStatus(''); if (chart) chart.destroy(); });
   }
 
   function downloadCsv() {
     if (isScatter()) { showErr('Download CSV is for time series view only.'); return; }
     var codes = getSelectedSiteCodes();
-    var url = '/export/explore_csv?parameter=' + encodeURIComponent(paramSelect.value) + (dateStart.value ? '&date_start=' + dateStart.value : '') + (dateEnd.value ? '&date_end=' + dateEnd.value : '');
+    var url = '/export/explore_csv?parameter=' + encodeURIComponent(paramSelect.value) +
+      (dateStart.value ? '&date_start=' + dateStart.value : '') +
+      (dateEnd.value ? '&date_end=' + dateEnd.value : '');
     if (codes.length) url += '&site_codes=' + encodeURIComponent(codes.join(','));
     window.location.href = url;
   }
 
-  chartType.addEventListener('change', function() {
-    scatterWrap.style.display = isScatter() ? 'inline' : 'none';
-    document.getElementById('line-controls').style.display = isScatter() ? 'none' : 'block';
-  });
+  function syncFilterVisibility() {
+    scatterWrap.style.display = isScatter() ? 'block' : 'none';
+    lineControls.style.display = isScatter() ? 'none' : 'block';
+    compareWrap.style.display = (!isScatter() && isCompare()) ? 'block' : 'none';
+  }
+
+  chartType.addEventListener('change', syncFilterVisibility);
   mode.addEventListener('change', function() {
-    compareWrap.style.display = isCompare() ? 'inline' : 'none';
-    if (isCompare()) { buildCompareOptions(siteB, [siteSelect.value]); buildCompareOptions(siteC, [siteSelect.value, siteB.value]); }
+    syncFilterVisibility();
+    if (isCompare()) {
+      buildCompareOptions(siteB, [siteSelect.value]);
+      buildCompareOptions(siteC, [siteSelect.value, siteB.value]);
+    }
   });
   siteSelect.addEventListener('change', function() {
-    if (isCompare()) { buildCompareOptions(siteB, [siteSelect.value]); buildCompareOptions(siteC, [siteSelect.value, siteB.value]); }
+    if (isCompare()) {
+      buildCompareOptions(siteB, [siteSelect.value]);
+      buildCompareOptions(siteC, [siteSelect.value, siteB.value]);
+    }
   });
-  siteB.addEventListener('change', function() { if (isCompare()) buildCompareOptions(siteC, [siteSelect.value, siteB.value]); });
+  siteB.addEventListener('change', function() {
+    if (isCompare()) buildCompareOptions(siteC, [siteSelect.value, siteB.value]);
+  });
   btn.addEventListener('click', load);
   btnCsv.addEventListener('click', downloadCsv);
 
-  scatterWrap.style.display = 'none';
-  loadThresholds();
-  Promise.all([fetch('/api/sites').then(function(r) { if (!r.ok) throw new Error('sites'); return r.json(); }), fetch('/api/parameters').then(function(r) { return r.json(); })]).then(function(res) {
-    sitesList = res[0];
-    paramList = res[1];
-    if (!Array.isArray(sitesList) || sitesList.error) { showErr('Could not load sites.'); return; }
+  syncFilterVisibility();
+  Promise.all([
+    loadThresholds(),
+    fetch('/api/sites').then(function(r) { if (!r.ok) throw new Error('sites'); return r.json(); }),
+    fetch('/api/parameters').then(function(r) { return r.json(); })
+  ]).then(function(res) {
+    sitesList = res[1];
+    paramList = res[2];
+    if (!Array.isArray(sitesList) || sitesList.error) { showErr('Could not load sites.'); setStatus(''); return; }
     sitesList.forEach(function(s) {
       var label = s.site_code + (s.waterbody_name ? ' – ' + s.waterbody_name : '');
       siteSelect.appendChild(new Option(label, s.site_code));
@@ -229,19 +450,29 @@
       siteC.appendChild(new Option(label, s.site_code));
     });
     paramList.forEach(function(p) {
-      paramSelect.appendChild(new Option(p.label, p.id));
-      paramX.appendChild(new Option(p.label, p.id));
-      paramY.appendChild(new Option(p.label, p.id));
+      var lab = paramOptionLabel(p);
+      paramSelect.appendChild(new Option(lab, p.id));
+      paramX.appendChild(new Option(lab, p.id));
+      paramY.appendChild(new Option(lab, p.id));
     });
     paramY.value = 'dissolved_oxygen_ppm';
-    if (presetSite && siteSelect.querySelector('option[value="' + presetSite + '"]')) siteSelect.value = presetSite;
+    if (presetSite && siteSelect.querySelector('option[value="' + presetSite + '"]')) {
+      siteSelect.value = presetSite;
+    }
     setDefaultDates();
     applyGlobalFilter();
+    if (presetSite && siteSelect.querySelector('option[value="' + presetSite + '"]')) {
+      siteSelect.value = presetSite;
+    }
     dateStart.addEventListener('change', saveToGlobalFilter);
     dateEnd.addEventListener('change', saveToGlobalFilter);
     siteSelect.addEventListener('change', saveToGlobalFilter);
+    setStatus('');
     load();
-  }).catch(function() { showErr('Could not load sites or parameters.'); });
+  }).catch(function() {
+    showErr('Could not load sites or parameters.');
+    setStatus('');
+  });
 })();
 </script>
 {% endblock %}
