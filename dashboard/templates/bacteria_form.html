@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {% if mode == 'edit' %}Edit bacteria{% else %}Add bacteria{% endif %}{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% if visit and visit.site_code %}
+    <a href="/site/{{ visit.site_code }}">{{ visit.site_code }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% endif %}
+    {% if visit and visit.visit_id %}
+    <a href="/visits/{{ visit.visit_id }}">Visit{% if visit.sample_date %} {{ visit.sample_date }}{% endif %}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% endif %}
+    <span aria-current="page">{% if mode == 'edit' %}Edit bacteria{% else %}Add bacteria{% endif %}</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>{% if mode == 'edit' %}Edit bacteria result{% else %}Add bacteria result{% endif %}</h1>
+    <p class="page-subtitle">
+      {% if visit and visit.site_code %}
+      {{ visit.site_code }}{% if visit.sample_date %} · {{ visit.sample_date }}{% endif %}.
+      {% endif %}
+      Enter integer MPN values only.
+    </p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+
+  {% if visit and visit.visit_id %}
+  <form class="form-shell panel" method="post"
+        action="{% if mode == 'edit' %}/visits/{{ visit.visit_id }}/bacteria/{{ bacteria_id }}/edit{% else %}/visits/{{ visit.visit_id }}/bacteria/new{% endif %}"
+        novalidate>
+    <section class="form-section" aria-labelledby="bact-context">
+      <h2 class="form-section-title" id="bact-context">Result context</h2>
+      <div class="form-grid">
+        <div class="form-field form-field-full">
+          <label for="data_condition_id">Data condition</label>
+          <select id="data_condition_id" name="data_condition_id">
+            <option value="">—</option>
+            {% for c in conditions %}
+            <option value="{{ c.data_condition_id }}" {% if form.data_condition_id == (c.data_condition_id|string) %}selected{% endif %}>
+              {{ c.code }}{% if c.description %} — {{ c.description }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <p class="form-help">Optional. Leave blank if not yet assigned.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="bact-meas">
+      <h2 class="form-section-title" id="bact-meas">Bacteria measurements</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="e_coli_mpn_100ml">E. coli (MPN/100mL)</label>
+          <input type="text" inputmode="numeric" id="e_coli_mpn_100ml" name="e_coli_mpn_100ml" value="{{ form.e_coli_mpn_100ml or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="total_coliform_mpn">Total coliform (MPN/100mL)</label>
+          <input type="text" inputmode="numeric" id="total_coliform_mpn" name="total_coliform_mpn" value="{{ form.total_coliform_mpn or '' }}">
+        </div>
+      </div>
+      <p class="form-help">Enter at least one value. Censored results such as &gt;2419.6 or &lt;1.0 are not supported yet.</p>
+    </section>
+
+    <section class="form-section" aria-labelledby="bact-handling">
+      <h2 class="form-section-title" id="bact-handling">Sample handling</h2>
+      <div class="form-grid">
+        <div class="form-field form-field-full">
+          <span class="form-group-label">Holding flags</span>
+          <div class="checkbox-group" role="group" aria-label="Holding flags">
+            <label class="checkbox-label">
+              <input type="checkbox" name="holding_time_flag" value="1" {% if form.holding_time_flag %}checked{% endif %}>
+              Holding time flag
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" name="holding_temp_flag" value="1" {% if form.holding_temp_flag %}checked{% endif %}>
+              Holding temperature flag
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="bact-notes">
+      <h2 class="form-section-title" id="bact-notes">Notes</h2>
+      <div class="form-grid">
+        <div class="form-field form-field-full">
+          <label for="detection_limit_note">Detection limit note</label>
+          <textarea id="detection_limit_note" name="detection_limit_note" rows="2" maxlength="2000">{{ form.detection_limit_note or '' }}</textarea>
+          <p class="form-help">Free-text notes only. Do not use this field to encode censored numeric results.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">{% if mode == 'edit' %}Save bacteria{% else %}Save bacteria result{% endif %}</button>
+      <a class="btn-secondary" href="/visits/{{ visit.visit_id }}">Cancel</a>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

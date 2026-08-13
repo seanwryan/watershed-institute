@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {% if mode == 'edit' %}Edit chemistry{% else %}Add chemistry{% endif %}{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% if visit and visit.site_code %}
+    <a href="/site/{{ visit.site_code }}">{{ visit.site_code }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% endif %}
+    {% if visit and visit.visit_id %}
+    <a href="/visits/{{ visit.visit_id }}">Visit{% if visit.sample_date %} {{ visit.sample_date }}{% endif %}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    {% endif %}
+    <span aria-current="page">{% if mode == 'edit' %}Edit chemistry{% else %}Add chemistry{% endif %}</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>{% if mode == 'edit' %}Edit chemistry package{% else %}Add chemistry package{% endif %}</h1>
+    <p class="page-subtitle">
+      {% if visit and visit.site_code %}
+      {{ visit.site_code }}{% if visit.sample_date %} · {{ visit.sample_date }}{% endif %}.
+      {% endif %}
+      Multiple chemistry packages may be recorded for one visit.
+    </p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+  {% if qa_warnings %}
+  <div class="alert alert-warning" role="status">
+    <p><strong>Review threshold notice</strong> — this does not block saving, and no automatic QA flags are created.</p>
+    <ul>
+      {% for w in qa_warnings %}
+      <li>{{ w }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if visit and visit.visit_id %}
+  <form class="form-shell panel" method="post"
+        action="{% if mode == 'edit' %}/visits/{{ visit.visit_id }}/chemistry/{{ chemical_id }}/edit{% else %}/visits/{{ visit.visit_id }}/chemistry/new{% endif %}"
+        novalidate>
+    <section class="form-section" aria-labelledby="chem-context">
+      <h2 class="form-section-title" id="chem-context">Result context</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="method_id">Method</label>
+          <select id="method_id" name="method_id">
+            <option value="">—</option>
+            {% for m in methods %}
+            <option value="{{ m.method_id }}" {% if form.method_id == (m.method_id|string) %}selected{% endif %}>{{ m.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="data_condition_id">Data condition</label>
+          <select id="data_condition_id" name="data_condition_id">
+            <option value="">—</option>
+            {% for c in conditions %}
+            <option value="{{ c.data_condition_id }}" {% if form.data_condition_id == (c.data_condition_id|string) %}selected{% endif %}>
+              {{ c.code }}{% if c.description %} — {{ c.description }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <p class="form-help">Optional. Leave blank if not yet assigned. Conditions are not set automatically from values.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="chem-temp-do">
+      <h2 class="form-section-title" id="chem-temp-do">Temperature &amp; oxygen</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="air_temp_c">Air temperature (°C)</label>
+          <input type="text" inputmode="decimal" id="air_temp_c" name="air_temp_c" value="{{ form.air_temp_c or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="water_temp_c">Water temperature (°C)</label>
+          <input type="text" inputmode="decimal" id="water_temp_c" name="water_temp_c" value="{{ form.water_temp_c or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="dissolved_oxygen_ppm">Dissolved oxygen (mg/L)</label>
+          <input type="text" inputmode="decimal" id="dissolved_oxygen_ppm" name="dissolved_oxygen_ppm" value="{{ form.dissolved_oxygen_ppm or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="dissolved_oxygen_pct">Dissolved oxygen saturation (%)</label>
+          <input type="text" inputmode="decimal" id="dissolved_oxygen_pct" name="dissolved_oxygen_pct" value="{{ form.dissolved_oxygen_pct or '' }}">
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="chem-nutrients">
+      <h2 class="form-section-title" id="chem-nutrients">Nutrients</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="nitrate_ug_l">Nitrate (µg/L)</label>
+          <input type="text" inputmode="decimal" id="nitrate_ug_l" name="nitrate_ug_l" value="{{ form.nitrate_ug_l or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="phosphate_mg_l">Phosphate (mg/L)</label>
+          <input type="text" inputmode="decimal" id="phosphate_mg_l" name="phosphate_mg_l" value="{{ form.phosphate_mg_l or '' }}">
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="chem-field">
+      <h2 class="form-section-title" id="chem-field">Field measurements</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="ph">pH</label>
+          <input type="text" inputmode="decimal" id="ph" name="ph" value="{{ form.ph or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="turbidity_ntu">Turbidity (NTU)</label>
+          <input type="text" inputmode="decimal" id="turbidity_ntu" name="turbidity_ntu" value="{{ form.turbidity_ntu or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="conductivity_us_cm">Conductivity (µS/cm)</label>
+          <input type="text" inputmode="decimal" id="conductivity_us_cm" name="conductivity_us_cm" value="{{ form.conductivity_us_cm or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="chloride_mg_l">Chloride (mg/L)</label>
+          <input type="text" inputmode="decimal" id="chloride_mg_l" name="chloride_mg_l" value="{{ form.chloride_mg_l or '' }}">
+        </div>
+      </div>
+      <p class="form-help">Enter at least one measurement. Multiple packages on the same visit are allowed when values or methods differ.</p>
+    </section>
+
+    <section class="form-section" aria-labelledby="chem-notes">
+      <h2 class="form-section-title" id="chem-notes">Notes</h2>
+      <div class="form-grid">
+        <div class="form-field form-field-full">
+          <label for="detection_limit_note">Detection limit note</label>
+          <textarea id="detection_limit_note" name="detection_limit_note" rows="2" maxlength="2000">{{ form.detection_limit_note or '' }}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">{% if mode == 'edit' %}Save chemistry{% else %}Save chemistry package{% endif %}</button>
+      <a class="btn-secondary" href="/visits/{{ visit.visit_id }}">Cancel</a>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

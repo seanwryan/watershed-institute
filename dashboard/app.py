@@ -10,10 +10,12 @@ from pathlib import Path
 from datetime import date, datetime
 
 import psycopg2
-from flask import Flask, jsonify, request, send_from_directory, render_template, Response, redirect, url_for
+from flask import Flask, jsonify, request, send_from_directory, render_template, Response, redirect, url_for, abort
 
 # Allow importing etl when running from dashboard/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 
 # Strip quotes so pasting 'postgresql://...' in Render Environment still works
 _raw = os.getenv("DATABASE_URL", "postgresql://localhost/streamwatch") or ""
@@ -1209,6 +1211,1419 @@ def site_edit(site_code):
             ), 500
 
         return redirect(url_for("site_detail_page", site_code=stable_code))
+    finally:
+        conn.close()
+
+
+# —— Visit / Chemistry / Bacteria data entry (v1) ——
+
+_CHEM_FORM_FIELDS = [
+    ("air_temp_c", "Air temperature (°C)"),
+    ("water_temp_c", "Water temperature (°C)"),
+    ("dissolved_oxygen_ppm", "Dissolved oxygen (mg/L)"),
+    ("dissolved_oxygen_pct", "Dissolved oxygen saturation (%)"),
+    ("nitrate_ug_l", "Nitrate (µg/L)"),
+    ("phosphate_mg_l", "Phosphate (mg/L)"),
+    ("ph", "pH"),
+    ("turbidity_ntu", "Turbidity (NTU)"),
+    ("conductivity_us_cm", "Conductivity (µS/cm)"),
+    ("chloride_mg_l", "Chloride (mg/L)"),
+]
+
+_CHEM_PARAM_LABELS = {k: label for k, label in _CHEM_FORM_FIELDS}
+
+_CHEM_QA_THRESHOLDS = (
+    ("water_temp_c", 31, "Water temperature exceeds 31°C (existing StreamWatch review threshold)."),
+    ("nitrate_ug_l", 10000, "Nitrate exceeds 10,000 µg/L (~10 ppm) (existing StreamWatch review threshold)."),
+)
+
+
+def _empty_visit_form(overrides=None):
+    form = {
+        "site_id": "",
+        "sample_date": "",
+        "sample_time": "",
+        "sample_code": "",
+        "method_id": "",
+        "equipment_id": "",
+        "notes": "",
+    }
+    if overrides:
+        form.update(overrides)
+    return form
+
+
+def _visit_form_from_request():
+    return {
+        "site_id": (request.form.get("site_id") or "").strip(),
+        "sample_date": (request.form.get("sample_date") or "").strip(),
+        "sample_time": (request.form.get("sample_time") or "").strip(),
+        "sample_code": (request.form.get("sample_code") or "").strip(),
+        "method_id": (request.form.get("method_id") or "").strip(),
+        "equipment_id": (request.form.get("equipment_id") or "").strip(),
+        "notes": (request.form.get("notes") or "").strip(),
+    }
+
+
+def _load_visit_sites(cur):
+    cur.execute(
+        """
+        SELECT s.site_id, s.site_code, w.name AS waterbody_name, s.is_active
+        FROM site s
+        LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
+        ORDER BY s.is_active DESC, s.site_code
+        """
+    )
+    return [
+        {
+            "site_id": r[0],
+            "site_code": r[1],
+            "waterbody_name": r[2],
+            "is_active": bool(r[3]),
+        }
+        for r in cur.fetchall()
+    ]
+
+
+def _load_methods(cur):
+    cur.execute("SELECT method_id, name FROM lst_method ORDER BY name")
+    return [{"method_id": r[0], "name": r[1]} for r in cur.fetchall()]
+
+
+def _load_equipment_options(cur):
+    cur.execute(
+        """
+        SELECT equipment_id, equipment_code, COALESCE(equipment_type, '') AS equipment_type
+        FROM equipment
+        ORDER BY equipment_code
+        """
+    )
+    return [
+        {"equipment_id": r[0], "equipment_code": r[1], "equipment_type": r[2]}
+        for r in cur.fetchall()
+    ]
+
+
+def _load_data_conditions(cur):
+    cur.execute(
+        "SELECT data_condition_id, code, description FROM data_condition ORDER BY code"
+    )
+    return [
+        {"data_condition_id": r[0], "code": r[1], "description": r[2]}
+        for r in cur.fetchall()
+    ]
+
+
+def _parse_optional_int_id(raw, label):
+    if raw is None or str(raw).strip() == "":
+        return None, None
+    try:
+        return int(str(raw).strip()), None
+    except (TypeError, ValueError):
+        return None, f"Choose a valid {label}."
+
+
+def _parse_sample_date(raw):
+    if not raw:
+        return None, "Sample date is required."
+    try:
+        return date.fromisoformat(raw), None
+    except ValueError:
+        return None, "Enter a valid sample date."
+
+
+def _parse_sample_time(raw):
+    if not raw:
+        return None, None
+    text = raw.strip()
+    for fmt in ("%H:%M", "%H:%M:%S"):
+        try:
+            return datetime.strptime(text, fmt).time(), None
+        except ValueError:
+            continue
+    return None, "Enter a valid sample time (HH:MM)."
+
+
+def _validate_visit_form(cur, form):
+    site_id, err = _parse_optional_int_id(form.get("site_id"), "site")
+    if err or site_id is None:
+        return "Choose a monitoring site.", None
+    cur.execute("SELECT site_id FROM site WHERE site_id = %s", (site_id,))
+    if not cur.fetchone():
+        return "Choose a monitoring site.", None
+
+    sample_date, err = _parse_sample_date(form.get("sample_date"))
+    if err:
+        return err, None
+
+    sample_time, err = _parse_sample_time(form.get("sample_time"))
+    if err:
+        return err, None
+
+    method_id, err = _parse_optional_int_id(form.get("method_id"), "method")
+    if err:
+        return err, None
+    if method_id is not None:
+        cur.execute("SELECT method_id FROM lst_method WHERE method_id = %s", (method_id,))
+        if not cur.fetchone():
+            return "Choose a valid method/program.", None
+
+    equipment_id, err = _parse_optional_int_id(form.get("equipment_id"), "equipment")
+    if err:
+        return err, None
+    if equipment_id is not None:
+        cur.execute(
+            "SELECT equipment_id FROM equipment WHERE equipment_id = %s", (equipment_id,)
+        )
+        if not cur.fetchone():
+            return "Choose a valid equipment item.", None
+
+    sample_code = (form.get("sample_code") or "").strip() or None
+    notes = (form.get("notes") or "").strip() or None
+    if notes and len(notes) > 4000:
+        return "Notes are too long (maximum 4000 characters).", None
+    if sample_code and len(sample_code) > 200:
+        return "Sample code is too long (maximum 200 characters).", None
+
+    return None, {
+        "site_id": site_id,
+        "sample_date": sample_date,
+        "sample_time": sample_time,
+        "sample_code": sample_code,
+        "method_id": method_id,
+        "equipment_id": equipment_id,
+        "notes": notes,
+    }
+
+
+def _visit_form_template_kwargs(form, sites, methods, equipment, mode="new", visit=None, error=None):
+    return {
+        "form": form,
+        "sites": sites,
+        "methods": methods,
+        "equipment": equipment,
+        "mode": mode,
+        "visit": visit,
+        "error": error,
+    }
+
+
+def _load_visit_header(cur, visit_id):
+    cur.execute(
+        """
+        SELECT v.visit_id, v.site_id, s.site_code, w.name AS waterbody_name,
+               v.sample_date, v.sample_time, v.sample_code,
+               v.method_id, m.name AS method_name,
+               v.equipment_id, e.equipment_code,
+               v.notes
+        FROM visit v
+        JOIN site s ON s.site_id = v.site_id
+        LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
+        LEFT JOIN lst_method m ON m.method_id = v.method_id
+        LEFT JOIN equipment e ON e.equipment_id = v.equipment_id
+        WHERE v.visit_id = %s
+        """,
+        (visit_id,),
+    )
+    r = cur.fetchone()
+    if not r:
+        return None
+    sample_date = r[4]
+    sample_time = r[5]
+    return {
+        "visit_id": r[0],
+        "site_id": r[1],
+        "site_code": r[2],
+        "waterbody_name": r[3],
+        "sample_date": sample_date.isoformat() if sample_date else None,
+        "sample_time": sample_time.strftime("%H:%M") if sample_time else None,
+        "sample_code": r[6],
+        "method_id": r[7],
+        "method_name": r[8],
+        "equipment_id": r[9],
+        "equipment_code": r[10],
+        "notes": r[11],
+    }
+
+
+def _fmt_chem_display(val):
+    if val is None:
+        return None
+    try:
+        f = float(val)
+    except (TypeError, ValueError):
+        return str(val)
+    if abs(f - round(f)) < 1e-9:
+        return str(int(round(f)))
+    text = f"{f:.4f}".rstrip("0").rstrip(".")
+    return text
+
+
+def _load_visit_chemistry(cur, visit_id):
+    cur.execute(
+        """
+        SELECT c.chemical_id, m.name AS method_name, dc.code AS data_condition,
+               c.air_temp_c, c.water_temp_c, c.dissolved_oxygen_ppm, c.dissolved_oxygen_pct,
+               c.nitrate_ug_l, c.phosphate_mg_l, c.ph, c.turbidity_ntu,
+               c.conductivity_us_cm, c.chloride_mg_l, c.detection_limit_note, c.created_at
+        FROM chemical c
+        LEFT JOIN lst_method m ON m.method_id = c.method_id
+        LEFT JOIN data_condition dc ON dc.data_condition_id = c.data_condition_id
+        WHERE c.visit_id = %s
+        ORDER BY c.chemical_id
+        """,
+        (visit_id,),
+    )
+    rows = []
+    cols = [
+        "air_temp_c",
+        "water_temp_c",
+        "dissolved_oxygen_ppm",
+        "dissolved_oxygen_pct",
+        "nitrate_ug_l",
+        "phosphate_mg_l",
+        "ph",
+        "turbidity_ntu",
+        "conductivity_us_cm",
+        "chloride_mg_l",
+    ]
+    for r in cur.fetchall():
+        measured = []
+        values = r[3:13]
+        for key, val in zip(cols, values):
+            if val is not None:
+                measured.append(
+                    {"key": key, "label": _CHEM_PARAM_LABELS[key], "value": _fmt_chem_display(val)}
+                )
+        created = r[14]
+        rows.append(
+            {
+                "chemical_id": r[0],
+                "method_name": r[1],
+                "data_condition": r[2],
+                "measured": measured,
+                "detection_limit_note": r[13],
+                "created_at": created.strftime("%Y-%m-%d") if created else None,
+            }
+        )
+    return rows
+
+
+def _load_visit_bacteria(cur, visit_id):
+    cur.execute(
+        """
+        SELECT b.bacteria_id, dc.code AS data_condition,
+               b.e_coli_mpn_100ml, b.total_coliform_mpn, b.detection_limit_note,
+               b.holding_time_flag, b.holding_temp_flag, b.created_at
+        FROM bacteria b
+        LEFT JOIN data_condition dc ON dc.data_condition_id = b.data_condition_id
+        WHERE b.visit_id = %s
+        ORDER BY b.bacteria_id
+        """,
+        (visit_id,),
+    )
+    rows = []
+    for r in cur.fetchall():
+        created = r[7]
+        rows.append(
+            {
+                "bacteria_id": r[0],
+                "data_condition": r[1],
+                "e_coli_mpn_100ml": r[2],
+                "total_coliform_mpn": r[3],
+                "detection_limit_note": r[4],
+                "holding_time_flag": r[5],
+                "holding_temp_flag": r[6],
+                "created_at": created.strftime("%Y-%m-%d") if created else None,
+            }
+        )
+    return rows
+
+
+def _empty_chemical_form(overrides=None):
+    form = {k: "" for k, _ in _CHEM_FORM_FIELDS}
+    form.update(
+        {
+            "method_id": "",
+            "data_condition_id": "",
+            "detection_limit_note": "",
+        }
+    )
+    if overrides:
+        form.update({k: ("" if v is None else str(v)) for k, v in overrides.items()})
+    return form
+
+
+def _chemical_form_from_request():
+    form = {
+        "method_id": (request.form.get("method_id") or "").strip(),
+        "data_condition_id": (request.form.get("data_condition_id") or "").strip(),
+        "detection_limit_note": (request.form.get("detection_limit_note") or "").strip(),
+    }
+    for key, _ in _CHEM_FORM_FIELDS:
+        form[key] = (request.form.get(key) or "").strip()
+    return form
+
+
+def _parse_chem_float(raw, label):
+    if raw is None or str(raw).strip() == "":
+        return None, None
+    text = str(raw).strip()
+    if re.search(r"[<>]", text):
+        return None, f"{label}: censored or inequality values are not supported in this form."
+    try:
+        return float(text), None
+    except ValueError:
+        return None, f"Enter a valid number for {label}."
+
+
+def _chem_qa_warnings(values):
+    warnings = []
+    for key, limit, msg in _CHEM_QA_THRESHOLDS:
+        val = values.get(key)
+        if val is not None and val > limit:
+            warnings.append(msg)
+    return warnings
+
+
+def _chem_package_fingerprint(method_name, values):
+    """Visit-scoped exact package fingerprint (method + rounded measurements)."""
+    method = (method_name or "").strip() or None
+    rounded = tuple(round_chem(values.get(f)) for f in CHEM_VALUE_FIELDS)
+    return (method,) + rounded
+
+
+def _method_name_by_id(methods, method_id):
+    if method_id is None:
+        return None
+    for m in methods:
+        if m["method_id"] == method_id:
+            return m["name"]
+    return None
+
+
+def _validate_chemical_form(cur, form, methods):
+    method_id, err = _parse_optional_int_id(form.get("method_id"), "method")
+    if err:
+        return err, None, []
+    if method_id is not None:
+        cur.execute("SELECT method_id FROM lst_method WHERE method_id = %s", (method_id,))
+        if not cur.fetchone():
+            return "Choose a valid method.", None, []
+
+    data_condition_id, err = _parse_optional_int_id(
+        form.get("data_condition_id"), "data condition"
+    )
+    if err:
+        return err, None, []
+    if data_condition_id is not None:
+        cur.execute(
+            "SELECT data_condition_id FROM data_condition WHERE data_condition_id = %s",
+            (data_condition_id,),
+        )
+        if not cur.fetchone():
+            return "Choose a valid data condition.", None, []
+
+    values = {}
+    for key, label in _CHEM_FORM_FIELDS:
+        val, err = _parse_chem_float(form.get(key), label)
+        if err:
+            return err, None, []
+        values[key] = val
+
+    if all(v is None for v in values.values()):
+        return "Enter at least one chemistry measurement.", None, []
+
+    note = (form.get("detection_limit_note") or "").strip() or None
+    if note and len(note) > 2000:
+        return "Detection limit note is too long (maximum 2000 characters).", None, []
+
+    # Soft range hints only — no invented hard rejects beyond parseability.
+    qa_warnings = _chem_qa_warnings(values)
+    method_name = _method_name_by_id(methods, method_id)
+
+    return None, {
+        "method_id": method_id,
+        "method_name": method_name,
+        "data_condition_id": data_condition_id,
+        "detection_limit_note": note,
+        "values": values,
+        "fingerprint": _chem_package_fingerprint(method_name, values),
+    }, qa_warnings
+
+
+def _existing_chem_fingerprints(cur, visit_id, exclude_chemical_id=None):
+    cur.execute(
+        """
+        SELECT c.chemical_id, m.name,
+               c.air_temp_c, c.water_temp_c, c.nitrate_ug_l, c.phosphate_mg_l, c.ph,
+               c.turbidity_ntu, c.dissolved_oxygen_ppm, c.dissolved_oxygen_pct,
+               c.conductivity_us_cm, c.chloride_mg_l
+        FROM chemical c
+        LEFT JOIN lst_method m ON m.method_id = c.method_id
+        WHERE c.visit_id = %s
+        """,
+        (visit_id,),
+    )
+    fps = {}
+    for r in cur.fetchall():
+        chemical_id = r[0]
+        if exclude_chemical_id is not None and chemical_id == exclude_chemical_id:
+            continue
+        values = {
+            "air_temp_c": float(r[2]) if r[2] is not None else None,
+            "water_temp_c": float(r[3]) if r[3] is not None else None,
+            "nitrate_ug_l": float(r[4]) if r[4] is not None else None,
+            "phosphate_mg_l": float(r[5]) if r[5] is not None else None,
+            "ph": float(r[6]) if r[6] is not None else None,
+            "turbidity_ntu": float(r[7]) if r[7] is not None else None,
+            "dissolved_oxygen_ppm": float(r[8]) if r[8] is not None else None,
+            "dissolved_oxygen_pct": float(r[9]) if r[9] is not None else None,
+            "conductivity_us_cm": float(r[10]) if r[10] is not None else None,
+            "chloride_mg_l": float(r[11]) if r[11] is not None else None,
+        }
+        fps[chemical_id] = _chem_package_fingerprint(r[1], values)
+    return fps
+
+
+def _empty_bacteria_form(overrides=None):
+    form = {
+        "data_condition_id": "",
+        "e_coli_mpn_100ml": "",
+        "total_coliform_mpn": "",
+        "detection_limit_note": "",
+        "holding_time_flag": False,
+        "holding_temp_flag": False,
+    }
+    if overrides:
+        form.update(overrides)
+    return form
+
+
+def _bacteria_form_from_request():
+    return {
+        "data_condition_id": (request.form.get("data_condition_id") or "").strip(),
+        "e_coli_mpn_100ml": (request.form.get("e_coli_mpn_100ml") or "").strip(),
+        "total_coliform_mpn": (request.form.get("total_coliform_mpn") or "").strip(),
+        "detection_limit_note": (request.form.get("detection_limit_note") or "").strip(),
+        "holding_time_flag": request.form.get("holding_time_flag") == "1",
+        "holding_temp_flag": request.form.get("holding_temp_flag") == "1",
+    }
+
+
+def _looks_censored_numeric(raw):
+    if raw is None:
+        return False
+    text = str(raw).strip()
+    if not text:
+        return False
+    if re.search(r"[<>]", text):
+        return True
+    # e.g. "GT 2419.6", "LT 1.0"
+    if re.match(r"(?i)^(gt|lt|gte|lte)\b", text):
+        return True
+    return False
+
+
+def _parse_optional_int_mpn(raw, label):
+    if raw is None or str(raw).strip() == "":
+        return None, None
+    text = str(raw).strip()
+    if _looks_censored_numeric(text):
+        return None, (
+            f"{label}: censored results such as >2419.6 or <1.0 are not supported yet. "
+            "A storage policy still needs confirmation. Enter integer MPN values only."
+        )
+    try:
+        # Allow "12" or "12.0" only; reject true decimals / non-numeric.
+        f = float(text)
+    except ValueError:
+        return None, f"Enter a valid integer for {label}."
+    if not f.is_integer():
+        return None, f"{label} must be a whole number (integer MPN)."
+    return int(f), None
+
+
+def _validate_bacteria_form(cur, form):
+    data_condition_id, err = _parse_optional_int_id(
+        form.get("data_condition_id"), "data condition"
+    )
+    if err:
+        return err, None
+    if data_condition_id is not None:
+        cur.execute(
+            "SELECT data_condition_id FROM data_condition WHERE data_condition_id = %s",
+            (data_condition_id,),
+        )
+        if not cur.fetchone():
+            return "Choose a valid data condition.", None
+
+    e_coli, err = _parse_optional_int_mpn(form.get("e_coli_mpn_100ml"), "E. coli")
+    if err:
+        return err, None
+    total_coliform, err = _parse_optional_int_mpn(
+        form.get("total_coliform_mpn"), "Total coliform"
+    )
+    if err:
+        return err, None
+    if e_coli is None and total_coliform is None:
+        return "Enter E. coli and/or Total coliform.", None
+    if e_coli is not None and e_coli < 0:
+        return "E. coli cannot be negative.", None
+    if total_coliform is not None and total_coliform < 0:
+        return "Total coliform cannot be negative.", None
+
+    note = (form.get("detection_limit_note") or "").strip() or None
+    if note and len(note) > 2000:
+        return "Detection limit note is too long (maximum 2000 characters).", None
+
+    return None, {
+        "data_condition_id": data_condition_id,
+        "e_coli_mpn_100ml": e_coli,
+        "total_coliform_mpn": total_coliform,
+        "detection_limit_note": note,
+        "holding_time_flag": bool(form.get("holding_time_flag")),
+        "holding_temp_flag": bool(form.get("holding_temp_flag")),
+    }
+
+
+def _bacteria_duplicate_exists(cur, visit_id, parsed, exclude_bacteria_id=None):
+    cur.execute(
+        """
+        SELECT bacteria_id
+        FROM bacteria
+        WHERE visit_id = %s
+          AND e_coli_mpn_100ml IS NOT DISTINCT FROM %s
+          AND total_coliform_mpn IS NOT DISTINCT FROM %s
+          AND data_condition_id IS NOT DISTINCT FROM %s
+          AND (%s::int IS NULL OR bacteria_id <> %s)
+        LIMIT 1
+        """,
+        (
+            visit_id,
+            parsed["e_coli_mpn_100ml"],
+            parsed["total_coliform_mpn"],
+            parsed["data_condition_id"],
+            exclude_bacteria_id,
+            exclude_bacteria_id,
+        ),
+    )
+    return cur.fetchone() is not None
+
+
+@app.route("/visits/new", methods=["GET", "POST"])
+def visit_new():
+    """
+    Staff form to create a sampling visit.
+    NOTE: Write access is intentionally open in this milestone.
+    """
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "visit_form.html",
+            **_visit_form_template_kwargs(
+                _empty_visit_form(),
+                [],
+                [],
+                [],
+                mode="new",
+                error="Service temporarily unavailable. Please try again in a moment.",
+            ),
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        sites = _load_visit_sites(cur)
+        methods = _load_methods(cur)
+        equipment = _load_equipment_options(cur)
+
+        if request.method == "GET":
+            form = _empty_visit_form()
+            site_code = (request.args.get("site") or "").strip()
+            if site_code:
+                for s in sites:
+                    if s["site_code"] == site_code:
+                        form["site_id"] = str(s["site_id"])
+                        break
+            return render_template(
+                "visit_form.html",
+                **_visit_form_template_kwargs(
+                    form, sites, methods, equipment, mode="new", error=None
+                ),
+            )
+
+        form = _visit_form_from_request()
+
+        def _form_error(msg):
+            return render_template(
+                "visit_form.html",
+                **_visit_form_template_kwargs(
+                    form, sites, methods, equipment, mode="new", error=msg
+                ),
+            ), 400
+
+        val_err, parsed = _validate_visit_form(cur, form)
+        if val_err:
+            return _form_error(val_err)
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO visit (
+                    site_id, sample_date, sample_time, sample_code,
+                    method_id, equipment_id, notes
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING visit_id
+                """,
+                (
+                    parsed["site_id"],
+                    parsed["sample_date"],
+                    parsed["sample_time"],
+                    parsed["sample_code"],
+                    parsed["method_id"],
+                    parsed["equipment_id"],
+                    parsed["notes"],
+                ),
+            )
+            visit_id = cur.fetchone()[0]
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "visit_form.html",
+                **_visit_form_template_kwargs(
+                    form,
+                    sites,
+                    methods,
+                    equipment,
+                    mode="new",
+                    error="Could not save visit right now. Please try again in a moment.",
+                ),
+            ), 500
+
+        return redirect(url_for("visit_detail_page", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+@app.route("/visits/<int:visit_id>")
+def visit_detail_page(visit_id):
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "visit_detail.html",
+            visit=None,
+            chemistry=[],
+            bacteria=[],
+            error="Service temporarily unavailable. Please try again in a moment.",
+            notice=None,
+        ), 503
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            return render_template(
+                "visit_detail.html",
+                visit=None,
+                chemistry=[],
+                bacteria=[],
+                error="Visit not found.",
+                notice=None,
+            ), 404
+        chemistry = _load_visit_chemistry(cur, visit_id)
+        bacteria = _load_visit_bacteria(cur, visit_id)
+        notice = None
+        if request.args.get("qa_warn") == "1":
+            notice = (
+                "Saved. One or more values exceed an existing StreamWatch review threshold. "
+                "No automatic QA flags were created."
+            )
+        return render_template(
+            "visit_detail.html",
+            visit=visit,
+            chemistry=chemistry,
+            bacteria=bacteria,
+            error=None,
+            notice=notice,
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/visits/<int:visit_id>/edit", methods=["GET", "POST"])
+def visit_edit(visit_id):
+    """Staff form to edit an existing sampling visit in place."""
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "visit_form.html",
+            **_visit_form_template_kwargs(
+                _empty_visit_form(),
+                [],
+                [],
+                [],
+                mode="edit",
+                visit={"visit_id": visit_id},
+                error="Service temporarily unavailable. Please try again in a moment.",
+            ),
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        header = _load_visit_header(cur, visit_id)
+        if not header:
+            return render_template(
+                "visit_form.html",
+                **_visit_form_template_kwargs(
+                    _empty_visit_form(),
+                    [],
+                    [],
+                    [],
+                    mode="edit",
+                    visit={"visit_id": visit_id},
+                    error="Visit not found.",
+                ),
+            ), 404
+
+        sites = _load_visit_sites(cur)
+        methods = _load_methods(cur)
+        equipment = _load_equipment_options(cur)
+
+        if request.method == "GET":
+            form = _empty_visit_form(
+                {
+                    "site_id": str(header["site_id"]),
+                    "sample_date": header["sample_date"] or "",
+                    "sample_time": header["sample_time"] or "",
+                    "sample_code": header["sample_code"] or "",
+                    "method_id": str(header["method_id"] or ""),
+                    "equipment_id": str(header["equipment_id"] or ""),
+                    "notes": header["notes"] or "",
+                }
+            )
+            return render_template(
+                "visit_form.html",
+                **_visit_form_template_kwargs(
+                    form,
+                    sites,
+                    methods,
+                    equipment,
+                    mode="edit",
+                    visit=header,
+                    error=None,
+                ),
+            )
+
+        form = _visit_form_from_request()
+
+        def _form_error(msg):
+            return render_template(
+                "visit_form.html",
+                **_visit_form_template_kwargs(
+                    form,
+                    sites,
+                    methods,
+                    equipment,
+                    mode="edit",
+                    visit=header,
+                    error=msg,
+                ),
+            ), 400
+
+        val_err, parsed = _validate_visit_form(cur, form)
+        if val_err:
+            return _form_error(val_err)
+
+        try:
+            cur.execute(
+                """
+                UPDATE visit SET
+                    site_id = %s,
+                    sample_date = %s,
+                    sample_time = %s,
+                    sample_code = %s,
+                    method_id = %s,
+                    equipment_id = %s,
+                    notes = %s,
+                    updated_at = NOW()
+                WHERE visit_id = %s
+                """,
+                (
+                    parsed["site_id"],
+                    parsed["sample_date"],
+                    parsed["sample_time"],
+                    parsed["sample_code"],
+                    parsed["method_id"],
+                    parsed["equipment_id"],
+                    parsed["notes"],
+                    visit_id,
+                ),
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                return _form_error("Visit not found.")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "visit_form.html",
+                **_visit_form_template_kwargs(
+                    form,
+                    sites,
+                    methods,
+                    equipment,
+                    mode="edit",
+                    visit=header,
+                    error="Could not save visit right now. Please try again in a moment.",
+                ),
+            ), 500
+
+        return redirect(url_for("visit_detail_page", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+def _chemical_form_render(
+    visit, form, methods, conditions, mode, chemical_id=None, error=None, qa_warnings=None, status=200
+):
+    return (
+        render_template(
+            "chemical_form.html",
+            visit=visit,
+            form=form,
+            methods=methods,
+            conditions=conditions,
+            chem_fields=_CHEM_FORM_FIELDS,
+            mode=mode,
+            chemical_id=chemical_id,
+            error=error,
+            qa_warnings=qa_warnings or [],
+        ),
+        status,
+    )
+
+
+@app.route("/visits/<int:visit_id>/chemistry/new", methods=["GET", "POST"])
+def chemical_new(visit_id):
+    """Add a chemistry package to a visit. Multiple packages per visit are allowed."""
+    conn, err = get_db_or_503()
+    if err:
+        return _chemical_form_render(
+            {"visit_id": visit_id},
+            _empty_chemical_form(),
+            [],
+            [],
+            "new",
+            error="Service temporarily unavailable. Please try again in a moment.",
+            status=503,
+        )[0], 503
+
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            return _chemical_form_render(
+                {"visit_id": visit_id},
+                _empty_chemical_form(),
+                [],
+                [],
+                "new",
+                error="Visit not found.",
+                status=404,
+            )[0], 404
+
+        methods = _load_methods(cur)
+        conditions = _load_data_conditions(cur)
+
+        if request.method == "GET":
+            form = _empty_chemical_form()
+            if visit.get("method_id"):
+                form["method_id"] = str(visit["method_id"])
+            return _chemical_form_render(
+                visit, form, methods, conditions, "new", error=None
+            )[0]
+
+        form = _chemical_form_from_request()
+        val_err, parsed, qa_warnings = _validate_chemical_form(cur, form, methods)
+        if val_err:
+            return _chemical_form_render(
+                visit,
+                form,
+                methods,
+                conditions,
+                "new",
+                error=val_err,
+                qa_warnings=qa_warnings,
+                status=400,
+            )
+
+        existing = _existing_chem_fingerprints(cur, visit_id)
+        if parsed["fingerprint"] in existing.values():
+            return _chemical_form_render(
+                visit,
+                form,
+                methods,
+                conditions,
+                "new",
+                error=(
+                    "This chemistry package matches an existing package on this visit "
+                    "(same method and measurements). Change a value or method, or return "
+                    "to the visit without saving a duplicate."
+                ),
+                qa_warnings=qa_warnings,
+                status=400,
+            )
+
+        cols = ["visit_id", "data_condition_id", "method_id", "detection_limit_note"]
+        vals = [
+            visit_id,
+            parsed["data_condition_id"],
+            parsed["method_id"],
+            parsed["detection_limit_note"],
+        ]
+        for key in CHEM_VALUE_FIELDS:
+            if parsed["values"].get(key) is not None:
+                cols.append(key)
+                vals.append(parsed["values"][key])
+
+        try:
+            cur.execute(
+                "INSERT INTO chemical ("
+                + ", ".join(cols)
+                + ") VALUES ("
+                + ", ".join(["%s"] * len(cols))
+                + ") RETURNING chemical_id",
+                vals,
+            )
+            cur.fetchone()
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return _chemical_form_render(
+                visit,
+                form,
+                methods,
+                conditions,
+                "new",
+                error="Could not save chemistry right now. Please try again in a moment.",
+                qa_warnings=qa_warnings,
+                status=500,
+            )
+
+        if qa_warnings:
+            return redirect(
+                url_for("visit_detail_page", visit_id=visit_id, qa_warn="1")
+            )
+        return redirect(url_for("visit_detail_page", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/visits/<int:visit_id>/chemistry/<int:chemical_id>/edit", methods=["GET", "POST"]
+)
+def chemical_edit(visit_id, chemical_id):
+    conn, err = get_db_or_503()
+    if err:
+        return _chemical_form_render(
+            {"visit_id": visit_id},
+            _empty_chemical_form(),
+            [],
+            [],
+            "edit",
+            chemical_id=chemical_id,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            status=503,
+        )[0], 503
+
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            abort(404)
+
+        cur.execute(
+            """
+            SELECT chemical_id, method_id, data_condition_id, detection_limit_note,
+                   air_temp_c, water_temp_c, dissolved_oxygen_ppm, dissolved_oxygen_pct,
+                   nitrate_ug_l, phosphate_mg_l, ph, turbidity_ntu,
+                   conductivity_us_cm, chloride_mg_l
+            FROM chemical
+            WHERE chemical_id = %s AND visit_id = %s
+            """,
+            (chemical_id, visit_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            abort(404)
+
+        methods = _load_methods(cur)
+        conditions = _load_data_conditions(cur)
+
+        if request.method == "GET":
+            form = _empty_chemical_form(
+                {
+                    "method_id": row[1] or "",
+                    "data_condition_id": row[2] or "",
+                    "detection_limit_note": row[3] or "",
+                    "air_temp_c": row[4],
+                    "water_temp_c": row[5],
+                    "dissolved_oxygen_ppm": row[6],
+                    "dissolved_oxygen_pct": row[7],
+                    "nitrate_ug_l": row[8],
+                    "phosphate_mg_l": row[9],
+                    "ph": row[10],
+                    "turbidity_ntu": row[11],
+                    "conductivity_us_cm": row[12],
+                    "chloride_mg_l": row[13],
+                }
+            )
+            vals = {}
+            for key, _ in _CHEM_FORM_FIELDS:
+                raw = form.get(key)
+                if raw not in ("", None):
+                    try:
+                        vals[key] = float(raw)
+                    except ValueError:
+                        vals[key] = None
+                else:
+                    vals[key] = None
+            return _chemical_form_render(
+                visit,
+                form,
+                methods,
+                conditions,
+                "edit",
+                chemical_id=chemical_id,
+                qa_warnings=_chem_qa_warnings(vals),
+            )[0]
+
+        form = _chemical_form_from_request()
+        val_err, parsed, qa_warnings = _validate_chemical_form(cur, form, methods)
+        if val_err:
+            return _chemical_form_render(
+                visit,
+                form,
+                methods,
+                conditions,
+                "edit",
+                chemical_id=chemical_id,
+                error=val_err,
+                qa_warnings=qa_warnings,
+                status=400,
+            )
+
+        existing = _existing_chem_fingerprints(
+            cur, visit_id, exclude_chemical_id=chemical_id
+        )
+        if parsed["fingerprint"] in existing.values():
+            return _chemical_form_render(
+                visit,
+                form,
+                methods,
+                conditions,
+                "edit",
+                chemical_id=chemical_id,
+                error=(
+                    "This chemistry package matches another package on this visit "
+                    "(same method and measurements). Change a value or method before saving."
+                ),
+                qa_warnings=qa_warnings,
+                status=400,
+            )
+
+        try:
+            cur.execute(
+                """
+                UPDATE chemical SET
+                    method_id = %s,
+                    data_condition_id = %s,
+                    detection_limit_note = %s,
+                    air_temp_c = %s,
+                    water_temp_c = %s,
+                    dissolved_oxygen_ppm = %s,
+                    dissolved_oxygen_pct = %s,
+                    nitrate_ug_l = %s,
+                    phosphate_mg_l = %s,
+                    ph = %s,
+                    turbidity_ntu = %s,
+                    conductivity_us_cm = %s,
+                    chloride_mg_l = %s
+                WHERE chemical_id = %s AND visit_id = %s
+                """,
+                (
+                    parsed["method_id"],
+                    parsed["data_condition_id"],
+                    parsed["detection_limit_note"],
+                    parsed["values"]["air_temp_c"],
+                    parsed["values"]["water_temp_c"],
+                    parsed["values"]["dissolved_oxygen_ppm"],
+                    parsed["values"]["dissolved_oxygen_pct"],
+                    parsed["values"]["nitrate_ug_l"],
+                    parsed["values"]["phosphate_mg_l"],
+                    parsed["values"]["ph"],
+                    parsed["values"]["turbidity_ntu"],
+                    parsed["values"]["conductivity_us_cm"],
+                    parsed["values"]["chloride_mg_l"],
+                    chemical_id,
+                    visit_id,
+                ),
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                abort(404)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return _chemical_form_render(
+                visit,
+                form,
+                methods,
+                conditions,
+                "edit",
+                chemical_id=chemical_id,
+                error="Could not save chemistry right now. Please try again in a moment.",
+                qa_warnings=qa_warnings,
+                status=500,
+            )
+
+        if qa_warnings:
+            return redirect(
+                url_for("visit_detail_page", visit_id=visit_id, qa_warn="1")
+            )
+        return redirect(url_for("visit_detail_page", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+def _bacteria_form_render(
+    visit, form, conditions, mode, bacteria_id=None, error=None, status=200
+):
+    return (
+        render_template(
+            "bacteria_form.html",
+            visit=visit,
+            form=form,
+            conditions=conditions,
+            mode=mode,
+            bacteria_id=bacteria_id,
+            error=error,
+        ),
+        status,
+    )
+
+
+@app.route("/visits/<int:visit_id>/bacteria/new", methods=["GET", "POST"])
+def bacteria_new(visit_id):
+    conn, err = get_db_or_503()
+    if err:
+        return _bacteria_form_render(
+            {"visit_id": visit_id},
+            _empty_bacteria_form(),
+            [],
+            "new",
+            error="Service temporarily unavailable. Please try again in a moment.",
+            status=503,
+        )[0], 503
+
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            return _bacteria_form_render(
+                {"visit_id": visit_id},
+                _empty_bacteria_form(),
+                [],
+                "new",
+                error="Visit not found.",
+                status=404,
+            )[0], 404
+
+        conditions = _load_data_conditions(cur)
+
+        if request.method == "GET":
+            return _bacteria_form_render(
+                visit, _empty_bacteria_form(), conditions, "new"
+            )[0]
+
+        form = _bacteria_form_from_request()
+        val_err, parsed = _validate_bacteria_form(cur, form)
+        if val_err:
+            return _bacteria_form_render(
+                visit, form, conditions, "new", error=val_err, status=400
+            )
+
+        if _bacteria_duplicate_exists(cur, visit_id, parsed):
+            return _bacteria_form_render(
+                visit,
+                form,
+                conditions,
+                "new",
+                error=(
+                    "A bacteria result with the same E. coli, total coliform, and data "
+                    "condition already exists on this visit. Change a value before saving."
+                ),
+                status=400,
+            )
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO bacteria (
+                    visit_id, data_condition_id, e_coli_mpn_100ml, total_coliform_mpn,
+                    detection_limit_note, holding_time_flag, holding_temp_flag
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING bacteria_id
+                """,
+                (
+                    visit_id,
+                    parsed["data_condition_id"],
+                    parsed["e_coli_mpn_100ml"],
+                    parsed["total_coliform_mpn"],
+                    parsed["detection_limit_note"],
+                    parsed["holding_time_flag"],
+                    parsed["holding_temp_flag"],
+                ),
+            )
+            cur.fetchone()
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return _bacteria_form_render(
+                visit,
+                form,
+                conditions,
+                "new",
+                error="Could not save bacteria result right now. Please try again in a moment.",
+                status=500,
+            )
+
+        return redirect(url_for("visit_detail_page", visit_id=visit_id))
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/visits/<int:visit_id>/bacteria/<int:bacteria_id>/edit", methods=["GET", "POST"]
+)
+def bacteria_edit(visit_id, bacteria_id):
+    conn, err = get_db_or_503()
+    if err:
+        return _bacteria_form_render(
+            {"visit_id": visit_id},
+            _empty_bacteria_form(),
+            [],
+            "edit",
+            bacteria_id=bacteria_id,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            status=503,
+        )[0], 503
+
+    try:
+        cur = conn.cursor()
+        visit = _load_visit_header(cur, visit_id)
+        if not visit:
+            abort(404)
+
+        cur.execute(
+            """
+            SELECT bacteria_id, data_condition_id, e_coli_mpn_100ml, total_coliform_mpn,
+                   detection_limit_note, holding_time_flag, holding_temp_flag
+            FROM bacteria
+            WHERE bacteria_id = %s AND visit_id = %s
+            """,
+            (bacteria_id, visit_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            abort(404)
+
+        conditions = _load_data_conditions(cur)
+
+        if request.method == "GET":
+            form = _empty_bacteria_form(
+                {
+                    "data_condition_id": str(row[1] or ""),
+                    "e_coli_mpn_100ml": "" if row[2] is None else str(row[2]),
+                    "total_coliform_mpn": "" if row[3] is None else str(row[3]),
+                    "detection_limit_note": row[4] or "",
+                    "holding_time_flag": bool(row[5]),
+                    "holding_temp_flag": bool(row[6]),
+                }
+            )
+            return _bacteria_form_render(
+                visit, form, conditions, "edit", bacteria_id=bacteria_id
+            )[0]
+
+        form = _bacteria_form_from_request()
+        val_err, parsed = _validate_bacteria_form(cur, form)
+        if val_err:
+            return _bacteria_form_render(
+                visit,
+                form,
+                conditions,
+                "edit",
+                bacteria_id=bacteria_id,
+                error=val_err,
+                status=400,
+            )
+
+        if _bacteria_duplicate_exists(
+            cur, visit_id, parsed, exclude_bacteria_id=bacteria_id
+        ):
+            return _bacteria_form_render(
+                visit,
+                form,
+                conditions,
+                "edit",
+                bacteria_id=bacteria_id,
+                error=(
+                    "Another bacteria result on this visit already has the same E. coli, "
+                    "total coliform, and data condition. Change a value before saving."
+                ),
+                status=400,
+            )
+
+        try:
+            cur.execute(
+                """
+                UPDATE bacteria SET
+                    data_condition_id = %s,
+                    e_coli_mpn_100ml = %s,
+                    total_coliform_mpn = %s,
+                    detection_limit_note = %s,
+                    holding_time_flag = %s,
+                    holding_temp_flag = %s
+                WHERE bacteria_id = %s AND visit_id = %s
+                """,
+                (
+                    parsed["data_condition_id"],
+                    parsed["e_coli_mpn_100ml"],
+                    parsed["total_coliform_mpn"],
+                    parsed["detection_limit_note"],
+                    parsed["holding_time_flag"],
+                    parsed["holding_temp_flag"],
+                    bacteria_id,
+                    visit_id,
+                ),
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                abort(404)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return _bacteria_form_render(
+                visit,
+                form,
+                conditions,
+                "edit",
+                bacteria_id=bacteria_id,
+                error="Could not save bacteria result right now. Please try again in a moment.",
+                status=500,
+            )
+
+        return redirect(url_for("visit_detail_page", visit_id=visit_id))
     finally:
         conn.close()
 

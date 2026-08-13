@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {% if mode == 'edit' %}Edit visit{% else %}Add visit{% endif %}{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops form-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    {% if mode == 'edit' and visit and visit.site_code %}
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/site/{{ visit.site_code }}">{{ visit.site_code }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/visits/{{ visit.visit_id }}">Visit</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Edit</span>
+    {% else %}
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Add visit</span>
+    {% endif %}
+  </nav>
+
+  <header class="page-header">
+    <h1>{% if mode == 'edit' %}Edit visit{% else %}Add visit{% endif %}</h1>
+    <p class="page-subtitle">
+      {% if mode == 'edit' %}
+      Update sampling visit details. Chemistry and bacteria results stay linked to this visit.
+      {% else %}
+      Record a StreamWatch sampling visit. Add chemistry and bacteria results next.
+      {% endif %}
+    </p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error form-error-summary" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form class="form-shell panel" method="post"
+        action="{% if mode == 'edit' %}/visits/{{ visit.visit_id }}/edit{% else %}/visits/new{% endif %}"
+        novalidate>
+    <section class="form-section" aria-labelledby="visit-identity">
+      <h2 class="form-section-title" id="visit-identity">Visit identity</h2>
+      <div class="form-grid">
+        <div class="form-field form-field-full">
+          <label for="site_id">Site <span class="req" aria-hidden="true">*</span></label>
+          <select id="site_id" name="site_id" required>
+            <option value="">Choose site…</option>
+            {% for s in sites %}
+            <option value="{{ s.site_id }}" {% if form.site_id == (s.site_id|string) %}selected{% endif %}>
+              {{ s.site_code }}{% if s.waterbody_name %} — {{ s.waterbody_name }}{% endif %}{% if not s.is_active %} (inactive){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="sample_date">Sample date <span class="req" aria-hidden="true">*</span></label>
+          <input type="date" id="sample_date" name="sample_date" required value="{{ form.sample_date or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="sample_time">Sample time</label>
+          <input type="time" id="sample_time" name="sample_time" value="{{ form.sample_time or '' }}">
+        </div>
+        <div class="form-field">
+          <label for="sample_code">Sample code</label>
+          <input type="text" id="sample_code" name="sample_code" value="{{ form.sample_code or '' }}" maxlength="200" autocomplete="off">
+          <p class="form-help">Optional lab/field identifier (for example SITE_YYYY-MM-DD).</p>
+        </div>
+        <div class="form-field">
+          <label for="method_id">Method / program</label>
+          <select id="method_id" name="method_id">
+            <option value="">—</option>
+            {% for m in methods %}
+            <option value="{{ m.method_id }}" {% if form.method_id == (m.method_id|string) %}selected{% endif %}>{{ m.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="equipment_id">Equipment</label>
+          <select id="equipment_id" name="equipment_id">
+            <option value="">—</option>
+            {% for e in equipment %}
+            <option value="{{ e.equipment_id }}" {% if form.equipment_id == (e.equipment_id|string) %}selected{% endif %}>
+              {{ e.equipment_code }}{% if e.equipment_type %} ({{ e.equipment_type }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field form-field-full">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3" maxlength="4000">{{ form.notes or '' }}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">{% if mode == 'edit' %}Save changes{% else %}Create visit{% endif %}</button>
+      {% if mode == 'edit' and visit %}
+      <a class="btn-secondary" href="/visits/{{ visit.visit_id }}">Cancel</a>
+      {% else %}
+      <a class="btn-secondary" href="/sites">Cancel</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

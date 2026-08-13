@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {% if visit %}Visit {{ visit.site_code }} {{ visit.sample_date }}{% else %}Visit{% endif %}{% endblock %}
+{% block content %}
+<div class="page-monitoring page-ops visit-workspace">
+  {% if error %}
+  <div class="alert alert-error" role="alert">{{ error }}</div>
+  {% elif visit %}
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/sites">Sites</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/site/{{ visit.site_code }}">{{ visit.site_code }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Visit {{ visit.sample_date }}</span>
+  </nav>
+
+  {% if notice %}
+  <div class="alert alert-warning" role="status">{{ notice }}</div>
+  {% endif %}
+
+  <header class="site-header-block">
+    <h1>Visit · {{ visit.site_code }}</h1>
+    <p class="page-subtitle">{{ visit.waterbody_name or 'Waterbody not recorded' }}</p>
+    <p class="site-kicker">Sampling visit workspace</p>
+    <div class="site-meta-row">
+      <span class="badge badge-success">{{ visit.sample_date }}</span>
+      {% if visit.method_name %}<span class="site-meta-item">{{ visit.method_name }}</span>{% endif %}
+      {% if visit.sample_code %}<span class="site-meta-item">{{ visit.sample_code }}</span>{% endif %}
+    </div>
+  </header>
+
+  <div class="site-detail-grid">
+    <section class="panel" aria-labelledby="visit-profile-title">
+      <h2 class="home-panel-title" id="visit-profile-title">Visit details</h2>
+      <dl class="visit-dl">
+        <div>
+          <dt>Site</dt>
+          <dd><a href="/site/{{ visit.site_code }}">{{ visit.site_code }}</a></dd>
+        </div>
+        {% if visit.waterbody_name %}
+        <div>
+          <dt>Waterbody</dt>
+          <dd>{{ visit.waterbody_name }}</dd>
+        </div>
+        {% endif %}
+        <div>
+          <dt>Sample date</dt>
+          <dd>{{ visit.sample_date }}</dd>
+        </div>
+        {% if visit.sample_time %}
+        <div>
+          <dt>Sample time</dt>
+          <dd>{{ visit.sample_time }}</dd>
+        </div>
+        {% endif %}
+        {% if visit.sample_code %}
+        <div>
+          <dt>Sample code</dt>
+          <dd>{{ visit.sample_code }}</dd>
+        </div>
+        {% endif %}
+        {% if visit.method_name %}
+        <div>
+          <dt>Method / program</dt>
+          <dd>{{ visit.method_name }}</dd>
+        </div>
+        {% endif %}
+        {% if visit.equipment_code %}
+        <div>
+          <dt>Equipment</dt>
+          <dd>{{ visit.equipment_code }}</dd>
+        </div>
+        {% endif %}
+        {% if visit.notes %}
+        <div class="visit-dl-full">
+          <dt>Notes</dt>
+          <dd>{{ visit.notes }}</dd>
+        </div>
+        {% endif %}
+      </dl>
+    </section>
+
+    <section class="panel" aria-labelledby="visit-actions-title">
+      <h2 class="home-panel-title" id="visit-actions-title">Actions</h2>
+      <div class="site-actions">
+        <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/edit">Edit visit</a>
+        <a class="btn-primary" href="/visits/{{ visit.visit_id }}/chemistry/new">Add chemistry result</a>
+        <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/bacteria/new">Add bacteria result</a>
+        <a class="btn-secondary" href="/explore?site_code={{ visit.site_code }}">Explore trends</a>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel site-recent" aria-labelledby="visit-chem-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="visit-chem-title">Chemistry results</h2>
+      <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/chemistry/new">Add chemistry result</a>
+    </div>
+    {% if not chemistry %}
+    <p class="muted">No chemistry results recorded for this visit.</p>
+    {% else %}
+    <div class="result-package-list">
+      {% for c in chemistry %}
+      <article class="result-package">
+        <div class="result-package-head">
+          <div>
+            <strong>Package {{ loop.index }}</strong>
+            {% if c.method_name %}<span class="site-meta-item">{{ c.method_name }}</span>{% endif %}
+            {% if c.data_condition %}<span class="badge">{{ c.data_condition }}</span>{% endif %}
+          </div>
+          <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/chemistry/{{ c.chemical_id }}/edit">Edit</a>
+        </div>
+        {% if c.measured %}
+        <ul class="result-measure-list">
+          {% for m in c.measured %}
+          <li><span class="metric-label">{{ m.label }}</span> <span class="num">{{ m.value }}</span></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">No measured values stored on this package.</p>
+        {% endif %}
+        {% if c.detection_limit_note %}
+        <p class="form-help">Detection note: {{ c.detection_limit_note }}</p>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="panel site-recent" aria-labelledby="visit-bact-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="visit-bact-title">Bacteria results</h2>
+      <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/bacteria/new">Add bacteria result</a>
+    </div>
+    {% if not bacteria %}
+    <p class="muted">No bacteria results recorded for this visit.</p>
+    {% else %}
+    <div class="result-package-list">
+      {% for b in bacteria %}
+      <article class="result-package">
+        <div class="result-package-head">
+          <div>
+            <strong>Bacteria result</strong>
+            {% if b.data_condition %}<span class="badge">{{ b.data_condition }}</span>{% endif %}
+          </div>
+          <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/bacteria/{{ b.bacteria_id }}/edit">Edit</a>
+        </div>
+        <ul class="result-measure-list">
+          {% if b.e_coli_mpn_100ml is not none %}
+          <li><span class="metric-label">E. coli (MPN/100mL)</span> <span class="num">{{ b.e_coli_mpn_100ml }}</span></li>
+          {% endif %}
+          {% if b.total_coliform_mpn is not none %}
+          <li><span class="metric-label">Total coliform (MPN/100mL)</span> <span class="num">{{ b.total_coliform_mpn }}</span></li>
+          {% endif %}
+          {% if b.holding_time_flag %}
+          <li><span class="metric-label">Holding time</span> Flagged</li>
+          {% endif %}
+          {% if b.holding_temp_flag %}
+          <li><span class="metric-label">Holding temperature</span> Flagged</li>
+          {% endif %}
+        </ul>
+        {% if b.detection_limit_note %}
+        <p class="form-help">Detection note: {{ b.detection_limit_note }}</p>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
