@@ -86,7 +86,7 @@ a:hover { text-decoration: underline; }
 }
 .card h2 { font-size: 0.95rem; color: var(--muted); margin: 0 0 0.75rem 0; }
 
-select, input[type="date"], input[type="text"], button {
+select, input[type="date"], input[type="text"], input[type="number"], textarea, button {
   background: var(--card);
   color: var(--text);
   border: 1px solid var(--border);
@@ -94,9 +94,13 @@ select, input[type="date"], input[type="text"], button {
   border-radius: 6px;
   font-size: 0.9rem;
 }
+textarea { width: 100%; max-width: 32rem; min-height: 4.5rem; resize: vertical; }
 button { cursor: pointer; }
 button:hover { background: var(--border); }
 label { margin-right: 0.5rem; }
+.form-actions { margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.btn-primary { background: rgba(88, 166, 255, 0.15); border-color: var(--accent); color: var(--accent); }
+.btn-primary:hover { background: rgba(88, 166, 255, 0.25); }
 
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }

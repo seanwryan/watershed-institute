@@ -49,6 +49,8 @@ This file summarizes what we have built so far and where we are headed for the S
     - `explore.html` – time-series chart (Chart.js) with site, parameter, date range
     - `qa.html` – QA summary display
     - `export.html` – WQX export form (date range + site)
+    - `equipment.html` / `equipment_detail.html` / `meter_test_form.html` – staff meter inventory and meter-test entry
+    - `volunteers.html` / `volunteer_detail.html` / `volunteer_edit.html` – staff volunteer list, detail (training/assignments), edit
     - Shared layout and styling via `base.html` and `static/css/style.css`
   - Local + free-tier friendly deployment documented in [dashboard/README.md](../dashboard/README.md)
 

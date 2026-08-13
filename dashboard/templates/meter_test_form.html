@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Add Meter Test – {{ equipment_code }}{% endblock %}
+{% block content %}
+<p class="muted"><a href="/equipment/{{ equipment_code }}">← {{ equipment_code }}</a></p>
+<h1>Add Meter Test</h1>
+<p class="muted">Record a meter test for <strong>{{ equipment_code }}</strong>.</p>
+{% if error %}
+<div class="card error">{{ error }}</div>
+{% endif %}
+<div class="card">
+  <form method="post" action="/equipment/{{ equipment_code }}/meter-tests/new">
+    <div class="form-row">
+      <label for="test_date">Test Date <span class="muted">(required)</span></label>
+      <input type="date" id="test_date" name="test_date" required value="{{ form.test_date or '' }}">
+    </div>
+    <div class="form-row">
+      <label for="staff">Staff</label>
+      <input type="text" id="staff" name="staff" value="{{ form.staff or '' }}" maxlength="200">
+    </div>
+    <div class="form-row">
+      <label for="parameter_type">Parameter <span class="muted">(required)</span></label>
+      <select id="parameter_type" name="parameter_type" required>
+        <option value="">Select…</option>
+        {% for p in parameters %}
+        <option value="{{ p }}" {% if form.parameter_type == p %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="round_number">Round Number</label>
+      <input type="number" id="round_number" name="round_number" step="1" value="{{ form.round_number or '' }}">
+    </div>
+    <div class="form-row">
+      <label for="reference_value">Reference Value</label>
+      <input type="number" id="reference_value" name="reference_value" step="any" value="{{ form.reference_value or '' }}">
+    </div>
+    <div class="form-row">
+      <label for="measured_value">Measured Value <span class="muted">(required)</span></label>
+      <input type="number" id="measured_value" name="measured_value" step="any" required value="{{ form.measured_value or '' }}">
+    </div>
+    <div class="form-row">
+      <label for="pass_fail">Pass/Fail</label>
+      <select id="pass_fail" name="pass_fail">
+        <option value="">—</option>
+        {% for pf in pass_fail_options %}
+        <option value="{{ pf }}" {% if form.pass_fail == pf %}selected{% endif %}>{{ pf }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="action_taken">Action / Notes</label>
+      <textarea id="action_taken" name="action_taken" maxlength="2000">{{ form.action_taken or '' }}</textarea>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Save meter test</button>
+      <a href="/equipment/{{ equipment_code }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Volunteer {{ volunteer_id }}{% endblock %}
+{% block content %}
+<p class="muted"><a href="/volunteers">← Volunteers</a></p>
+<h1 id="volunteer-heading">Volunteer</h1>
+<div id="volunteer-meta" class="loading">Loading…</div>
+<div id="volunteer-error" class="error" style="display:none;"></div>
+
+<div class="card" id="actions-card" style="display:none;">
+  <a class="btn-primary" id="edit-link" href="/volunteers/{{ volunteer_id }}/edit" style="padding:0.45rem 0.75rem; border:1px solid; border-radius:6px; text-decoration:none;">Edit Volunteer</a>
+</div>
+
+<div class="card" id="trainings-card" style="display:none;">
+  <h2>Training history</h2>
+  <div id="trainings-empty" class="muted" style="display:none;">No training records for this volunteer.</div>
+  <div class="table-wrap" id="trainings-wrap" style="display:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>Training Type</th><th>Training Date</th><th>Status</th>
+          <th>Expiration Date</th><th>Trainer</th>
+        </tr>
+      </thead>
+      <tbody id="trainings-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" id="assignments-card" style="display:none;">
+  <h2>Site assignments</h2>
+  <div id="assignments-empty" class="muted" style="display:none;">No site assignments for this volunteer.</div>
+  <div class="table-wrap" id="assignments-wrap" style="display:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>Site Code</th><th>Waterbody</th><th>Role</th>
+          <th>Start Date</th><th>End Date</th>
+        </tr>
+      </thead>
+      <tbody id="assignments-tbody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  const volunteerId = {{ volunteer_id|tojson }};
+  const meta = document.getElementById('volunteer-meta');
+  const errEl = document.getElementById('volunteer-error');
+  const heading = document.getElementById('volunteer-heading');
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmt(v) { return v == null || v === '' ? '—' : v; }
+  function yn(v) { return v ? 'Yes' : 'No'; }
+
+  fetch('/api/volunteers/' + encodeURIComponent(volunteerId))
+    .then(function(r) {
+      if (r.status === 404) throw new Error('Volunteer not found');
+      if (!r.ok) throw new Error('Could not load volunteer');
+      return r.json();
+    })
+    .then(function(v) {
+      const name = ((v.first_name || '') + ' ' + (v.last_name || '')).trim() || ('Volunteer ' + v.volunteer_id);
+      heading.textContent = name;
+      document.title = 'StreamWatch – ' + name;
+      meta.classList.remove('loading');
+      meta.innerHTML = '<div class="card">' +
+        '<h2>Identity</h2>' +
+        '<p><strong>Volunteer ID:</strong> ' + esc(v.volunteer_id) + '</p>' +
+        '<p><strong>Name:</strong> ' + esc(name) + '</p>' +
+        '<p><strong>Perfect ID:</strong> ' + esc(fmt(v.perfect_id)) + '</p>' +
+        '<h2>Contact</h2>' +
+        '<p><strong>Email:</strong> ' + esc(fmt(v.email)) + '</p>' +
+        '<p><strong>Alt email:</strong> ' + esc(fmt(v.alt_email)) + '</p>' +
+        '<p><strong>Phone:</strong> ' + esc(fmt(v.phone)) + '</p>' +
+        '<p><strong>Alt phone:</strong> ' + esc(fmt(v.alt_phone)) + '</p>' +
+        '<p><strong>Address:</strong> ' + esc(fmt(v.address)) + '</p>' +
+        '<p><strong>Municipality:</strong> ' + esc(fmt(v.city_name)) + '</p>' +
+        '<p><strong>State:</strong> ' + esc(fmt(v.state)) + '</p>' +
+        '<p><strong>ZIP:</strong> ' + esc(fmt(v.zip_code)) + '</p>' +
+        '<h2>Program</h2>' +
+        '<p><strong>Status:</strong> ' + esc(fmt(v.status)) + '</p>' +
+        '<p><strong>Active CAT:</strong> ' + yn(v.active_cat) +
+          ' · <strong>BAT:</strong> ' + yn(v.active_bat) +
+          ' · <strong>BACT:</strong> ' + yn(v.active_bact) + '</p>' +
+        '<p><strong>Under 17:</strong> ' + yn(v.is_under_17) + '</p>' +
+        '<p><strong>Notes:</strong> ' + esc(fmt(v.notes)) + '</p>' +
+        '</div>';
+      document.getElementById('actions-card').style.display = 'block';
+      document.getElementById('edit-link').href = '/volunteers/' + encodeURIComponent(v.volunteer_id) + '/edit';
+
+      const trainings = v.trainings || [];
+      document.getElementById('trainings-card').style.display = 'block';
+      if (!trainings.length) {
+        document.getElementById('trainings-empty').style.display = 'block';
+      } else {
+        document.getElementById('trainings-wrap').style.display = 'block';
+        document.getElementById('trainings-tbody').innerHTML = trainings.map(function(t) {
+          return '<tr><td>' + esc(fmt(t.training_type)) + '</td><td>' + esc(fmt(t.training_date)) +
+            '</td><td>' + esc(fmt(t.status)) + '</td><td>' + esc(fmt(t.expiration_date)) +
+            '</td><td>' + esc(fmt(t.trainer)) + '</td></tr>';
+        }).join('');
+      }
+
+      const assignments = v.assignments || [];
+      document.getElementById('assignments-card').style.display = 'block';
+      if (!assignments.length) {
+        document.getElementById('assignments-empty').style.display = 'block';
+      } else {
+        document.getElementById('assignments-wrap').style.display = 'block';
+        document.getElementById('assignments-tbody').innerHTML = assignments.map(function(a) {
+          return '<tr><td>' + esc(fmt(a.site_code)) + '</td><td>' + esc(fmt(a.waterbody_name)) +
+            '</td><td>' + esc(fmt(a.role)) + '</td><td>' + esc(fmt(a.start_date)) +
+            '</td><td>' + esc(fmt(a.end_date)) + '</td></tr>';
+        }).join('');
+      }
+    })
+    .catch(function(e) {
+      meta.classList.remove('loading');
+      meta.innerHTML = '';
+      errEl.textContent = e.message || 'Something went wrong. Please try again.';
+      errEl.style.display = 'block';
+    });
+})();
+</script>
+{% endblock %}

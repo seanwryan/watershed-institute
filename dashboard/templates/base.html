@@ -14,6 +14,8 @@
       <a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Home</a>
       <a href="/map" class="nav-link {% if request.endpoint == 'map_page' %}active{% endif %}">Map</a>
       <a href="/sites" class="nav-link {% if request.endpoint == 'sites_page' %}active{% endif %}">Sites</a>
+      <a href="/equipment" class="nav-link {% if request.endpoint in ('equipment_page', 'equipment_detail_page', 'meter_test_new') %}active{% endif %}">Equipment</a>
+      <a href="/volunteers" class="nav-link {% if request.endpoint in ('volunteers_page', 'volunteer_detail_page', 'volunteer_edit') %}active{% endif %}">Volunteers</a>
       <a href="/explore" class="nav-link {% if request.endpoint == 'explore_page' %}active{% endif %}">Explore data</a>
       <a href="/scores" class="nav-link {% if request.endpoint == 'scores_page' %}active{% endif %}">Scores</a>
       <a href="/qa" class="nav-link {% if request.endpoint == 'qa_page' %}active{% endif %}">QA</a>

@@ -5,11 +5,12 @@ JSON endpoints for sites, time series, QA; HTML routes for Map, Sites, Site deta
 import os
 import sys
 import math
+import re
 from pathlib import Path
-from datetime import date
+from datetime import date, datetime
 
 import psycopg2
-from flask import Flask, jsonify, request, send_from_directory, render_template, Response
+from flask import Flask, jsonify, request, send_from_directory, render_template, Response, redirect, url_for
 
 # Allow importing etl when running from dashboard/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -537,7 +538,7 @@ def export_csv():
         """, (date_start, date_start, date_end, date_end, site_code, site_code))
         for row in cur.fetchall():
             site_code_val, sample_date, dc_code = row[0], row[1], row[2] or ""
-            method = row[15] or ""
+            method = row[14] or ""
             for i, param in enumerate(CHEM_PARAMS):
                 val = row[3 + i]
                 if val is not None:
@@ -655,6 +656,619 @@ def export_page():
 @app.route("/about")
 def about_page():
     return render_template("about.html")
+
+
+# --- Equipment (staff meter inventory / testing) ---
+
+_TWI_EQUIPMENT_RE = re.compile(r"^TWI\d{3}$", re.IGNORECASE)
+_METER_PARAMETERS = ("pH", "DO", "EC")
+_PASS_FAIL_OPTIONS = ("Pass", "Fail")
+
+
+def _parse_optional_float(raw):
+    if raw is None:
+        return None, None
+    s = str(raw).strip()
+    if not s:
+        return None, None
+    try:
+        return float(s), None
+    except (TypeError, ValueError):
+        return None, "invalid"
+
+
+def _parse_optional_int(raw):
+    if raw is None:
+        return None, None
+    s = str(raw).strip()
+    if not s:
+        return None, None
+    try:
+        return int(s), None
+    except (TypeError, ValueError):
+        return None, "invalid"
+
+
+def _normalize_equipment_code(code):
+    if not code:
+        return None
+    s = str(code).strip()
+    if not _TWI_EQUIPMENT_RE.fullmatch(s):
+        return None
+    return s.upper()
+
+
+@app.route("/api/equipment")
+def api_equipment():
+    """List TWI multiparameter meters with last test date (from v_equipment_inventory)."""
+    conn, err = get_db_or_503()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT equipment_id, equipment_code, equipment_type, serial_number, status,
+                   last_test_date::text
+            FROM v_equipment_inventory
+            WHERE equipment_code ~* '^TWI[0-9]{3}$'
+            ORDER BY equipment_code
+            """)
+        rows = cur.fetchall()
+        return jsonify([
+            {
+                "equipment_id": r[0],
+                "equipment_code": r[1],
+                "equipment_type": r[2],
+                "serial_number": r[3],
+                "status": r[4],
+                "last_test_date": r[5],
+            }
+            for r in rows
+        ])
+    finally:
+        conn.close()
+
+
+@app.route("/api/equipment/<equipment_code>")
+def api_equipment_detail(equipment_code):
+    """Equipment metadata plus meter-test history (newest first)."""
+    code = _normalize_equipment_code(equipment_code)
+    if not code:
+        return jsonify({"error": "Equipment not found"}), 404
+    conn, err = get_db_or_503()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT e.equipment_id, e.equipment_code, e.equipment_type, e.serial_number, e.status,
+                   v.last_test_date::text
+            FROM equipment e
+            LEFT JOIN v_equipment_inventory v ON v.equipment_id = e.equipment_id
+            WHERE e.equipment_code = %s
+            """, (code,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Equipment not found"}), 404
+        eq = {
+            "equipment_id": row[0],
+            "equipment_code": row[1],
+            "equipment_type": row[2],
+            "serial_number": row[3],
+            "status": row[4],
+            "last_test_date": row[5],
+        }
+        cur.execute("""
+            SELECT s.date_start::text, mt.round_number, mt.parameter_type,
+                   mt.reference_value, mt.measured_value, mt.difference, mt.pass_fail
+            FROM meter_testing mt
+            JOIN session s ON s.session_id = mt.session_id
+            WHERE mt.equipment_id = %s
+            ORDER BY s.date_start DESC NULLS LAST, mt.round_number DESC NULLS LAST,
+                     mt.meter_testing_id DESC
+            """, (eq["equipment_id"],))
+        tests = []
+        for r in cur.fetchall():
+            tests.append({
+                "test_date": r[0],
+                "round_number": r[1],
+                "parameter_type": r[2],
+                "reference_value": float(r[3]) if r[3] is not None else None,
+                "measured_value": float(r[4]) if r[4] is not None else None,
+                "difference": float(r[5]) if r[5] is not None else None,
+                "pass_fail": r[6],
+            })
+        eq["meter_tests"] = tests
+        return jsonify(eq)
+    finally:
+        conn.close()
+
+
+@app.route("/equipment")
+def equipment_page():
+    return render_template("equipment.html")
+
+
+@app.route("/equipment/<equipment_code>")
+def equipment_detail_page(equipment_code):
+    code = _normalize_equipment_code(equipment_code) or equipment_code
+    return render_template("equipment_detail.html", equipment_code=code)
+
+
+@app.route("/equipment/<equipment_code>/meter-tests/new", methods=["GET", "POST"])
+def meter_test_new(equipment_code):
+    """
+    Staff form to add a meter test (creates session + meter_testing).
+    NOTE: Write access is intentionally open in this milestone. Protect this route
+    (auth / network restriction) before any production deployment.
+    """
+    code = _normalize_equipment_code(equipment_code)
+    if not code:
+        return render_template(
+            "meter_test_form.html",
+            equipment_code=equipment_code,
+            error="Equipment not found.",
+            form={},
+            parameters=_METER_PARAMETERS,
+            pass_fail_options=_PASS_FAIL_OPTIONS,
+        ), 404
+
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "meter_test_form.html",
+            equipment_code=code,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            form=request.form if request.method == "POST" else {},
+            parameters=_METER_PARAMETERS,
+            pass_fail_options=_PASS_FAIL_OPTIONS,
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT equipment_id, equipment_code FROM equipment WHERE equipment_code = %s",
+            (code,),
+        )
+        eq = cur.fetchone()
+        if not eq:
+            return render_template(
+                "meter_test_form.html",
+                equipment_code=code,
+                error="Equipment not found.",
+                form={},
+                parameters=_METER_PARAMETERS,
+                pass_fail_options=_PASS_FAIL_OPTIONS,
+            ), 404
+        equipment_id = eq[0]
+
+        if request.method == "GET":
+            return render_template(
+                "meter_test_form.html",
+                equipment_code=code,
+                error=None,
+                form={},
+                parameters=_METER_PARAMETERS,
+                pass_fail_options=_PASS_FAIL_OPTIONS,
+            )
+
+        form = {
+            "test_date": (request.form.get("test_date") or "").strip(),
+            "staff": (request.form.get("staff") or "").strip(),
+            "parameter_type": (request.form.get("parameter_type") or "").strip(),
+            "round_number": (request.form.get("round_number") or "").strip(),
+            "reference_value": (request.form.get("reference_value") or "").strip(),
+            "measured_value": (request.form.get("measured_value") or "").strip(),
+            "pass_fail": (request.form.get("pass_fail") or "").strip(),
+            "action_taken": (request.form.get("action_taken") or "").strip(),
+        }
+
+        def _form_error(msg):
+            return render_template(
+                "meter_test_form.html",
+                equipment_code=code,
+                error=msg,
+                form=form,
+                parameters=_METER_PARAMETERS,
+                pass_fail_options=_PASS_FAIL_OPTIONS,
+            ), 400
+
+        if not form["test_date"]:
+            return _form_error("Test date is required.")
+        try:
+            test_date = datetime.strptime(form["test_date"], "%Y-%m-%d").date()
+        except ValueError:
+            return _form_error("Test date must be a valid date.")
+
+        if form["parameter_type"] not in _METER_PARAMETERS:
+            return _form_error("Parameter must be pH, DO, or EC.")
+
+        measured_value, meas_err = _parse_optional_float(form["measured_value"])
+        if meas_err or measured_value is None:
+            return _form_error("Measured value is required and must be a number.")
+
+        reference_value, ref_err = _parse_optional_float(form["reference_value"])
+        if ref_err:
+            return _form_error("Reference value must be a number.")
+
+        round_number, round_err = _parse_optional_int(form["round_number"])
+        if round_err:
+            return _form_error("Round number must be a whole number.")
+
+        pass_fail = form["pass_fail"] or None
+        if pass_fail and pass_fail not in _PASS_FAIL_OPTIONS:
+            return _form_error("Pass/Fail must be Pass or Fail.")
+
+        staff = form["staff"] or None
+        action_taken = form["action_taken"] or None
+        difference = None
+        if measured_value is not None and reference_value is not None:
+            difference = measured_value - reference_value
+
+        try:
+            cur.execute(
+                "SELECT session_type_id FROM lst_session_type WHERE name = %s",
+                ("Quarterly maintenance",),
+            )
+            st = cur.fetchone()
+            if not st:
+                conn.rollback()
+                return _form_error("Could not save meter test right now. Please try again in a moment.")
+            session_type_id = st[0]
+
+            summary = f"Staff meter test {code} ({form['parameter_type']})"
+            cur.execute(
+                """
+                INSERT INTO session (session_type_id, date_start, date_end, staff, summary)
+                VALUES (%s, %s, %s, %s, %s) RETURNING session_id
+                """,
+                (session_type_id, test_date, test_date, staff, summary),
+            )
+            session_id = cur.fetchone()[0]
+
+            cur.execute(
+                """
+                INSERT INTO meter_testing (
+                    session_id, equipment_id, parameter_type, round_number,
+                    reference_value, measured_value, difference, pass_fail, action_taken
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    session_id,
+                    equipment_id,
+                    form["parameter_type"],
+                    round_number,
+                    reference_value,
+                    measured_value,
+                    difference,
+                    pass_fail,
+                    action_taken,
+                ),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "meter_test_form.html",
+                equipment_code=code,
+                error="Could not save meter test right now. Please try again in a moment.",
+                form=form,
+                parameters=_METER_PARAMETERS,
+                pass_fail_options=_PASS_FAIL_OPTIONS,
+            ), 500
+
+        return redirect(url_for("equipment_detail_page", equipment_code=code))
+    finally:
+        conn.close()
+
+
+# --- Volunteers (staff volunteer management v1) ---
+
+_VOLUNTEER_STATUSES = ("Active", "Inactive", "Parent", "Unknown")
+
+
+def _form_bool(form, name):
+    """Checkbox / truthy form values → bool."""
+    return str(form.get(name, "")).strip().lower() in ("1", "true", "yes", "on", "x")
+
+
+def _volunteer_row_to_dict(row):
+    return {
+        "volunteer_id": row[0],
+        "first_name": row[1],
+        "last_name": row[2],
+        "perfect_id": row[3],
+        "is_under_17": bool(row[4]),
+        "email": row[5],
+        "alt_email": row[6],
+        "phone": row[7],
+        "alt_phone": row[8],
+        "address": row[9],
+        "city_id": row[10],
+        "city_name": row[11],
+        "state": (row[12].strip() if row[12] is not None else None),
+        "zip_code": row[13],
+        "active_cat": bool(row[14]),
+        "active_bat": bool(row[15]),
+        "active_bact": bool(row[16]),
+        "status": row[17],
+        "notes": row[18],
+    }
+
+
+_VOLUNTEER_SELECT = """
+    SELECT v.volunteer_id, v.first_name, v.last_name, v.perfect_id, v.is_under_17,
+           v.email, v.alt_email, v.phone, v.alt_phone, v.address,
+           v.city_id, m.name AS city_name, v.state, v.zip_code,
+           v.active_cat, v.active_bat, v.active_bact, v.status, v.notes
+    FROM volunteer v
+    LEFT JOIN municipality m ON m.municipality_id = v.city_id
+"""
+
+
+@app.route("/api/volunteers")
+def api_volunteers():
+    """List volunteers for staff management (searchable client-side)."""
+    conn, err = get_db_or_503()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        cur.execute(_VOLUNTEER_SELECT + " ORDER BY v.last_name, v.first_name, v.volunteer_id")
+        rows = cur.fetchall()
+        return jsonify([_volunteer_row_to_dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/api/volunteers/<int:volunteer_id>")
+def api_volunteer_detail(volunteer_id):
+    """Volunteer profile plus read-only training history and site assignments."""
+    conn, err = get_db_or_503()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        cur.execute(_VOLUNTEER_SELECT + " WHERE v.volunteer_id = %s", (volunteer_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Volunteer not found"}), 404
+        vol = _volunteer_row_to_dict(row)
+
+        cur.execute("""
+            SELECT COALESCE(tt.name, 'Unspecified') AS training_type,
+                   t.training_date::text, tl.status, tl.expiration_date::text, t.trainer
+            FROM training_log tl
+            JOIN training t ON t.training_id = tl.training_id
+            LEFT JOIN lst_training_type tt ON tt.training_type_id = t.training_type_id
+            WHERE tl.volunteer_id = %s
+            ORDER BY t.training_date DESC NULLS LAST, tl.training_log_id DESC
+            """, (volunteer_id,))
+        vol["trainings"] = [
+            {
+                "training_type": r[0],
+                "training_date": r[1],
+                "status": r[2],
+                "expiration_date": r[3],
+                "trainer": r[4],
+            }
+            for r in cur.fetchall()
+        ]
+
+        cur.execute("""
+            SELECT s.site_code, w.name AS waterbody_name, r.name AS role_name,
+                   a.start_date::text, a.end_date::text
+            FROM junc_assignments a
+            JOIN site s ON s.site_id = a.site_id
+            LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
+            LEFT JOIN lst_role r ON r.role_id = a.role_id
+            WHERE a.volunteer_id = %s
+            ORDER BY a.start_date DESC NULLS LAST, s.site_code
+            """, (volunteer_id,))
+        vol["assignments"] = [
+            {
+                "site_code": r[0],
+                "waterbody_name": r[1],
+                "role": r[2] or "Unspecified",
+                "start_date": r[3],
+                "end_date": r[4],
+            }
+            for r in cur.fetchall()
+        ]
+        return jsonify(vol)
+    finally:
+        conn.close()
+
+
+@app.route("/volunteers")
+def volunteers_page():
+    return render_template("volunteers.html")
+
+
+@app.route("/volunteers/<int:volunteer_id>")
+def volunteer_detail_page(volunteer_id):
+    return render_template("volunteer_detail.html", volunteer_id=volunteer_id)
+
+
+@app.route("/volunteers/<int:volunteer_id>/edit", methods=["GET", "POST"])
+def volunteer_edit(volunteer_id):
+    """
+    Staff form to edit an existing volunteer record.
+    NOTE: Write access is intentionally open in this milestone. Protect this route
+    (auth / network restriction) before any production deployment.
+    """
+    conn, err = get_db_or_503()
+    if err:
+        return render_template(
+            "volunteer_edit.html",
+            volunteer_id=volunteer_id,
+            error="Service temporarily unavailable. Please try again in a moment.",
+            form={},
+            municipalities=[],
+            statuses=_VOLUNTEER_STATUSES,
+        ), 503
+
+    try:
+        cur = conn.cursor()
+        cur.execute(_VOLUNTEER_SELECT + " WHERE v.volunteer_id = %s", (volunteer_id,))
+        row = cur.fetchone()
+        if not row:
+            return render_template(
+                "volunteer_edit.html",
+                volunteer_id=volunteer_id,
+                error="Volunteer not found.",
+                form={},
+                municipalities=[],
+                statuses=_VOLUNTEER_STATUSES,
+            ), 404
+        vol = _volunteer_row_to_dict(row)
+
+        cur.execute("SELECT municipality_id, name FROM municipality ORDER BY name")
+        municipalities = [{"municipality_id": r[0], "name": r[1]} for r in cur.fetchall()]
+
+        def _vol_to_form(v):
+            return {
+                "first_name": v.get("first_name") or "",
+                "last_name": v.get("last_name") or "",
+                "perfect_id": v.get("perfect_id") or "",
+                "email": v.get("email") or "",
+                "alt_email": v.get("alt_email") or "",
+                "phone": v.get("phone") or "",
+                "alt_phone": v.get("alt_phone") or "",
+                "address": v.get("address") or "",
+                "city_id": "" if v.get("city_id") is None else str(v.get("city_id")),
+                "state": v.get("state") or "",
+                "zip_code": v.get("zip_code") or "",
+                "status": v.get("status") or "Unknown",
+                "active_cat": bool(v.get("active_cat")),
+                "active_bat": bool(v.get("active_bat")),
+                "active_bact": bool(v.get("active_bact")),
+                "is_under_17": bool(v.get("is_under_17")),
+                "notes": v.get("notes") or "",
+            }
+
+        if request.method == "GET":
+            return render_template(
+                "volunteer_edit.html",
+                volunteer_id=volunteer_id,
+                error=None,
+                form=_vol_to_form(vol),
+                municipalities=municipalities,
+                statuses=_VOLUNTEER_STATUSES,
+            )
+
+        form = {
+            "first_name": (request.form.get("first_name") or "").strip(),
+            "last_name": (request.form.get("last_name") or "").strip(),
+            "perfect_id": (request.form.get("perfect_id") or "").strip(),
+            "email": (request.form.get("email") or "").strip(),
+            "alt_email": (request.form.get("alt_email") or "").strip(),
+            "phone": (request.form.get("phone") or "").strip(),
+            "alt_phone": (request.form.get("alt_phone") or "").strip(),
+            "address": (request.form.get("address") or "").strip(),
+            "city_id": (request.form.get("city_id") or "").strip(),
+            "state": (request.form.get("state") or "").strip(),
+            "zip_code": (request.form.get("zip_code") or "").strip(),
+            "status": (request.form.get("status") or "").strip(),
+            "active_cat": _form_bool(request.form, "active_cat"),
+            "active_bat": _form_bool(request.form, "active_bat"),
+            "active_bact": _form_bool(request.form, "active_bact"),
+            "is_under_17": _form_bool(request.form, "is_under_17"),
+            "notes": (request.form.get("notes") or "").strip(),
+        }
+
+        def _form_error(msg):
+            return render_template(
+                "volunteer_edit.html",
+                volunteer_id=volunteer_id,
+                error=msg,
+                form=form,
+                municipalities=municipalities,
+                statuses=_VOLUNTEER_STATUSES,
+            ), 400
+
+        if not form["first_name"] or not form["last_name"]:
+            return _form_error("First name and last name are required.")
+        if form["status"] not in _VOLUNTEER_STATUSES:
+            return _form_error("Status must be Active, Inactive, Parent, or Unknown.")
+
+        state_val = form["state"].upper() if form["state"] else None
+        if state_val is not None and len(state_val) != 2:
+            return _form_error("State must be a 2-letter code (for example NJ).")
+        form["state"] = state_val or ""
+
+        city_id = None
+        if form["city_id"]:
+            city_id, city_err = _parse_optional_int(form["city_id"])
+            if city_err or city_id is None:
+                return _form_error("Municipality selection is invalid.")
+            cur.execute("SELECT 1 FROM municipality WHERE municipality_id = %s", (city_id,))
+            if not cur.fetchone():
+                return _form_error("Municipality selection is invalid.")
+
+        try:
+            cur.execute(
+                """
+                UPDATE volunteer SET
+                    first_name = %s,
+                    last_name = %s,
+                    perfect_id = %s,
+                    email = %s,
+                    alt_email = %s,
+                    phone = %s,
+                    alt_phone = %s,
+                    address = %s,
+                    city_id = %s,
+                    state = COALESCE(%s, state),
+                    zip_code = %s,
+                    status = %s::volunteer_status_enum,
+                    active_cat = %s,
+                    active_bat = %s,
+                    active_bact = %s,
+                    is_under_17 = %s,
+                    notes = %s,
+                    updated_at = NOW()
+                WHERE volunteer_id = %s
+                """,
+                (
+                    form["first_name"],
+                    form["last_name"],
+                    form["perfect_id"] or None,
+                    form["email"] or None,
+                    form["alt_email"] or None,
+                    form["phone"] or None,
+                    form["alt_phone"] or None,
+                    form["address"] or None,
+                    city_id,
+                    state_val,
+                    form["zip_code"] or None,
+                    form["status"],
+                    form["active_cat"],
+                    form["active_bat"],
+                    form["active_bact"],
+                    form["is_under_17"],
+                    form["notes"] or None,
+                    volunteer_id,
+                ),
+            )
+            if cur.rowcount != 1:
+                conn.rollback()
+                return _form_error("Volunteer not found.")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return render_template(
+                "volunteer_edit.html",
+                volunteer_id=volunteer_id,
+                error="Could not save volunteer right now. Please try again in a moment.",
+                form=form,
+                municipalities=municipalities,
+                statuses=_VOLUNTEER_STATUSES,
+            ), 500
+
+        return redirect(url_for("volunteer_detail_page", volunteer_id=volunteer_id))
+    finally:
+        conn.close()
 
 
 @app.route("/static/<path:path>")

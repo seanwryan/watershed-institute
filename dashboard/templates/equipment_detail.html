@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Equipment {{ equipment_code }}{% endblock %}
+{% block content %}
+<p class="muted"><a href="/equipment">← Equipment</a></p>
+<h1>Equipment <span id="equipment-code">{{ equipment_code }}</span></h1>
+<div id="equipment-meta" class="loading">Loading…</div>
+<div id="equipment-error" class="error" style="display:none;"></div>
+<div class="card" id="history-card" style="display:none;">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+    <h2 style="margin:0;">Meter test history</h2>
+    <a class="btn-primary" id="add-test-link" href="/equipment/{{ equipment_code }}/meter-tests/new" style="padding:0.45rem 0.75rem; border:1px solid; border-radius:6px; text-decoration:none;">Add Meter Test</a>
+  </div>
+  <div id="history-empty" class="muted" style="display:none;">No meter tests recorded for this equipment yet.</div>
+  <div class="table-wrap" id="history-wrap" style="display:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>Test Date</th><th>Round</th><th>Parameter</th>
+          <th>Reference</th><th>Measured</th><th>Difference</th><th>Pass/Fail</th>
+        </tr>
+      </thead>
+      <tbody id="history-tbody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  const code = document.getElementById('equipment-code').textContent.trim();
+  const meta = document.getElementById('equipment-meta');
+  const errEl = document.getElementById('equipment-error');
+  const historyCard = document.getElementById('history-card');
+  const historyEmpty = document.getElementById('history-empty');
+  const historyWrap = document.getElementById('history-wrap');
+  const historyBody = document.getElementById('history-tbody');
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmt(v) { return v == null || v === '' ? '—' : v; }
+  fetch('/api/equipment/' + encodeURIComponent(code))
+    .then(function(r) {
+      if (r.status === 404) throw new Error('Equipment not found');
+      if (!r.ok) throw new Error('Could not load equipment');
+      return r.json();
+    })
+    .then(function(eq) {
+      meta.classList.remove('loading');
+      meta.innerHTML = '<div class="card">' +
+        '<p><strong>Type:</strong> ' + esc(fmt(eq.equipment_type)) + '</p>' +
+        '<p><strong>Serial number:</strong> ' + esc(fmt(eq.serial_number)) + '</p>' +
+        '<p><strong>Status:</strong> ' + esc(fmt(eq.status)) + '</p>' +
+        '<p><strong>Last test date:</strong> ' + esc(fmt(eq.last_test_date)) + '</p>' +
+        '</div>';
+      historyCard.style.display = 'block';
+      document.getElementById('add-test-link').href = '/equipment/' + encodeURIComponent(eq.equipment_code) + '/meter-tests/new';
+      const tests = eq.meter_tests || [];
+      if (!tests.length) {
+        historyEmpty.style.display = 'block';
+        return;
+      }
+      historyWrap.style.display = 'block';
+      historyBody.innerHTML = tests.map(function(t) {
+        return '<tr><td>' + esc(fmt(t.test_date)) + '</td><td>' + esc(fmt(t.round_number)) +
+          '</td><td>' + esc(fmt(t.parameter_type)) + '</td><td>' + esc(fmt(t.reference_value)) +
+          '</td><td>' + esc(fmt(t.measured_value)) + '</td><td>' + esc(fmt(t.difference)) +
+          '</td><td>' + esc(fmt(t.pass_fail)) + '</td></tr>';
+      }).join('');
+    })
+    .catch(function(e) {
+      meta.classList.remove('loading');
+      meta.innerHTML = '';
+      errEl.textContent = e.message || 'Something went wrong. Please try again.';
+      errEl.style.display = 'block';
+    });
+})();
+</script>
+{% endblock %}

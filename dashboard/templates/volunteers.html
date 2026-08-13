@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Volunteers{% endblock %}
+{% block content %}
+<h1>Volunteers</h1>
+<p class="muted">StreamWatch volunteer roster.</p>
+<div class="card">
+  <label for="volunteer-search">Search:</label>
+  <input type="text" id="volunteer-search" placeholder="Name or email…">
+</div>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>Status</th><th>CAT</th><th>BAT</th><th>BACT</th><th>Email</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="volunteers-tbody"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  const tbody = document.getElementById('volunteers-tbody');
+  const search = document.getElementById('volunteer-search');
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function yn(v) { return v ? 'Yes' : 'No'; }
+  function render(items, filter) {
+    const q = (filter || '').toLowerCase();
+    const list = q ? items.filter(function(v) {
+      const name = ((v.first_name || '') + ' ' + (v.last_name || '')).toLowerCase();
+      const email = (v.email || '').toLowerCase();
+      return name.includes(q) || email.includes(q);
+    }) : items;
+    tbody.innerHTML = list.length
+      ? list.map(function(v) {
+          const name = esc((v.first_name || '') + ' ' + (v.last_name || '')).trim();
+          return '<tr><td>' + name + '</td><td>' + esc(v.status || '—') +
+            '</td><td>' + yn(v.active_cat) + '</td><td>' + yn(v.active_bat) +
+            '</td><td>' + yn(v.active_bact) + '</td><td>' + esc(v.email || '—') +
+            '</td><td><a href="/volunteers/' + encodeURIComponent(v.volunteer_id) + '">View</a></td></tr>';
+        }).join('')
+      : '<tr><td colspan="7">No volunteers match.</td></tr>';
+  }
+  search.addEventListener('input', function() { render(window.__volunteers || [], search.value); });
+  fetch('/api/volunteers')
+    .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(items) { window.__volunteers = items; render(items, search.value); })
+    .catch(function() {
+      tbody.innerHTML = '<tr><td colspan="7" class="error">We couldn\'t load volunteers right now. Please try again in a moment.</td></tr>';
+    });
+})();
+</script>
+{% endblock %}
