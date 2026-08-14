@@ -6,11 +6,16 @@ import os
 import sys
 import math
 import re
+import json
+import tempfile
+import time
+import uuid
 from pathlib import Path
 from datetime import date, datetime
 
 import psycopg2
 from flask import Flask, jsonify, request, send_from_directory, render_template, Response, redirect, url_for, abort
+from werkzeug.utils import secure_filename
 
 # Allow importing etl when running from dashboard/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -19,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 from etl.biological_indices import calculate_visit_indices
+from etl.bact_reconcile import preview_bact_workbook, validate_bact_workbook
 import report_queries as rq
 
 # Strip quotes so pasting 'postgresql://...' in Render Environment still works
@@ -4175,6 +4181,218 @@ def report_results_csv():
         )
     finally:
         conn.close()
+
+
+# --- Data imports (preview-only) ---
+
+_BACT_PREVIEW_DIR = Path(tempfile.gettempdir()) / "streamwatch_bact_previews"
+_BACT_PREVIEW_TTL_SEC = 2 * 60 * 60
+
+
+def _bact_preview_cleanup(now=None):
+    now = now or time.time()
+    try:
+        _BACT_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return
+    for p in _BACT_PREVIEW_DIR.glob("*.json"):
+        try:
+            if now - p.stat().st_mtime > _BACT_PREVIEW_TTL_SEC:
+                p.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
+def _bact_preview_path(token):
+    safe = re.sub(r"[^a-f0-9-]", "", (token or "").lower())
+    if not safe or safe != (token or "").lower():
+        return None
+    return _BACT_PREVIEW_DIR / f"{safe}.json"
+
+
+def _load_bact_preview(token):
+    path = _bact_preview_path(token)
+    if not path or not path.is_file():
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+@app.route("/imports")
+def imports_hub():
+    return render_template("imports.html")
+
+
+@app.route("/imports/bact", methods=["GET"])
+def imports_bact():
+    return render_template("imports_bact.html", error=None)
+
+
+@app.route("/imports/bact/preview", methods=["POST"])
+def imports_bact_preview_post():
+    _bact_preview_cleanup()
+    upload = request.files.get("workbook")
+    if upload is None or not (upload.filename or "").strip():
+        return render_template(
+            "imports_bact.html",
+            error="Choose an Excel workbook (.xlsx) to review.",
+        ), 400
+
+    filename = secure_filename(upload.filename) or "bact_workbook.xlsx"
+    if not filename.lower().endswith(".xlsx"):
+        return render_template(
+            "imports_bact.html",
+            error="Please upload an .xlsx Excel workbook.",
+        ), 400
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+            upload.save(tmp_path)
+
+        xl, verr = validate_bact_workbook(tmp_path)
+        if verr:
+            return render_template("imports_bact.html", error=verr), 400
+
+        conn, err = get_db_or_503()
+        if err:
+            return render_template(
+                "imports_bact.html",
+                error="Database unavailable. Try again when StreamWatch data is online.",
+            ), 503
+        try:
+            try:
+                conn.set_session(readonly=True, autocommit=True)
+            except Exception:
+                pass
+            try:
+                result = preview_bact_workbook(tmp_path, conn)
+            except ValueError as e:
+                return render_template("imports_bact.html", error=str(e)), 400
+            except Exception:
+                return render_template(
+                    "imports_bact.html",
+                    error="The workbook could not be reviewed. Check that it is a valid BACT Excel file.",
+                ), 400
+        finally:
+            conn.close()
+
+        token = str(uuid.uuid4())
+        _BACT_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "filename": filename,
+            "created_at": time.time(),
+            "result": result,
+        }
+        out = _bact_preview_path(token)
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+
+        return redirect(url_for("imports_bact_preview", token=token))
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+@app.route("/imports/bact/preview/<token>")
+def imports_bact_preview(token):
+    _bact_preview_cleanup()
+    payload = _load_bact_preview(token)
+    if not payload:
+        return render_template(
+            "imports_bact.html",
+            error="That preview has expired or was not found. Upload the workbook again.",
+        ), 404
+
+    result = payload["result"]
+    filters = {
+        "s123_status": (request.args.get("s123_status") or "").strip(),
+        "idexx_status": (request.args.get("idexx_status") or "").strip(),
+    }
+    s123_rows = result["survey123"]["rows"]
+    idexx_rows = result["idexx"]["rows"]
+    if filters["s123_status"]:
+        s123_rows = [r for r in s123_rows if r["status"] == filters["s123_status"]]
+    if filters["idexx_status"]:
+        idexx_rows = [r for r in idexx_rows if r["status"] == filters["idexx_status"]]
+
+    return render_template(
+        "imports_bact_preview.html",
+        token=token,
+        filename=payload.get("filename") or "workbook.xlsx",
+        survey123=result["survey123"],
+        idexx=result["idexx"],
+        survey123_rows=s123_rows,
+        idexx_rows=idexx_rows,
+        sheets_present=result.get("sheets_present") or {},
+        filters=filters,
+    )
+
+
+@app.route("/imports/bact/preview/<token>.csv")
+def imports_bact_preview_csv(token):
+    payload = _load_bact_preview(token)
+    if not payload:
+        abort(404)
+    result = payload["result"]
+    rows = []
+    for r in result["survey123"]["rows"]:
+        proposed = ""
+        if r.get("proposed_fields"):
+            proposed = "; ".join(
+                f"{f['label']}={f['value']}" for f in r["proposed_fields"]
+            )
+        else:
+            proposed = r.get("proposed_action") or ""
+        rows.append(
+            [
+                r.get("source"),
+                r.get("source_row"),
+                r.get("site_code") or "",
+                r.get("sample_date") or "",
+                r.get("sample_code") or "",
+                r.get("visit_id") or "",
+                r.get("status_label") or r.get("status"),
+                proposed,
+                r.get("detail") or "",
+            ]
+        )
+    for r in result["idexx"]["rows"]:
+        rows.append(
+            [
+                r.get("source"),
+                r.get("source_row"),
+                r.get("site_code") or "",
+                r.get("sample_date") or "",
+                r.get("sample_code") or "",
+                r.get("visit_id") or "",
+                r.get("status_label") or r.get("status"),
+                r.get("proposed_action") or "",
+                r.get("detail") or "",
+            ]
+        )
+    return _csv_download(
+        "bact_import_preview.csv",
+        [
+            "source",
+            "source_row",
+            "site_code",
+            "sample_date",
+            "sample_code",
+            "visit_id",
+            "status",
+            "proposed_action",
+            "detail",
+        ],
+        rows,
+    )
 
 
 @app.route("/about")

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Review BACT workbook{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/imports">Data imports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">BACT</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Review BACT workbook</h1>
+    <p class="page-subtitle">
+      Upload a BACT season Excel workbook to see how Survey123 and IDEXX rows would
+      reconcile with StreamWatch. Previewing does not change StreamWatch data.
+    </p>
+  </header>
+
+  {% if error %}
+  <div class="alert-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <div class="panel form-panel">
+    <form method="post" action="/imports/bact/preview" enctype="multipart/form-data" class="stack-form">
+      <div class="filter-field">
+        <label for="workbook">BACT workbook (.xlsx)</label>
+        <input type="file" id="workbook" name="workbook" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+      </div>
+      <p class="muted">
+        The workbook should include a <strong>SURVEY123</strong> and/or <strong>IDEXX</strong> sheet.
+        Other sheets (Gallery, Turbidity, Phycocyanin) are ignored.
+      </p>
+      <div class="import-preview-banner" role="note">
+        <strong>Preview only.</strong> Uploading a file for review will not insert, update, or delete
+        visits, chemistry, bacteria, or sample codes.
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn-primary">Upload and review</button>
+        <a class="btn-secondary" href="/imports">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

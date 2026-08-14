@@ -1220,6 +1220,64 @@ tr:hover {
   gap: 1rem;
 }
 
+/* —— Data imports / BACT preview —— */
+.import-preview-banner {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid var(--color-accent, #2a6f6a);
+  background: rgba(42, 111, 106, 0.08);
+  color: var(--color-text, #1a1a1a);
+  font-size: 0.95rem;
+}
+.form-panel .stack-form {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 36rem;
+}
+.form-panel input[type="file"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+.recon-status {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.recon-ready_to_enrich,
+.recon-ready_to_add {
+  color: #1b5e4a;
+}
+.recon-nothing_to_update,
+.recon-already_recorded {
+  color: #4a5560;
+}
+.recon-needs_review,
+.recon-needs_visit_match {
+  color: #8a5a00;
+}
+.recon-censored {
+  color: #7a2e0b;
+}
+.recon-invalid {
+  color: #8b1e1e;
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+.table-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.table-header-row .home-panel-title {
+  margin: 0;
+}
+
 /* —— Scores: chart above table, sticky first columns —— */
 .scores-layout {
   align-items: start;

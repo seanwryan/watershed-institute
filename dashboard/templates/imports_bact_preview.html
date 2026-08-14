@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – BACT import preview{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/imports">Data imports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/imports/bact">BACT</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Preview</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>BACT import preview</h1>
+    <p class="page-subtitle"><span class="mono">{{ filename }}</span></p>
+    <div class="import-preview-banner" role="status">
+      <strong>No StreamWatch data has been changed.</strong>
+      This page only compares the uploaded workbook to current records.
+    </div>
+  </header>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Preview filters">
+      <form method="get" action="/imports/bact/preview/{{ token }}">
+        <div class="filter-field">
+          <label for="s123_status">Survey123 status</label>
+          <select id="s123_status" name="s123_status">
+            <option value="" {% if not filters.s123_status %}selected{% endif %}>All</option>
+            <option value="ready_to_enrich" {% if filters.s123_status == 'ready_to_enrich' %}selected{% endif %}>Ready to enrich</option>
+            <option value="nothing_to_update" {% if filters.s123_status == 'nothing_to_update' %}selected{% endif %}>Nothing to update</option>
+            <option value="needs_review" {% if filters.s123_status == 'needs_review' %}selected{% endif %}>Needs review</option>
+            <option value="invalid" {% if filters.s123_status == 'invalid' %}selected{% endif %}>Invalid</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="idexx_status">IDEXX status</label>
+          <select id="idexx_status" name="idexx_status">
+            <option value="" {% if not filters.idexx_status %}selected{% endif %}>All</option>
+            <option value="ready_to_add" {% if filters.idexx_status == 'ready_to_add' %}selected{% endif %}>Ready to add</option>
+            <option value="already_recorded" {% if filters.idexx_status == 'already_recorded' %}selected{% endif %}>Already recorded</option>
+            <option value="needs_visit_match" {% if filters.idexx_status == 'needs_visit_match' %}selected{% endif %}>Needs visit match</option>
+            <option value="censored" {% if filters.idexx_status == 'censored' %}selected{% endif %}>Censored result</option>
+            <option value="invalid" {% if filters.idexx_status == 'invalid' %}selected{% endif %}>Invalid</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn-primary">Update results</button>
+        </div>
+      </form>
+      <p class="muted" style="margin-top:1rem;">
+        <a href="/imports/bact/preview/{{ token }}.csv">Download reconciliation CSV</a>
+      </p>
+    </aside>
+
+    <div class="report-stack">
+      <section class="panel site-snapshot" aria-label="Survey123 summary">
+        <h2 class="home-panel-title">Survey123</h2>
+        <div class="snapshot-grid">
+          <div><span class="metric-label">Rows reviewed</span><span class="snapshot-value">{{ survey123.summary.rows_reviewed }}</span></div>
+          <div><span class="metric-label">Ready to enrich</span><span class="snapshot-value">{{ survey123.summary.ready_to_enrich }}</span></div>
+          <div><span class="metric-label">Nothing to update</span><span class="snapshot-value">{{ survey123.summary.nothing_to_update }}</span></div>
+          <div><span class="metric-label">Needs review</span><span class="snapshot-value">{{ survey123.summary.needs_review }}</span></div>
+          <div><span class="metric-label">Invalid</span><span class="snapshot-value">{{ survey123.summary.invalid }}</span></div>
+        </div>
+      </section>
+
+      <section class="panel site-snapshot" aria-label="IDEXX summary">
+        <h2 class="home-panel-title">IDEXX</h2>
+        <div class="snapshot-grid">
+          <div><span class="metric-label">Rows reviewed</span><span class="snapshot-value">{{ idexx.summary.rows_reviewed }}</span></div>
+          <div><span class="metric-label">Ready to add</span><span class="snapshot-value">{{ idexx.summary.ready_to_add }}</span></div>
+          <div><span class="metric-label">Already recorded</span><span class="snapshot-value">{{ idexx.summary.already_recorded }}</span></div>
+          <div><span class="metric-label">Needs visit match</span><span class="snapshot-value">{{ idexx.summary.needs_visit_match }}</span></div>
+          <div><span class="metric-label">Censored</span><span class="snapshot-value">{{ idexx.summary.censored }}</span></div>
+          <div><span class="metric-label">Invalid</span><span class="snapshot-value">{{ idexx.summary.invalid }}</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="table-header-row">
+          <h2 class="home-panel-title">Survey123 rows</h2>
+          <p class="muted">{{ survey123_rows|length }} shown</p>
+        </div>
+        {% if survey123_rows %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Site</th>
+                <th>Sample date</th>
+                <th>Sample code</th>
+                <th>Visit</th>
+                <th>Proposed fill</th>
+                <th>Status</th>
+                <th>Explanation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in survey123_rows %}
+              <tr>
+                <td>
+                  {% if r.link_site and r.site_code %}
+                  <a href="/site/{{ r.site_code }}">{{ r.site_code }}</a>
+                  {% else %}
+                  {{ r.site_code or "—" }}
+                  {% endif %}
+                </td>
+                <td>{{ r.sample_date or "—" }}</td>
+                <td class="mono">{{ r.sample_code or "—" }}</td>
+                <td>
+                  {% if r.link_visit and r.visit_id %}
+                  <a href="/visits/{{ r.visit_id }}">Visit {{ r.visit_id }}</a>
+                  {% else %}
+                  —
+                  {% endif %}
+                </td>
+                <td>
+                  {% if r.proposed_fields %}
+                    {% for f in r.proposed_fields %}{{ f.label }}={{ f.value }}{% if not loop.last %}; {% endif %}{% endfor %}
+                  {% else %}
+                    {{ r.proposed_action or "—" }}
+                  {% endif %}
+                </td>
+                <td><span class="recon-status recon-{{ r.status }}">{{ r.status_label }}</span></td>
+                <td>{{ r.detail }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No Survey123 rows match this filter{% if not sheets_present.survey123 %} (sheet not present in workbook){% endif %}.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <div class="table-header-row">
+          <h2 class="home-panel-title">IDEXX rows</h2>
+          <p class="muted">{{ idexx_rows|length }} shown</p>
+        </div>
+        {% if idexx_rows %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Sample code</th>
+                <th>Site / date</th>
+                <th>Visit</th>
+                <th>E. coli (source)</th>
+                <th>Status</th>
+                <th>Explanation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in idexx_rows %}
+              <tr>
+                <td class="mono">{{ r.sample_code or "—" }}</td>
+                <td>
+                  {% if r.link_site and r.site_code %}
+                  <a href="/site/{{ r.site_code }}">{{ r.site_code }}</a>
+                  {% else %}
+                  {{ r.site_code or "—" }}
+                  {% endif %}
+                  {% if r.sample_date %} · {{ r.sample_date }}{% endif %}
+                </td>
+                <td>
+                  {% if r.link_visit and r.visit_id %}
+                  <a href="/visits/{{ r.visit_id }}">Visit {{ r.visit_id }}</a>
+                  {% else %}
+                  —
+                  {% endif %}
+                </td>
+                <td class="mono">{{ r.e_coli_raw or "—" }}</td>
+                <td><span class="recon-status recon-{{ r.status }}">{{ r.status_label }}</span></td>
+                <td>{{ r.detail }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No IDEXX rows match this filter{% if not sheets_present.idexx %} (sheet not present in workbook){% endif %}.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <p class="muted">
+          Preview only — importing reviewed records will be added after Watershed confirms
+          handling rules for exceptions (censored results, unmatched sample codes, and related policies).
+        </p>
+        <div class="filter-actions">
+          <a class="btn-primary" href="/imports/bact">Review another workbook</a>
+          <a class="btn-secondary" href="/imports">Back to Data imports</a>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

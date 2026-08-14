@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Data imports{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Data imports</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Data imports</h1>
+    <p class="page-subtitle">
+      Review incoming StreamWatch data before adding it to the database.
+      Previews compare a workbook to current records and do not change StreamWatch data.
+    </p>
+  </header>
+
+  <div class="reports-directory">
+    <article class="panel report-card">
+      <h2 class="home-panel-title">BACT season data</h2>
+      <p class="muted">
+        Survey123 field observations and IDEXX bacteria results from a BACT workbook
+        (for example <span class="mono">BACT and HAB 2025 Data.xlsx</span>).
+        Gallery, turbidity, and phycocyanin sheets are not included in this review.
+      </p>
+      <a class="btn-primary" href="/imports/bact">Review BACT workbook</a>
+    </article>
+  </div>
+</div>
+{% endblock %}

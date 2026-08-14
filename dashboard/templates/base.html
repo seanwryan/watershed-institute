@@ -13,6 +13,7 @@
   {% set operations_active = ep in ('equipment_page', 'equipment_detail_page', 'meter_test_new', 'volunteers_page', 'volunteer_detail_page', 'volunteer_edit') %}
   {% set qa_active = ep == 'qa_page' %}
   {% set reports_active = ep is not none and ep.startswith('report') %}
+  {% set imports_active = ep is not none and ep.startswith('imports') %}
   <header class="site-header">
     <div class="site-header-inner">
       <a href="/" class="logo">StreamWatch</a>
@@ -41,6 +42,7 @@
         </div>
 
         <a href="/reports" class="nav-link {% if reports_active %}active{% endif %}">Reports</a>
+        <a href="/imports" class="nav-link {% if imports_active %}active{% endif %}">Imports</a>
         <a href="/export" class="nav-link {% if ep == 'export_page' %}active{% endif %}">Export</a>
       </nav>
       <div id="conn-status" class="conn-status" data-status="unknown" role="status" aria-live="polite">

@@ -13,6 +13,9 @@ Bacteria (IDEXX): attach by visit.sample_code with application-level
   idempotency on (visit_id, e_coli_mpn_100ml). Re-runs skip existing rows.
 
 Gallery / Turbidity / Phycocyanin sheets are not loaded in this milestone.
+
+Parsing helpers are shared with etl/bact_reconcile.py (preview uses the same
+rules; write path behavior below is unchanged).
 """
 from __future__ import annotations
 
@@ -23,19 +26,24 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from etl.bact_reconcile import (
+    analyze_fill,
+    chemical_rows_for_visit,
+    col,
+    find_visits_for_site_date,
+    pick_enrichment_target,
+    survey123_values,
+)
 from etl.chem_recon import (
-    CHEM_HEADER_ALIASES,
     CHEM_VALUE_FIELDS,
     finalize_db_stats,
     load_report,
-    round_chem,
     save_report,
 )
 from etl.config import DATA_DIR, DATABASE_URL, refuse_if_protected_database
 from etl.db import get_conn
 from etl.visit_helpers import (
     _date,
-    _float,
     _int,
     _str,
     get_site_id_map,
@@ -43,118 +51,36 @@ from etl.visit_helpers import (
 )
 
 
-def _col(row, *names):
-    for n in names:
-        if n in row.index and pd.notna(row.get(n)):
-            return row.get(n)
-    return None
-
-
-def _survey123_values(row) -> dict:
-    """Map Survey123 chem fields using shared aliases (includes Water Temperature, Chloride, …)."""
-    values = {}
-    for field in (
-        "water_temp_c",
-        "nitrate_ug_l",
-        "phosphate_mg_l",
-        "turbidity_ntu",
-        "chloride_mg_l",
-    ):
-        values[field] = round_chem(_float(_col(row, *CHEM_HEADER_ALIASES[field])))
-    return values
-
-
-def _find_visits_for_site_date(cur, site_id, sample_date):
-    cur.execute(
-        """
-        SELECT visit_id, sample_code
-        FROM visit
-        WHERE site_id = %s AND sample_date = %s
-        ORDER BY visit_id
-        """,
-        (site_id, sample_date),
-    )
-    return cur.fetchall()
-
-
-def _chemical_rows_for_visit(cur, visit_id):
-    cur.execute(
-        f"""
-        SELECT chemical_id, method_id,
-               {", ".join(CHEM_VALUE_FIELDS)}
-        FROM chemical
-        WHERE visit_id = %s
-        ORDER BY chemical_id
-        """,
-        (visit_id,),
-    )
-    rows = []
-    for r in cur.fetchall():
-        chem = {"chemical_id": r[0], "method_id": r[1]}
-        for i, f in enumerate(CHEM_VALUE_FIELDS):
-            chem[f] = r[2 + i]
-        rows.append(chem)
-    return rows
-
-
-def _pick_enrichment_target(chem_rows, method_id_bact, incoming: dict):
-    """
-    Choose a chemical row to fill NULLs on.
-    Prefer BACT-method row when present; else the row with the most fillable NULL
-    fields among incoming values. Differing non-null fields are handled per-field
-    at apply time (logged as conflicts, not blockers).
-    """
-    if not chem_rows:
-        return None, "no_chemical_row"
-
-    def fillable_count(row):
-        return sum(1 for f, v in incoming.items() if v is not None and row.get(f) is None)
-
-    bact_rows = [r for r in chem_rows if method_id_bact and r["method_id"] == method_id_bact]
-    candidates = bact_rows or chem_rows
-    candidates = sorted(candidates, key=fillable_count, reverse=True)
-    if fillable_count(candidates[0]) == 0:
-        # Still return a row so apply can record per-field conflicts vs nothing_to_fill
-        return candidates[0], None
-    return candidates[0], None
+# Backwards-compatible aliases for any external imports of private helpers.
+_col = col
+_survey123_values = survey123_values
+_find_visits_for_site_date = find_visits_for_site_date
+_chemical_rows_for_visit = chemical_rows_for_visit
+_pick_enrichment_target = pick_enrichment_target
 
 
 def _apply_fill(cur, chemical_id, row, incoming, fields_filled_counter, conflict_fields: list) -> int:
     """Fill NULL fields only. Record per-field conflicts when non-null values differ."""
+    would_fill, conflicts = analyze_fill(row, incoming)
+    conflict_fields.extend(
+        {"field": c["field"], "existing": c["existing"], "survey123": c["survey123"]}
+        for c in conflicts
+    )
+    if not would_fill:
+        return 0
     sets = []
     vals = []
-    filled = 0
-    for f, v in incoming.items():
-        if v is None:
-            continue
-        existing = row.get(f)
-        if existing is None:
-            sets.append(f"{f} = %s")
-            vals.append(v)
-            fields_filled_counter[f] = fields_filled_counter.get(f, 0) + 1
-            filled += 1
-        else:
-            try:
-                existing_r = round_chem(float(existing), 4)
-                incoming_r = round_chem(float(v), 4)
-            except (TypeError, ValueError):
-                existing_r, incoming_r = existing, v
-            if existing_r != incoming_r and (
-                existing_r is None
-                or incoming_r is None
-                or abs(float(existing_r) - float(incoming_r)) > 1e-4
-            ):
-                conflict_fields.append(
-                    {"field": f, "existing": existing_r, "survey123": incoming_r}
-                )
-    if not sets:
-        return 0
+    for item in would_fill:
+        f = item["field"]
+        sets.append(f"{f} = %s")
+        vals.append(item["value"])
+        fields_filled_counter[f] = fields_filled_counter.get(f, 0) + 1
     vals.append(chemical_id)
     cur.execute(
         f"UPDATE chemical SET {', '.join(sets)} WHERE chemical_id = %s",
         vals,
     )
-    return filled
+    return len(would_fill)
 
 
 def run():
@@ -236,7 +162,7 @@ def run():
                     s123["skipped_no_date"] += 1
                     continue
 
-                incoming = _survey123_values(row)
+                incoming = survey123_values(row)
                 if all(v is None for v in incoming.values()):
                     s123["skipped_no_chem"] += 1
                     continue
@@ -244,7 +170,7 @@ def run():
                 s123["rows_considered"] += 1
                 sample_code = _str(row.get("Sample Code") or row.get("Sample code"))
 
-                visits = _find_visits_for_site_date(cur, site_id, sample_date)
+                visits = find_visits_for_site_date(cur, site_id, sample_date)
                 if not visits:
                     s123["unmatched"].append(
                         {
@@ -275,8 +201,8 @@ def run():
                     if cur.rowcount:
                         s123["visit_sample_code_filled"] += 1
 
-                chem_rows = _chemical_rows_for_visit(cur, visit_id)
-                target, reason = _pick_enrichment_target(chem_rows, method_id_bact, incoming)
+                chem_rows = chemical_rows_for_visit(cur, visit_id)
+                target, reason = pick_enrichment_target(chem_rows, method_id_bact, incoming)
                 if target is None:
                     s123["unmatched"].append(
                         {
