@@ -1267,6 +1267,72 @@ tr:hover {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
 }
+.unmatched-intro {
+  margin: 0 0 1rem;
+}
+.unmatched-summary {
+  margin-bottom: 1rem;
+}
+.unmatched-list {
+  display: grid;
+  gap: 0.5rem;
+}
+.unmatched-item {
+  border: 1px solid var(--color-border, #d6ddd9);
+  border-radius: 4px;
+  background: var(--color-surface, #fff);
+  padding: 0.35rem 0.65rem;
+}
+.unmatched-item > summary {
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  align-items: baseline;
+  list-style-position: outside;
+}
+.unmatched-case {
+  flex: 1 1 12rem;
+  color: var(--color-text-muted, #4a5560);
+  font-size: 0.92rem;
+}
+.unmatched-facts {
+  margin: 0.65rem 0 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border, #e4e9e6);
+}
+.fact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0 0 0.75rem;
+}
+.fact-grid dt {
+  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted, #4a5560);
+}
+.fact-grid dd {
+  margin: 0.15rem 0 0;
+}
+.unmatched-subhead {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.visit-fact-list {
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 1.15rem;
+}
+.visit-fact-list li {
+  margin: 0.25rem 0;
+}
+.tiny-note {
+  font-size: 0.85rem;
+  margin: 0.15rem 0 0.35rem;
+}
 .table-header-row {
   display: flex;
   align-items: baseline;

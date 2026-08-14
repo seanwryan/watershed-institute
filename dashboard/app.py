@@ -4331,6 +4331,10 @@ def imports_bact_preview(token):
         idexx=result["idexx"],
         survey123_rows=s123_rows,
         idexx_rows=idexx_rows,
+        unmatched_idexx_rows=[
+            r for r in result["idexx"]["rows"] if r.get("status") == "needs_visit_match"
+        ],
+        unmatched_investigation=result["idexx"].get("unmatched_investigation") or {},
         sheets_present=result.get("sheets_present") or {},
         filters=filters,
     )
@@ -4362,6 +4366,11 @@ def imports_bact_preview_csv(token):
                 r.get("status_label") or r.get("status"),
                 proposed,
                 r.get("detail") or "",
+                "",
+                "",
+                "",
+                "",
+                "",
             ]
         )
     for r in result["idexx"]["rows"]:
@@ -4376,6 +4385,17 @@ def imports_bact_preview_csv(token):
                 r.get("status_label") or r.get("status"),
                 r.get("proposed_action") or "",
                 r.get("detail") or "",
+                r.get("parsed_site_code") or "",
+                r.get("parsed_sample_date") or "",
+                ""
+                if r.get("site_exists") is None
+                else ("yes" if r.get("site_exists") else "no"),
+                ""
+                if r.get("exact_visit_count") is None
+                else r.get("exact_visit_count"),
+                ""
+                if r.get("nearby_visit_count") is None
+                else r.get("nearby_visit_count"),
             ]
         )
     return _csv_download(
@@ -4390,6 +4410,11 @@ def imports_bact_preview_csv(token):
             "status",
             "proposed_action",
             "detail",
+            "parsed_site_code",
+            "parsed_sample_date",
+            "site_exists",
+            "exact_visit_count",
+            "nearby_visit_count",
         ],
         rows,
     )

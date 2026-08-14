@@ -52,6 +52,11 @@
       <p class="muted" style="margin-top:1rem;">
         <a href="/imports/bact/preview/{{ token }}.csv">Download reconciliation CSV</a>
       </p>
+      {% if unmatched_idexx_rows %}
+      <p class="muted">
+        <a href="#unmatched-idexx">Jump to unmatched IDEXX samples</a>
+      </p>
+      {% endif %}
     </aside>
 
     <div class="report-stack">
@@ -77,6 +82,113 @@
           <div><span class="metric-label">Invalid</span><span class="snapshot-value">{{ idexx.summary.invalid }}</span></div>
         </div>
       </section>
+
+      {% if unmatched_idexx_rows %}
+      <section class="panel" id="unmatched-idexx" aria-label="Unmatched IDEXX samples">
+        <div class="table-header-row">
+          <h2 class="home-panel-title">Unmatched IDEXX samples</h2>
+          <p class="muted">{{ unmatched_idexx_rows|length }} samples</p>
+        </div>
+        <p class="muted unmatched-intro">
+          Investigation facts only. Nearby visits are listed for review — they are not
+          recommended matches, and adjacent dates should not be assumed to be the same sample.
+        </p>
+        {% if unmatched_investigation %}
+        <div class="snapshot-grid unmatched-summary" aria-label="Unmatched investigation summary">
+          <div><span class="metric-label">Unmatched samples</span><span class="snapshot-value">{{ unmatched_investigation.unmatched_samples }}</span></div>
+          <div><span class="metric-label">Parsed site/date</span><span class="snapshot-value">{{ unmatched_investigation.parsed_site_date }}</span></div>
+          <div><span class="metric-label">Site exists</span><span class="snapshot-value">{{ unmatched_investigation.site_exists }}</span></div>
+          <div><span class="metric-label">Site not found</span><span class="snapshot-value">{{ unmatched_investigation.site_not_found }}</span></div>
+          <div><span class="metric-label">Exact-date visit exists</span><span class="snapshot-value">{{ unmatched_investigation.exact_date_visit_exists }}</span></div>
+          <div><span class="metric-label">No exact-date visit</span><span class="snapshot-value">{{ unmatched_investigation.no_exact_date_visit }}</span></div>
+          <div><span class="metric-label">Nearby visit (±3 days)</span><span class="snapshot-value">{{ unmatched_investigation.nearby_within_3_days }}</span></div>
+          <div><span class="metric-label">Unparsed site/date</span><span class="snapshot-value">{{ unmatched_investigation.unparsed_site_date }}</span></div>
+        </div>
+        {% endif %}
+        <div class="unmatched-list">
+          {% for r in unmatched_idexx_rows %}
+          <details class="unmatched-item">
+            <summary>
+              <span class="mono">{{ r.sample_code or "—" }}</span>
+              <span class="unmatched-case">{{ r.case_label or r.detail }}</span>
+              <span class="recon-status recon-{{ r.status }}">{{ r.status_label }}</span>
+            </summary>
+            <div class="unmatched-facts">
+              <dl class="fact-grid">
+                <div>
+                  <dt>Sample code</dt>
+                  <dd class="mono">{{ r.sample_code or "—" }}</dd>
+                </div>
+                <div>
+                  <dt>Parsed site</dt>
+                  <dd>
+                    {% if r.site_exists and r.parsed_site_code %}
+                    <a href="/site/{{ r.parsed_site_code }}">{{ r.parsed_site_code }}</a>
+                    {% else %}
+                    {{ r.parsed_site_code or "—" }}
+                    {% endif %}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Parsed sample date</dt>
+                  <dd>{{ r.parsed_sample_date or "—" }}</dd>
+                </div>
+                <div>
+                  <dt>Site exists</dt>
+                  <dd>{% if r.parsed_site_code %}{{ "Yes" if r.site_exists else "No" }}{% else %}—{% endif %}</dd>
+                </div>
+                <div>
+                  <dt>Exact site+date visits</dt>
+                  <dd>{{ r.exact_visit_count if r.exact_visit_count is not none else "—" }}</dd>
+                </div>
+                <div>
+                  <dt>Nearby visits (±3 days)</dt>
+                  <dd>{{ r.nearby_visit_count if r.nearby_visit_count is not none else "—" }}</dd>
+                </div>
+                <div>
+                  <dt>E. coli (source)</dt>
+                  <dd class="mono">{{ r.e_coli_raw or "—" }}</dd>
+                </div>
+              </dl>
+
+              {% if r.exact_visits %}
+              <h3 class="unmatched-subhead">Visits on parsed sample date</h3>
+              <ul class="visit-fact-list">
+                {% for v in r.exact_visits %}
+                <li>
+                  <a href="/visits/{{ v.visit_id }}">Visit {{ v.visit_id }}</a>
+                  · {{ v.sample_date or "—" }}
+                  · sample code
+                  <span class="mono">{{ v.sample_code or "—" }}</span>
+                  · day difference 0
+                </li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+
+              {% if r.nearby_visits %}
+              <h3 class="unmatched-subhead">Nearby visits</h3>
+              <p class="muted tiny-note">Same site, within ±3 calendar days of the parsed sample date. Listed for investigation only.</p>
+              <ul class="visit-fact-list">
+                {% for v in r.nearby_visits %}
+                <li>
+                  <a href="/visits/{{ v.visit_id }}">Visit {{ v.visit_id }}</a>
+                  · {{ v.sample_date or "—" }}
+                  · sample code
+                  <span class="mono">{{ v.sample_code or "—" }}</span>
+                  · day difference {{ v.day_offset }}
+                </li>
+                {% endfor %}
+              </ul>
+              {% elif r.site_exists and r.parsed_sample_date and not r.exact_visits %}
+              <p class="muted">No nearby visits within ±3 days for this site.</p>
+              {% endif %}
+            </div>
+          </details>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
 
       <section class="panel">
         <div class="table-header-row">
@@ -174,7 +286,12 @@
                 </td>
                 <td class="mono">{{ r.e_coli_raw or "—" }}</td>
                 <td><span class="recon-status recon-{{ r.status }}">{{ r.status_label }}</span></td>
-                <td>{{ r.detail }}</td>
+                <td>
+                  {{ r.detail }}
+                  {% if r.status == 'needs_visit_match' %}
+                  <div class="muted tiny-note"><a href="#unmatched-idexx">See unmatched investigation</a></div>
+                  {% endif %}
+                </td>
               </tr>
               {% endfor %}
             </tbody>

@@ -181,6 +181,107 @@ def _parse_site_date_from_sample_code(sample_code: Optional[str]):
     return m.group(1), m.group(2)
 
 
+def _visit_fact(visit_id, sample_date, sample_code, day_offset: int) -> dict:
+    return {
+        "visit_id": visit_id,
+        "sample_date": str(sample_date) if sample_date is not None else None,
+        "sample_code": sample_code,
+        "day_offset": int(day_offset),
+    }
+
+
+def attach_unmatched_investigation(cur, site_map: dict, row: dict) -> None:
+    """
+    Attach read-only investigation facts for IDEXX needs_visit_match rows.
+
+    Facts only — does not select or recommend a visit match.
+    """
+    site_code = row.get("site_code")
+    sample_date = row.get("sample_date")
+    row["parsed_site_code"] = site_code
+    row["parsed_sample_date"] = sample_date
+    row["site_exists"] = bool(site_code and site_code in site_map)
+    row["exact_visit_count"] = 0
+    row["nearby_visit_count"] = 0
+    row["exact_visits"] = []
+    row["nearby_visits"] = []
+    row["case_label"] = "Sample code could not be parsed as SITE_YYYY-MM-DD"
+
+    if not site_code or not sample_date:
+        return
+
+    if site_code not in site_map:
+        row["case_label"] = "Site not found in StreamWatch"
+        return
+
+    site_id = site_map[site_code]
+    cur.execute(
+        """
+        SELECT visit_id, sample_date::text, sample_code,
+               (sample_date - %s::date) AS day_offset
+        FROM visit
+        WHERE site_id = %s
+          AND sample_date BETWEEN %s::date - INTERVAL '3 days'
+                              AND %s::date + INTERVAL '3 days'
+        ORDER BY sample_date, visit_id
+        """,
+        (sample_date, site_id, sample_date, sample_date),
+    )
+    exact = []
+    nearby = []
+    for visit_id, vdate, vcode, day_offset in cur.fetchall():
+        offset = int(day_offset)
+        fact = _visit_fact(visit_id, vdate, vcode, offset)
+        if offset == 0:
+            exact.append(fact)
+        else:
+            nearby.append(fact)
+
+    row["exact_visits"] = exact
+    row["nearby_visits"] = nearby
+    row["exact_visit_count"] = len(exact)
+    row["nearby_visit_count"] = len(nearby)
+
+    if exact:
+        if len(exact) == 1:
+            row["case_label"] = (
+                "One visit exists on this date, but sample code did not match"
+            )
+        else:
+            row["case_label"] = "Multiple visits exist on this date"
+    elif nearby:
+        row["case_label"] = (
+            "Site exists; no visit on this date; nearby visits within ±3 days"
+        )
+    else:
+        row["case_label"] = "Site exists, but no visit exists on this date"
+
+
+def summarize_unmatched_investigation(rows: List[dict]) -> dict:
+    """Factual counts for needs_visit_match rows (workbook/DB dependent)."""
+    unmatched = [r for r in rows if r.get("status") == "needs_visit_match"]
+    parsed = [
+        r
+        for r in unmatched
+        if r.get("parsed_site_code") and r.get("parsed_sample_date")
+    ]
+    site_exists = [r for r in parsed if r.get("site_exists")]
+    site_not_found = [r for r in parsed if not r.get("site_exists")]
+    exact_exists = [r for r in site_exists if (r.get("exact_visit_count") or 0) > 0]
+    no_exact = [r for r in site_exists if (r.get("exact_visit_count") or 0) == 0]
+    nearby = [r for r in site_exists if (r.get("nearby_visit_count") or 0) > 0]
+    return {
+        "unmatched_samples": len(unmatched),
+        "parsed_site_date": len(parsed),
+        "unparsed_site_date": len(unmatched) - len(parsed),
+        "site_exists": len(site_exists),
+        "site_not_found": len(site_not_found),
+        "exact_date_visit_exists": len(exact_exists),
+        "no_exact_date_visit": len(no_exact),
+        "nearby_within_3_days": len(nearby),
+    }
+
+
 def _select_visit_for_preview(visits, sample_code):
     """
     Visit selection for preview.
@@ -560,6 +661,9 @@ def preview_bact_workbook(path, conn) -> Dict[str, Any]:
                 base["detail"] = (
                     f"No visit was found with sample code “{sample_code}”."
                 )
+                attach_unmatched_investigation(cur, site_map, base)
+                if base.get("case_label"):
+                    base["detail"] = f"{base['detail']} {base['case_label']}."
                 idexx_rows.append(base)
                 continue
 
@@ -571,6 +675,9 @@ def preview_bact_workbook(path, conn) -> Dict[str, Any]:
                     f"Multiple visits were found with sample code “{sample_code}”; "
                     "no match was selected."
                 )
+                attach_unmatched_investigation(cur, site_map, base)
+                if base.get("case_label"):
+                    base["detail"] = f"{base['detail']} {base['case_label']}."
                 idexx_rows.append(base)
                 continue
 
@@ -619,6 +726,7 @@ def preview_bact_workbook(path, conn) -> Dict[str, Any]:
                 "censored": _count(idexx_rows, "censored"),
                 "invalid": _count(idexx_rows, "invalid"),
             },
+            "unmatched_investigation": summarize_unmatched_investigation(idexx_rows),
         },
         "sheets_present": {
             "survey123": bool(s123_name),
