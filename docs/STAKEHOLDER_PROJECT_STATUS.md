@@ -36,13 +36,15 @@ Basic validation and duplicate protection are included.
 
 ### Habitat Assessments
 
-Habitat assessment entry is available for sites identified as High Gradient or Low Gradient.
+High Gradient and Low Gradient habitat assessment **entry** is implemented. Staff can record assessments from a Visit for sites with those habitat types.
 
 The form automatically presents the appropriate gradient-specific metrics along with the shared habitat measurements.
 
 Component scores are totaled for review, but habitat ratings are not automatically assigned because the supplied materials do not fully document the rating thresholds.
 
 Lake, Canal, and unclassified sites remain intentionally blocked until the appropriate assessment procedure is confirmed.
+
+Historical habitat assessments have **not** been bulk migrated. The current demo baseline therefore has **0** habitat assessment records before any staff-entered data. Loading historical habitat depends on confirming the appropriate Watershed source or field form and how it should be interpreted.
 
 ### Macroinvertebrate Monitoring
 
@@ -152,7 +154,9 @@ Calculated conditions can be compared with the statuses stored in the workbook w
 
 ## Historical Data and Repeatability
 
-Historical StreamWatch information has been migrated into the PostgreSQL structure, including sites, visits, chemistry, bacteria, volunteers, training, assignments, equipment testing, and biological monitoring data.
+Historical StreamWatch information has been migrated into the PostgreSQL structure, including sites, visits, chemistry, volunteers, training, assignments, equipment testing, and biological monitoring data.
+
+For bacteria, the database includes the migrated historical and season IDEXX records used in the current demo. Other bacteria cases remain intentionally outside the loaded dataset pending Watershed decisions—for example censored IDEXX values and historical E. coli source-authority questions documented elsewhere. Those records are deferred, not discarded as invalid.
 
 The migration process has also been made repeatable so that rebuilding a database from the supplied source files produces consistent results.
 
@@ -182,9 +186,9 @@ Additional guidance would be helpful for defining meter-testing pass/fail rules 
 
 ### Habitat
 
-High- and Low-Gradient habitat entry is available.
+High- and Low-Gradient habitat entry is available; historical habitat assessments have not been bulk loaded.
 
-Additional guidance would help confirm official scoring/rating rules and determine how Canal and Lake sites should be handled.
+Additional guidance would help confirm official scoring/rating rules, determine how Canal and Lake sites should be handled, and identify the source or form to use for any future historical habitat migration.
 
 Reviewing the habitat form currently used by staff would also help ensure the new workflow matches field practice.
 
