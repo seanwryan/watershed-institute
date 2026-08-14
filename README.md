@@ -20,8 +20,8 @@ Centralized PostgreSQL database, ETL, QA, reporting, and dashboard for the Strea
    python -m etl.migrate_streamwatch_data
    python -m etl.migrate_bact_2025
    python -m etl.migrate_bat
-   python -m etl.apply_qa_rules
    python -m etl.biological_indices
+   python -m etl.apply_qa_rules
    ```
 
 3. **WQX export**
@@ -42,7 +42,7 @@ Historical chemistry (`migrate_streamwatch_data`) loads the **ALL DATA** sheet o
 - **db/** – PostgreSQL schema (lookups, site, volunteer, equipment, visit, results, flags, QA views, reporting views) and seed data
 - **etl/** – Migration scripts (sites, volunteers, equipment, StreamWatch data, BACT 2025, BAT), QA rules, biological indices, WQX export
 - **dashboard/** – Flask web app (Map, Sites, Explore, Equipment, Volunteers, Scores, QA, Export) and JSON API
-- **docs/** – App tutorial, deployment guide, migration log; **docs/reference/** – source workbook summaries (raw_breakdown.txt)
+- **docs/** – Operations runbook (`docs/OPERATIONS_RUNBOOK.md`), app tutorial, deployment guide, migration log; **docs/reference/** – source workbook summaries (raw_breakdown.txt)
 - **data/** – Excel/XLSX source files (see “Data sources” below)
 - **reports/** – local ETL reconciliation outputs (gitignored)
 
