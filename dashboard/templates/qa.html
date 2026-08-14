@@ -4,7 +4,7 @@
 <div class="page-monitoring page-reporting">
   <header class="page-header">
     <h1>Data quality</h1>
-    <p class="page-subtitle">Review flagged StreamWatch observations and reference exceedances.</p>
+    <p class="page-subtitle">Review flagged StreamWatch observations already stored in the database.</p>
   </header>
 
   <section class="panel site-snapshot" aria-label="QA summary">
@@ -13,7 +13,12 @@
       <div><span class="metric-label">Exceedance flags</span><span class="snapshot-value">…</span></div>
       <div><span class="metric-label">Meter-related flags</span><span class="snapshot-value">…</span></div>
     </div>
-    <p class="qa-note muted">Flagged results indicate review status and are not automatically errors.</p>
+    <p class="qa-note muted">
+      Flagged results indicate review status; they are not automatically errors.
+      This page shows flags that already exist (for example from batch QA rules). It is not a
+      complete automated QA system: chemistry entry only applies limited soft warnings, and
+      saving a meter test does not automatically re-run all QA logic.
+    </p>
   </section>
 
   <div class="reporting-layout">

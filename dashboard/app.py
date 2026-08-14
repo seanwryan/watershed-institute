@@ -2679,6 +2679,22 @@ def _habitat_gradient_mode(habitat_type):
     return None
 
 
+def _habitat_entry_block_message(habitat_type):
+    """Staff-facing explanation when habitat assessment entry cannot proceed."""
+    if not habitat_type:
+        return (
+            "This site does not have a habitat type recorded yet. Habitat assessment "
+            "entry is available only after the site is classified as High Gradient or "
+            "Low Gradient on the Site page. Canal and Lake scoring models are not "
+            "enabled yet."
+        )
+    return (
+        f"This site's habitat type is “{habitat_type}”. Habitat assessment forms are "
+        "currently defined only for High Gradient and Low Gradient sites. Canal and "
+        "Lake scoring models are not enabled yet."
+    )
+
+
 def _habitat_fields_for_mode(mode):
     if mode == "high":
         return _HABITAT_SHARED_FIELDS + _HABITAT_HIGH_FIELDS
@@ -3139,12 +3155,7 @@ def habitat_new(visit_id):
         blocked = gradient_mode is None
         block_message = None
         if blocked:
-            ht = visit.get("habitat_type") or "not recorded"
-            block_message = (
-                f"This site's habitat type is “{ht}”. Habitat scoring forms are currently "
-                "defined only for High Gradient and Low Gradient sites. Canal, Lake, and "
-                "unset types need a confirmed scoring model before entry is enabled."
-            )
+            block_message = _habitat_entry_block_message(visit.get("habitat_type"))
 
         if request.method == "GET":
             return _habitat_form_render(
@@ -3250,13 +3261,7 @@ def habitat_edit(visit_id, habitat_id):
         conditions = _load_data_conditions(cur)
         gradient_mode = _habitat_gradient_mode(visit.get("habitat_type"))
         blocked = gradient_mode is None
-        block_message = None
-        if blocked:
-            ht = visit.get("habitat_type") or "not recorded"
-            block_message = (
-                f"This site's habitat type is “{ht}”. Habitat scoring forms are currently "
-                "defined only for High Gradient and Low Gradient sites."
-            )
+        block_message = _habitat_entry_block_message(visit.get("habitat_type")) if blocked else None
 
         if request.method == "GET":
             form = _empty_habitat_form(

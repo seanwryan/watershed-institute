@@ -46,9 +46,15 @@
   {% if entry_blocked %}
   <div class="alert alert-warning" role="status">
     <p>{{ block_message or "Habitat scoring is not yet defined for this site type." }}</p>
-    {% if visit and visit.visit_id %}
-    <p><a href="/visits/{{ visit.visit_id }}">Return to visit</a></p>
-    {% endif %}
+    <p class="form-help" style="margin-top:0.75rem;">
+      {% if visit and visit.site_code %}
+      <a href="/site/{{ visit.site_code }}/edit">Open site record</a> to review or set habitat type
+      (High Gradient or Low Gradient).
+      {% endif %}
+      {% if visit and visit.visit_id %}
+      · <a href="/visits/{{ visit.visit_id }}">Return to visit</a>
+      {% endif %}
+    </p>
   </div>
   {% elif visit and visit.visit_id %}
   <form class="form-shell panel" method="post"

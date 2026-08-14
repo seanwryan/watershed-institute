@@ -70,6 +70,10 @@
           <dd>{{ visit.equipment_code }}</dd>
         </div>
         {% endif %}
+        <div>
+          <dt>Site habitat type</dt>
+          <dd>{{ visit.habitat_type or 'Not recorded' }}</dd>
+        </div>
         {% if visit.notes %}
         <div class="visit-dl-full">
           <dt>Notes</dt>
@@ -79,13 +83,18 @@
       </dl>
     </section>
 
+    {% set habitat_entry_ok = visit.habitat_type in ('High Gradient', 'Low Gradient') %}
     <section class="panel" aria-labelledby="visit-actions-title">
       <h2 class="home-panel-title" id="visit-actions-title">Actions</h2>
       <div class="site-actions">
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/edit">Edit visit</a>
         <a class="btn-primary" href="/visits/{{ visit.visit_id }}/chemistry/new">Add chemistry result</a>
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/bacteria/new">Add bacteria result</a>
+        {% if habitat_entry_ok %}
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/habitat/new">Add habitat assessment</a>
+        {% else %}
+        <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/habitat/new">Why habitat entry is unavailable</a>
+        {% endif %}
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/macro">Macroinvertebrates</a>
         <a class="btn-secondary" href="/explore?site_code={{ visit.site_code }}">Explore trends</a>
       </div>
@@ -173,9 +182,23 @@
   <section class="panel site-recent" aria-labelledby="visit-hab-title">
     <div class="home-panel-head">
       <h2 class="home-panel-title" id="visit-hab-title">Habitat assessments</h2>
+      {% if habitat_entry_ok %}
       <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/habitat/new">Add habitat assessment</a>
+      {% endif %}
     </div>
-    {% if not habitats %}
+    {% if not habitat_entry_ok %}
+    <p class="muted">
+      Habitat assessment entry requires a High Gradient or Low Gradient classification on the site.
+      {% if visit.habitat_type %}
+      This site is currently “{{ visit.habitat_type }}”.
+      {% else %}
+      This site does not have a habitat type recorded yet.
+      {% endif %}
+      <a href="/site/{{ visit.site_code }}/edit">Edit site</a>
+      ·
+      <a href="/visits/{{ visit.visit_id }}/habitat/new">More detail</a>
+    </p>
+    {% elif not habitats %}
     <p class="muted">No habitat assessment recorded for this visit.</p>
     {% else %}
     <div class="result-package-list">
