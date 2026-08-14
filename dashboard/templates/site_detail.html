@@ -40,7 +40,7 @@
     </div>
     <p class="muted" id="site-recent-empty" hidden>No recent monitoring results are available for this site.</p>
     <div class="table-wrap" id="site-recent-wrap" hidden>
-      <table class="data-table" id="recent-table">
+      <table class="data-table data-table-clickable" id="recent-table">
         <thead></thead>
         <tbody></tbody>
       </table>
@@ -190,12 +190,40 @@
         return '<th scope="col">' + esc(m.label) + (m.unit ? '<span class="th-unit"> (' + esc(m.unit) + ')</span>' : '') + '</th>';
       }).join('') + '</tr>';
       recentTable.querySelector('thead').innerHTML = thead;
-      recentTable.querySelector('tbody').innerHTML = recent.map(function(r) {
-        return '<tr>' + RECENT_COLS.map(function(c) {
-          if (c === 'sample_date') return '<td>' + esc(fmtDate(r[c])) + '</td>';
-          return '<td class="num">' + esc(fmtVal(r[c])) + '</td>';
-        }).join('') + '</tr>';
+      var tbody = recentTable.querySelector('tbody');
+      tbody.innerHTML = recent.map(function(r) {
+        var visitId = r.visit_id;
+        var dateLabel = fmtDate(r.sample_date);
+        if (visitId == null || visitId === '') {
+          return '<tr>' + RECENT_COLS.map(function(c) {
+            if (c === 'sample_date') return '<td>' + esc(dateLabel) + '</td>';
+            return '<td class="num">' + esc(fmtVal(r[c])) + '</td>';
+          }).join('') + '</tr>';
+        }
+        var href = '/visits/' + encodeURIComponent(visitId);
+        return '<tr class="row-link" tabindex="0" data-href="' + href + '" role="link" aria-label="Open visit ' + esc(dateLabel) + '">' +
+          RECENT_COLS.map(function(c) {
+            if (c === 'sample_date') {
+              return '<td><a class="cell-strong" href="' + href + '">' + esc(dateLabel) + '</a></td>';
+            }
+            return '<td class="num">' + esc(fmtVal(r[c])) + '</td>';
+          }).join('') + '</tr>';
       }).join('');
+
+      function goVisit(tr) {
+        if (tr && tr.getAttribute('data-href')) window.location.href = tr.getAttribute('data-href');
+      }
+      tbody.onclick = function(e) {
+        if (e.target.closest('a')) return;
+        goVisit(e.target.closest('tr.row-link'));
+      };
+      tbody.onkeydown = function(e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var tr = e.target.closest('tr.row-link');
+        if (!tr) return;
+        e.preventDefault();
+        goVisit(tr);
+      };
     })
     .catch(function(e) {
       header.innerHTML = '';

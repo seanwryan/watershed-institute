@@ -527,7 +527,7 @@ def api_site(site_code):
             """, (site["site_id"],))
         site["subwatersheds"] = [r[0] for r in cur.fetchall()]
         cur.execute("""
-            SELECT v.sample_date::text, c.water_temp_c, c.nitrate_ug_l, c.phosphate_mg_l, c.ph, c.turbidity_ntu, c.dissolved_oxygen_ppm, c.chloride_mg_l, b.e_coli_mpn_100ml
+            SELECT v.visit_id, v.sample_date::text, c.water_temp_c, c.nitrate_ug_l, c.phosphate_mg_l, c.ph, c.turbidity_ntu, c.dissolved_oxygen_ppm, c.chloride_mg_l, b.e_coli_mpn_100ml
             FROM visit v
             LEFT JOIN chemical c ON c.visit_id = v.visit_id
             LEFT JOIN bacteria b ON b.visit_id = v.visit_id
@@ -538,15 +538,16 @@ def api_site(site_code):
         recent = []
         for r in cur.fetchall():
             recent.append({
-                "sample_date": r[0],
-                "water_temp_c": float(r[1]) if r[1] is not None else None,
-                "nitrate_ug_l": float(r[2]) if r[2] is not None else None,
-                "phosphate_mg_l": float(r[3]) if r[3] is not None else None,
-                "ph": float(r[4]) if r[4] is not None else None,
-                "turbidity_ntu": float(r[5]) if r[5] is not None else None,
-                "dissolved_oxygen_ppm": float(r[6]) if r[6] is not None else None,
-                "chloride_mg_l": float(r[7]) if r[7] is not None else None,
-                "e_coli_mpn_100ml": r[8],
+                "visit_id": r[0],
+                "sample_date": r[1],
+                "water_temp_c": float(r[2]) if r[2] is not None else None,
+                "nitrate_ug_l": float(r[3]) if r[3] is not None else None,
+                "phosphate_mg_l": float(r[4]) if r[4] is not None else None,
+                "ph": float(r[5]) if r[5] is not None else None,
+                "turbidity_ntu": float(r[6]) if r[6] is not None else None,
+                "dissolved_oxygen_ppm": float(r[7]) if r[7] is not None else None,
+                "chloride_mg_l": float(r[8]) if r[8] is not None else None,
+                "e_coli_mpn_100ml": r[9],
             })
         site["recent_results"] = recent
         return jsonify(site)
