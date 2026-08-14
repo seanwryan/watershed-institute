@@ -49,6 +49,7 @@ COLUMN_ALIASES = {
     "BACT Status": "bact_status",
     "Last sample date": "last_sample_date",
     "Habitat type": "habitat_type",
+    "HabitatType": "habitat_type",
     "Notes": "notes",
     "isActive": "is_active",
 }
