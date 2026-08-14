@@ -48,6 +48,14 @@ Source → target mapping per Database Project Plan. ETL scripts in `etl/`.
 | BAT Data Consolidation, BATSITES COLLECTED, tblSampleDates.xlsx | Various | `visit`, `macro_analysis`, `bug_count`, `rbp100_bug` | `etl/migrate_bat.py` |
 | (BugList, SiteSize) | BugList, SiteSize | `bug_list`, site drainage / ref | (in migrate_bat or shared) |
 
+**BAT idempotency (`etl/migrate_bat.py`):** Re-runs against the same DB/source are safe.
+Source `tblSampleDates.xlsx` has one row per `SampleID`+`BugID` in both `tblBugResults` and
+`tblRBP100Bugs`. Application-level fingerprints skip inserts when `(visit_id, bug_id)` already
+exists for `bug_count` / `rbp100_bug`. Visits use `ensure_visit(site_id, sample_date, sample_code)`.
+`bug_list` remains `ON CONFLICT (bug_code) DO NOTHING`. No new UNIQUE constraints. Macro scores
+are computed separately by `etl/biological_indices.py` (upsert on `visit_id`). BATSITES COLLECTED
+path is not used when `tblSampleDates.xlsx` is present.
+
 ### Historical chemistry reconstruction (Phase 1 Data Trust)
 
 **Technical primary source (pending staff confirmation of official authority):**
