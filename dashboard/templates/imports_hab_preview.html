@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – HAB status preview{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/imports">Data imports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/imports/hab">HAB status</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Preview</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>HAB status preview</h1>
+    <p class="page-subtitle"><span class="mono">{{ filename }}</span></p>
+    <div class="import-preview-banner" role="status">
+      <strong>No StreamWatch data has been changed.</strong>
+      {{ source_note }}
+    </div>
+  </header>
+
+  <div class="report-stack">
+    <section class="panel site-snapshot" aria-label="PHYCOCYANIN summary">
+      <h2 class="home-panel-title">PHYCOCYANIN</h2>
+      <p class="muted">{{ phyco.summary.rows_reviewed }} rows · derived counts: {{ phyco.summary.derived_status_counts }}</p>
+    </section>
+    <section class="panel site-snapshot" aria-label="Survey123 HAB summary">
+      <h2 class="home-panel-title">SURVEY123 HAB</h2>
+      <p class="muted">
+        {{ survey123.summary.rows_reviewed }} rows ·
+        calculated-rule overrides / manual DEP strings: {{ survey123.summary.manual_or_dep_overrides }}
+      </p>
+      <p class="muted tiny-note">Workbook status counts: {{ survey123.summary.workbook_status_counts }}</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="home-panel-title">PHYCOCYANIN rows</h2>
+      {% if phyco.rows %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Sample code</th>
+              <th>Site</th>
+              <th>Date flagged</th>
+              <th>Median phyco</th>
+              <th>Reported to DEP?</th>
+              <th>Derived status</th>
+              <th>Workbook status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in phyco.rows %}
+            <tr>
+              <td class="mono">{{ r.sample_code }}</td>
+              <td>{{ r.site_code or "—" }}</td>
+              <td>{{ r.sample_date or "—" }}</td>
+              <td class="mono">{{ r.phycocyanin_median if r.phycocyanin_median is not none else "—" }}</td>
+              <td>{{ r.reported_to_dep or "—" }}</td>
+              <td>{{ r.derived_hab_status or "(blank)" }}</td>
+              <td>{{ r.workbook_hab_status or "(blank)" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="empty-state">No PHYCOCYANIN rows{% if not sheets_present.phycocyanin %} (sheet not present){% endif %}.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2 class="home-panel-title">SURVEY123 HAB rows (non-blank derived or workbook)</h2>
+      {% set ns = namespace(n=0) %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Sample code</th>
+              <th>Site / date</th>
+              <th>Algal bloom</th>
+              <th>Algae type</th>
+              <th>Derived status</th>
+              <th>Workbook status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in survey123.rows %}
+              {% if r.derived_hab_status or r.workbook_hab_status %}
+              {% set ns.n = ns.n + 1 %}
+              <tr>
+                <td class="mono">{{ r.sample_code or "—" }}</td>
+                <td>{{ r.site_code or "—" }}{% if r.sample_date %} · {{ r.sample_date }}{% endif %}</td>
+                <td>{{ r.algal_bloom_presence or "—" }}</td>
+                <td>{{ r.algae_type or "—" }}</td>
+                <td>{{ r.derived_hab_status or "(blank)" }}{% if r.manual_or_dep_override %} <span class="muted">(workbook differs)</span>{% endif %}</td>
+                <td>{{ r.workbook_hab_status or "(blank)" }}</td>
+              </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if ns.n == 0 %}
+      <p class="empty-state">No non-blank HAB statuses in SURVEY123{% if not sheets_present.survey123 %} (sheet not present){% endif %}.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="filter-actions">
+        <a class="btn-primary" href="/imports/hab">Review another workbook</a>
+        <a class="btn-secondary" href="/imports">Back to Data imports</a>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

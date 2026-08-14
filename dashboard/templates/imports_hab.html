@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – HAB status review{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/imports">Data imports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">HAB status</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>HAB status review</h1>
+    <p class="page-subtitle">
+      Preview-only. Derives HAB Status from PHYCOCYANIN and SURVEY123 sheets using
+      Watershed METADATA formulas (2025-06-09). Does not write to StreamWatch.
+      Phycocyanin is not stored in the database today.
+    </p>
+  </header>
+
+  <section class="panel form-panel">
+    {% if error %}
+    <p class="form-error" role="alert">{{ error }}</p>
+    {% endif %}
+    <div class="import-preview-banner" role="note">
+      <strong>No StreamWatch data will be changed.</strong>
+      Upload <span class="mono">BACT and HAB 2025 Data.xlsx</span> (or equivalent) to review derived HAB statuses.
+    </div>
+    <form class="stack-form" method="post" action="/imports/hab/preview" enctype="multipart/form-data">
+      <label for="workbook">BACT / HAB workbook (.xlsx)</label>
+      <input id="workbook" name="workbook" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+      <button type="submit" class="btn-primary">Preview HAB status</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

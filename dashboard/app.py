@@ -25,6 +25,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 from etl.biological_indices import calculate_visit_indices
 from etl.bact_reconcile import preview_bact_workbook, validate_bact_workbook
+from etl.bact_scoring import (
+    SOURCE_NOTE as BACT_SCORE_SOURCE_NOTE,
+    dashboard_values_row,
+    score_bact_analysis_workbook,
+)
+from etl.hab_status import preview_hab_workbook
 import report_queries as rq
 
 # Strip quotes so pasting 'postgresql://...' in Render Environment still works
@@ -4231,6 +4237,87 @@ def imports_bact():
     return render_template("imports_bact.html", error=None)
 
 
+@app.route("/imports/hab", methods=["GET"])
+def imports_hab():
+    return render_template("imports_hab.html", error=None)
+
+
+@app.route("/imports/hab/preview", methods=["POST"])
+def imports_hab_preview_post():
+    _bact_preview_cleanup()
+    upload = request.files.get("workbook")
+    if upload is None or not (upload.filename or "").strip():
+        return render_template(
+            "imports_hab.html",
+            error="Choose an Excel workbook (.xlsx) to review.",
+        ), 400
+
+    filename = secure_filename(upload.filename) or "bact_hab_workbook.xlsx"
+    if not filename.lower().endswith(".xlsx"):
+        return render_template(
+            "imports_hab.html",
+            error="Please upload an .xlsx Excel workbook.",
+        ), 400
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+            upload.save(tmp_path)
+        try:
+            result = preview_hab_workbook(tmp_path)
+        except Exception:
+            return render_template(
+                "imports_hab.html",
+                error="The workbook could not be reviewed. Check that it includes PHYCOCYANIN and/or SURVEY123 sheets.",
+            ), 400
+        if not result["sheets_present"]["phycocyanin"] and not result["sheets_present"]["survey123"]:
+            return render_template(
+                "imports_hab.html",
+                error="This workbook needs a PHYCOCYANIN and/or SURVEY123 sheet.",
+            ), 400
+
+        token = str(uuid.uuid4())
+        _BACT_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "kind": "hab",
+            "filename": filename,
+            "created_at": time.time(),
+            "result": result,
+        }
+        out = _bact_preview_path(token)
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        return redirect(url_for("imports_hab_preview", token=token))
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+@app.route("/imports/hab/preview/<token>")
+def imports_hab_preview(token):
+    _bact_preview_cleanup()
+    payload = _load_bact_preview(token)
+    if not payload or payload.get("kind") != "hab":
+        return render_template(
+            "imports_hab.html",
+            error="That preview has expired or was not found. Upload the workbook again.",
+        ), 404
+    result = payload["result"]
+    return render_template(
+        "imports_hab_preview.html",
+        token=token,
+        filename=payload.get("filename") or "workbook.xlsx",
+        phyco=result["phyco"],
+        survey123=result["survey123"],
+        sheets_present=result.get("sheets_present") or {},
+        source_note=result.get("source_note") or "",
+    )
+
+
 @app.route("/imports/bact/preview", methods=["POST"])
 def imports_bact_preview_post():
     _bact_preview_cleanup()
@@ -4418,6 +4505,130 @@ def imports_bact_preview_csv(token):
         ],
         rows,
     )
+
+
+@app.route("/reports/bact", methods=["GET"])
+def report_bact():
+    """Upload 2025 BACT Analysis.xlsx for read-only seasonal score review."""
+    return render_template("report_bact.html", error=None)
+
+
+@app.route("/reports/bact/preview", methods=["POST"])
+def report_bact_preview_post():
+    _bact_preview_cleanup()
+    upload = request.files.get("workbook")
+    if upload is None or not (upload.filename or "").strip():
+        return render_template(
+            "report_bact.html",
+            error="Choose a 2025 BACT Analysis workbook (.xlsx).",
+        ), 400
+
+    filename = secure_filename(upload.filename) or "bact_analysis.xlsx"
+    if not filename.lower().endswith(".xlsx"):
+        return render_template(
+            "report_bact.html",
+            error="Please upload an .xlsx Excel workbook.",
+        ), 400
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+            upload.save(tmp_path)
+        try:
+            scored = score_bact_analysis_workbook(tmp_path)
+        except ValueError as e:
+            return render_template("report_bact.html", error=str(e)), 400
+        except Exception:
+            return render_template(
+                "report_bact.html",
+                error=(
+                    "The workbook could not be scored. Use a saved "
+                    "2025 BACT Analysis.xlsx with calculated values."
+                ),
+            ), 400
+
+        token = str(uuid.uuid4())
+        _BACT_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "kind": "bact_scores",
+            "filename": filename,
+            "created_at": time.time(),
+            "result": scored,
+        }
+        out = _bact_preview_path(token)
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        return redirect(url_for("report_bact_preview", token=token))
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+@app.route("/reports/bact/preview/<token>")
+def report_bact_preview(token):
+    _bact_preview_cleanup()
+    payload = _load_bact_preview(token)
+    if not payload or payload.get("kind") != "bact_scores":
+        return render_template(
+            "report_bact.html",
+            error="That score preview has expired or was not found. Upload the workbook again.",
+        ), 404
+    result = payload["result"]
+    site_filter = (request.args.get("site_code") or "").strip()
+    site_results = result.get("site_results") or []
+    if site_filter:
+        site_results = [s for s in site_results if s.get("site_code") == site_filter]
+    sites = sorted({s.get("site_code") for s in (result.get("site_results") or []) if s.get("site_code")})
+    return render_template(
+        "report_bact_preview.html",
+        token=token,
+        filename=payload.get("filename") or "workbook.xlsx",
+        site_results=site_results,
+        sites=sites,
+        filters={"site_code": site_filter},
+        season_dates=result.get("season_dates") or [],
+        source_note=result.get("source_note") or BACT_SCORE_SOURCE_NOTE,
+        authority_note=result.get("authority_note") or "",
+        input_source=result.get("input_source") or "",
+    )
+
+
+@app.route("/reports/bact/preview/<token>.csv")
+def report_bact_preview_csv(token):
+    payload = _load_bact_preview(token)
+    if not payload or payload.get("kind") != "bact_scores":
+        abort(404)
+    site_filter = (request.args.get("site_code") or "").strip()
+    site_results = payload["result"].get("site_results") or []
+    if site_filter:
+        site_results = [s for s in site_results if s.get("site_code") == site_filter]
+    header = [
+        "Site",
+        "Waterbody",
+        "LastSampleDate",
+        "SampleNumber",
+        "Temperature_Score",
+        "AvgTemp",
+        "E__Coli_Score",
+        "EcoliGeoMean",
+        "Turbidity_Score",
+        "AvgTurbidity",
+        "Chloride_Score",
+        "AvgChloride",
+        "Phosphate_Score",
+        "AvgPhosphate",
+        "Nitrate_Score",
+        "AvgNitrate",
+    ]
+    rows = []
+    for result in site_results:
+        dv = dashboard_values_row(result)
+        rows.append([dv.get(h) if dv.get(h) is not None else "" for h in header])
+    return _csv_download("bact_seasonal_scores.csv", header, rows)
 
 
 @app.route("/about")

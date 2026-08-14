@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – BACT seasonal score preview{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <a href="/reports/bact">BACT seasonal scores</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Preview</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>BACT seasonal score preview</h1>
+    <p class="page-subtitle"><span class="mono">{{ filename }}</span></p>
+    <div class="import-preview-banner" role="status">
+      <strong>No StreamWatch data has been changed.</strong>
+      {{ source_note }}
+      {% if authority_note %}<br>{{ authority_note }}{% endif %}
+    </div>
+  </header>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Filters">
+      <form method="get" action="/reports/bact/preview/{{ token }}">
+        <div class="filter-field">
+          <label for="site_code">Site</label>
+          <select id="site_code" name="site_code">
+            <option value="">All scored sites</option>
+            {% for code in sites %}
+            <option value="{{ code }}" {% if filters.site_code == code %}selected{% endif %}>{{ code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn-primary">Update results</button>
+        </div>
+      </form>
+      <p class="muted" style="margin-top:1rem;">
+        Season weeks:
+        {% if season_dates %}{{ season_dates[0] }} → {{ season_dates[-1] }}{% else %}—{% endif %}
+      </p>
+      <p class="muted">
+        <a href="/reports/bact/preview/{{ token }}.csv?site_code={{ filters.site_code|urlencode }}">Download score summary CSV</a>
+      </p>
+      <p class="muted"><a href="/reports/bact">Score another workbook</a></p>
+    </aside>
+
+    <div class="report-stack">
+      {% if not site_results %}
+      <section class="panel"><p class="empty-state">No sites matched this filter (or the workbook had no numeric weekly values).</p></section>
+      {% else %}
+      <p class="muted">{{ site_results|length }} site{{ 's' if site_results|length != 1 else '' }} · input: {{ input_source }}</p>
+      {% for site in site_results %}
+      <section class="panel">
+        <div class="table-header-row">
+          <h2 class="home-panel-title">
+            {{ site.site_code }}
+            {% if site.waterbody %}<span class="muted"> · {{ site.waterbody }}</span>{% endif %}
+          </h2>
+          <p class="muted">Weekly numeric samples (max across parameters): {{ site.visit_count }}</p>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Samples</th>
+                <th>Geo mean / average</th>
+                <th>Exceedances / warnings</th>
+                <th>Severe</th>
+                <th>Rating</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in site.parameters %}
+              <tr>
+                <td>{{ p.parameter }}</td>
+                <td>{{ p.sample_count }}</td>
+                <td class="mono">
+                  {% if p.geomean is not none %}{{ '%.3f'|format(p.geomean) }} (geo){% elif p.average is not none %}{{ '%.3f'|format(p.average) }} (avg){% else %}—{% endif %}
+                </td>
+                <td class="mono">
+                  {% if p.exceedance_count is not none %}{{ p.exceedance_count }} (>235){% elif p.warning_count is not none %}{{ p.warning_count }}{% else %}—{% endif %}
+                </td>
+                <td class="mono">{% if p.severe_count is not none %}{{ p.severe_count }}{% else %}—{% endif %}</td>
+                <td><span class="bact-rating">{{ p.rating }}</span></td>
+              </tr>
+              {% if p.note %}
+              <tr><td colspan="6" class="muted tiny-note">{{ p.note }}</td></tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

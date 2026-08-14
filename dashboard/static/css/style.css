@@ -1333,6 +1333,16 @@ tr:hover {
   font-size: 0.85rem;
   margin: 0.15rem 0 0.35rem;
 }
+.bact-rating {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.bact-Excellent { color: #1b5e4a; }
+.bact-Good { color: #2f6f4e; }
+.bact-Fair { color: #8a5a00; }
+.bact-Poor { color: #8b1e1e; }
+.bact-NA, .bact-NA_ { color: #4a5560; }
+
 .table-header-row {
   display: flex;
   align-items: baseline;
