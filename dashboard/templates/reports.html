@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Reports{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <header class="page-header">
+    <h1>Reports</h1>
+    <p class="page-subtitle">
+      Staff reports for monitoring coverage, volunteer programs, and result extracts.
+      These views are for review and download—they do not change data.
+    </p>
+  </header>
+
+  <div class="reports-directory">
+    <article class="panel report-card">
+      <h2 class="home-panel-title">Site summary</h2>
+      <p class="muted">Operational overview of monitoring locations: latest sample date, visit counts, and habitat type.</p>
+      <a class="btn-primary" href="/reports/sites">Open report</a>
+    </article>
+
+    <article class="panel report-card">
+      <h2 class="home-panel-title">Visit history</h2>
+      <p class="muted">Chronological list of sampling visits with which result types are present for each visit.</p>
+      <a class="btn-primary" href="/reports/visits">Open report</a>
+    </article>
+
+    <article class="panel report-card">
+      <h2 class="home-panel-title">Data completeness</h2>
+      <p class="muted">Coverage review of visits with or without chemistry, bacteria, habitat, or macroinvertebrate records. Missing related data is not automatically an error.</p>
+      <a class="btn-primary" href="/reports/completeness">Open report</a>
+    </article>
+
+    <article class="panel report-card">
+      <h2 class="home-panel-title">Training compliance</h2>
+      <p class="muted">Volunteer training records with expiration dates and current/expired status.</p>
+      <a class="btn-primary" href="/reports/training">Open report</a>
+    </article>
+
+    <article class="panel report-card">
+      <h2 class="home-panel-title">Assignment coverage</h2>
+      <p class="muted">Which volunteers are assigned to which sites, including role and active dates.</p>
+      <a class="btn-primary" href="/reports/assignments">Open report</a>
+    </article>
+
+    <article class="panel report-card">
+      <h2 class="home-panel-title">Chemistry &amp; bacteria results</h2>
+      <p class="muted">Tabular extract of chemistry packages and bacteria results for analysis or CSV download. Multiple chemistry packages for one visit are all included.</p>
+      <a class="btn-primary" href="/reports/results">Open report</a>
+    </article>
+  </div>
+</div>
+{% endblock %}

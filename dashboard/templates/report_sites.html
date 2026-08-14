@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Site summary report{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Site summary</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Site summary</h1>
+    <p class="page-subtitle">Concise operational summary for StreamWatch monitoring locations.</p>
+  </header>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Filters">
+      <form method="get" action="/reports/sites">
+        <div class="filter-field">
+          <label for="q">Search</label>
+          <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Site code or waterbody…" autocomplete="off">
+        </div>
+        <div class="filter-field">
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            <option value="" {% if not filters.status %}selected{% endif %}>All</option>
+            <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn-primary">Update results</button>
+          <a class="btn-secondary" href="/reports/sites.csv?q={{ filters.q|urlencode }}&amp;status={{ filters.status|urlencode }}">Download CSV</a>
+        </div>
+      </form>
+    </aside>
+
+    <section class="panel table-panel" aria-labelledby="sites-report-title">
+      <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
+        <h2 class="home-panel-title" id="sites-report-title">Sites</h2>
+        <p class="muted toolbar-count">{{ rows|length }} site{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Site</th>
+              <th scope="col">Waterbody</th>
+              <th scope="col">Status</th>
+              <th scope="col">Habitat type</th>
+              <th scope="col">Latest sample</th>
+              <th scope="col" class="num">Visits</th>
+              <th scope="col">Links</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not rows %}
+            <tr><td colspan="7" class="muted">No sites match these filters.</td></tr>
+            {% else %}
+            {% for r in rows %}
+            <tr>
+              <td><a class="cell-strong" href="/site/{{ r.site_code }}">{{ r.site_code }}</a></td>
+              <td>{{ r.waterbody_name or '—' }}</td>
+              <td>{% if r.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-warning">Inactive</span>{% endif %}</td>
+              <td>{{ r.habitat_type or 'Not recorded' }}</td>
+              <td>{{ r.last_sample_date or '—' }}</td>
+              <td class="num">{{ r.visit_count }}</td>
+              <td>
+                <a href="/site/{{ r.site_code }}">Detail</a>
+                ·
+                <a href="/explore?site_code={{ r.site_code }}">Explore</a>
+              </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

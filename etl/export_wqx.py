@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Export monitoring data to WQX-compatible format (CSV).
-WQX schema: Monitoring Location ID, Activity ID, Activity Type, Characteristic Name, Result Value, Unit, etc.
-Output can be used for EPA Water Quality Exchange upload. Filter by date range, site, parameter.
-Core logic in build_wqx_csv() for use from CLI or Flask.
+Export monitoring data to WQX-style CSV (preparation format, not EPA portal upload).
+
+Emits one result row per non-null characteristic value. Visits may have multiple
+legitimate chemistry packages; every package is included (no fetchone / first-only).
 """
 import csv
 import io
@@ -15,7 +15,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from etl.db import get_conn
 
-FIELDNAMES = ["MonitoringLocationIdentifier", "ActivityIdentifier", "ActivityStartDate", "CharacteristicName", "ResultMeasureValue", "ResultMeasure/MeasureUnitCode"]
+FIELDNAMES = [
+    "MonitoringLocationIdentifier",
+    "ActivityIdentifier",
+    "ActivityStartDate",
+    "CharacteristicName",
+    "ResultMeasureValue",
+    "ResultMeasure/MeasureUnitCode",
+]
+CHEM_COLUMNS = [
+    "water_temp_c",
+    "nitrate_ug_l",
+    "phosphate_mg_l",
+    "ph",
+    "turbidity_ntu",
+    "dissolved_oxygen_ppm",
+    "conductivity_us_cm",
+    "chloride_mg_l",
+]
 PARAM_MAP = {
     "water_temp_c": ("Temperature, water", "deg C"),
     "nitrate_ug_l": ("Nitrate", "ug/L"),
@@ -27,6 +44,13 @@ PARAM_MAP = {
     "chloride_mg_l": ("Chloride", "mg/L"),
     "e_coli_mpn_100ml": ("Escherichia coli", "MPN/100mL"),
 }
+
+
+def _chem_activity_id(base_activity, chemical_id, package_count):
+    """Keep historical single-package activity IDs; disambiguate multi-package visits."""
+    if package_count <= 1:
+        return base_activity
+    return f"{base_activity}-C{chemical_id}"
 
 
 def build_wqx_csv(
@@ -41,7 +65,8 @@ def build_wqx_csv(
     """
     with get_conn() as conn:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             SELECT v.visit_id, v.sample_date, v.sample_code, s.site_code
             FROM visit v
             JOIN site s ON s.site_id = v.site_id
@@ -49,7 +74,9 @@ def build_wqx_csv(
               AND (%s::date IS NULL OR v.sample_date <= %s)
               AND (%s::text[] IS NULL OR s.site_code = ANY(%s))
             ORDER BY v.sample_date, s.site_code
-            """, (date_start, date_start, date_end, date_end, site_codes, site_codes))
+            """,
+            (date_start, date_start, date_end, date_end, site_codes, site_codes),
+        )
         visits = cur.fetchall()
 
     param_map = {k: v for k, v in PARAM_MAP.items() if not parameters or k in parameters}
@@ -58,40 +85,69 @@ def build_wqx_csv(
     with get_conn() as conn:
         cur = conn.cursor()
         for (visit_id, sample_date, sample_code, site_code) in visits:
-            activity_id = sample_code or f"{site_code}-{sample_date}"
+            base_activity = sample_code or f"{site_code}-{sample_date}"
             cur.execute(
-                "SELECT water_temp_c, nitrate_ug_l, phosphate_mg_l, ph, turbidity_ntu, dissolved_oxygen_ppm, conductivity_us_cm, chloride_mg_l FROM chemical WHERE visit_id = %s",
+                f"""
+                SELECT chemical_id, {", ".join(CHEM_COLUMNS)}
+                FROM chemical
+                WHERE visit_id = %s
+                ORDER BY chemical_id
+                """,
                 (visit_id,),
             )
-            chem = cur.fetchone()
-            if chem:
-                for i, col in enumerate(["water_temp_c", "nitrate_ug_l", "phosphate_mg_l", "ph", "turbidity_ntu", "dissolved_oxygen_ppm", "conductivity_us_cm", "chloride_mg_l"]):
+            chem_packages = cur.fetchall()
+            package_count = len(chem_packages)
+            for chem in chem_packages:
+                chemical_id = chem[0]
+                activity_id = _chem_activity_id(base_activity, chemical_id, package_count)
+                for i, col in enumerate(CHEM_COLUMNS):
                     if col not in param_map:
                         continue
-                    val = chem[i]
+                    val = chem[i + 1]
                     if val is None:
                         continue
                     name, unit = param_map[col]
-                    rows.append({
-                        "MonitoringLocationIdentifier": site_code,
-                        "ActivityIdentifier": activity_id,
-                        "ActivityStartDate": str(sample_date),
-                        "CharacteristicName": name,
-                        "ResultMeasureValue": str(val),
-                        "ResultMeasure/MeasureUnitCode": unit,
-                    })
-            cur.execute("SELECT e_coli_mpn_100ml FROM bacteria WHERE visit_id = %s", (visit_id,))
-            bac = cur.fetchone()
-            if bac and bac[0] is not None and "e_coli_mpn_100ml" in param_map:
-                name, unit = param_map["e_coli_mpn_100ml"]
-                rows.append({
-                    "MonitoringLocationIdentifier": site_code,
-                    "ActivityIdentifier": activity_id,
-                    "ActivityStartDate": str(sample_date),
-                    "CharacteristicName": name,
-                    "ResultMeasureValue": str(bac[0]),
-                    "ResultMeasure/MeasureUnitCode": unit,
-                })
+                    rows.append(
+                        {
+                            "MonitoringLocationIdentifier": site_code,
+                            "ActivityIdentifier": activity_id,
+                            "ActivityStartDate": str(sample_date),
+                            "CharacteristicName": name,
+                            "ResultMeasureValue": str(val),
+                            "ResultMeasure/MeasureUnitCode": unit,
+                        }
+                    )
+
+            # Preserve prior bacteria behavior: one E. coli row per bacteria record
+            # (demo is typically one per visit; fetchall avoids dropping extras).
+            if "e_coli_mpn_100ml" in param_map:
+                cur.execute(
+                    """
+                    SELECT bacteria_id, e_coli_mpn_100ml
+                    FROM bacteria
+                    WHERE visit_id = %s
+                    ORDER BY bacteria_id
+                    """,
+                    (visit_id,),
+                )
+                bac_rows = cur.fetchall()
+                for bacteria_id, ecol in bac_rows:
+                    if ecol is None:
+                        continue
+                    name, unit = param_map["e_coli_mpn_100ml"]
+                    bac_activity = base_activity
+                    if len(bac_rows) > 1:
+                        bac_activity = f"{base_activity}-B{bacteria_id}"
+                    rows.append(
+                        {
+                            "MonitoringLocationIdentifier": site_code,
+                            "ActivityIdentifier": bac_activity,
+                            "ActivityStartDate": str(sample_date),
+                            "CharacteristicName": name,
+                            "ResultMeasureValue": str(ecol),
+                            "ResultMeasure/MeasureUnitCode": unit,
+                        }
+                    )
 
     buf = io.StringIO()
     w = csv.DictWriter(buf, fieldnames=FIELDNAMES)
@@ -109,7 +165,12 @@ def export_wqx_csv(
     parameters: list = None,
 ):
     """Write WQX-style CSV to a file (CLI use)."""
-    buf = build_wqx_csv(date_start=date_start, date_end=date_end, site_codes=site_codes, parameters=parameters)
+    buf = build_wqx_csv(
+        date_start=date_start,
+        date_end=date_end,
+        site_codes=site_codes,
+        parameters=parameters,
+    )
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         f.write(buf.getvalue())
     print(f"WQX export written to {out_path}.")

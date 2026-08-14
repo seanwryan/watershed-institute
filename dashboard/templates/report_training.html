@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Training compliance{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Training compliance</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Training compliance</h1>
+    <p class="page-subtitle">Volunteer training records and expiration dates for program follow-up.</p>
+  </header>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Filters">
+      <form method="get" action="/reports/training">
+        <div class="filter-field">
+          <label for="volunteer_id">Volunteer</label>
+          <select id="volunteer_id" name="volunteer_id">
+            <option value="">All volunteers</option>
+            {% for v in volunteers %}
+            <option value="{{ v.volunteer_id }}" {% if filters.volunteer_id == (v.volunteer_id|string) %}selected{% endif %}>{{ v.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="training_type_id">Training type</label>
+          <select id="training_type_id" name="training_type_id">
+            <option value="">All types</option>
+            {% for t in training_types %}
+            <option value="{{ t.training_type_id }}" {% if filters.training_type_id == (t.training_type_id|string) %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="status">Expiration status</label>
+          <select id="status" name="status">
+            <option value="" {% if not filters.status %}selected{% endif %}>All</option>
+            <option value="expired" {% if filters.status == 'expired' %}selected{% endif %}>Expired</option>
+            <option value="current" {% if filters.status == 'current' %}selected{% endif %}>Current</option>
+            <option value="no_expiration" {% if filters.status == 'no_expiration' %}selected{% endif %}>No expiration date</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="expires_before">Expires before</label>
+          <input type="date" id="expires_before" name="expires_before" value="{{ filters.expires_before }}">
+          <p class="form-help">Optional. Limits to records with an expiration date before this day.</p>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn-primary">Update results</button>
+          <a class="btn-secondary" href="/reports/training.csv?volunteer_id={{ filters.volunteer_id|urlencode }}&amp;training_type_id={{ filters.training_type_id|urlencode }}&amp;status={{ filters.status|urlencode }}&amp;expires_before={{ filters.expires_before|urlencode }}">Download CSV</a>
+        </div>
+      </form>
+    </aside>
+
+    <section class="panel table-panel">
+      <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
+        <h2 class="home-panel-title">Training records</h2>
+        <p class="muted toolbar-count">{{ rows|length }} record{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Volunteer</th>
+              <th scope="col">Training type</th>
+              <th scope="col">Training date</th>
+              <th scope="col">Attendance status</th>
+              <th scope="col">Expiration</th>
+              <th scope="col">Days until expiration</th>
+              <th scope="col">Expiration status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not rows %}
+            <tr><td colspan="7" class="muted">No training records match these filters.</td></tr>
+            {% else %}
+            {% for r in rows %}
+            <tr>
+              <td><a href="/volunteers/{{ r.volunteer_id }}">{{ r.volunteer_name }}</a></td>
+              <td>{{ r.training_type or '—' }}</td>
+              <td>{{ r.training_date or '—' }}</td>
+              <td>{{ r.attendance_status or '—' }}</td>
+              <td>{{ r.expiration_date or '—' }}</td>
+              <td class="num">{% if r.days_until_expiration is not none %}{{ r.days_until_expiration }}{% else %}—{% endif %}</td>
+              <td>{{ r.expiration_status }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

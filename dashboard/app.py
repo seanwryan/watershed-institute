@@ -14,9 +14,12 @@ from flask import Flask, jsonify, request, send_from_directory, render_template,
 
 # Allow importing etl when running from dashboard/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Allow importing sibling helpers (report_queries) when running as python dashboard/app.py
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 from etl.biological_indices import calculate_visit_indices
+import report_queries as rq
 
 # Strip quotes so pasting 'postgresql://...' in Render Environment still works
 _raw = os.getenv("DATABASE_URL", "postgresql://localhost/streamwatch") or ""
@@ -3694,6 +3697,484 @@ def scores_page():
 @app.route("/export")
 def export_page():
     return render_template("export.html")
+
+
+def _csv_download(filename, header, rows):
+    import csv
+    import io
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(header)
+    for row in rows:
+        writer.writerow(row)
+    buf.seek(0)
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _report_db():
+    return get_db_or_503()
+
+
+@app.route("/reports")
+def reports_hub():
+    return render_template("reports.html")
+
+
+@app.route("/reports/sites")
+def report_sites():
+    filters = {
+        "q": (request.args.get("q") or "").strip(),
+        "status": (request.args.get("status") or "").strip().lower(),
+    }
+    conn, err = _report_db()
+    if err:
+        return render_template("report_sites.html", rows=[], filters=filters, error="Database unavailable."), 503
+    try:
+        cur = conn.cursor()
+        rows = rq.site_summary_rows(cur, q=filters["q"], status=filters["status"])
+        return render_template("report_sites.html", rows=rows, filters=filters)
+    finally:
+        conn.close()
+
+
+@app.route("/reports/sites.csv")
+def report_sites_csv():
+    q = (request.args.get("q") or "").strip()
+    status = (request.args.get("status") or "").strip().lower()
+    conn, err = _report_db()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        rows = rq.site_summary_rows(cur, q=q, status=status)
+        return _csv_download(
+            "site_summary.csv",
+            ["site_code", "waterbody", "active", "habitat_type", "last_sample_date", "visit_count"],
+            [
+                [
+                    r["site_code"],
+                    r["waterbody_name"] or "",
+                    "yes" if r["is_active"] else "no",
+                    r["habitat_type"] or "",
+                    r["last_sample_date"] or "",
+                    r["visit_count"],
+                ]
+                for r in rows
+            ],
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/visits")
+def report_visits():
+    filters = {
+        "site_code": (request.args.get("site_code") or "").strip(),
+        "date_start": (request.args.get("date_start") or "").strip(),
+        "date_end": (request.args.get("date_end") or "").strip(),
+    }
+    limit = 500
+    conn, err = _report_db()
+    if err:
+        return render_template(
+            "report_visits.html",
+            rows=[],
+            sites=[],
+            filters=filters,
+            limit=limit,
+        ), 503
+    try:
+        cur = conn.cursor()
+        sites = rq.load_site_options(cur)
+        rows = rq.visit_history_rows(
+            cur,
+            site_code=filters["site_code"],
+            date_start=rq.parse_optional_date(filters["date_start"]),
+            date_end=rq.parse_optional_date(filters["date_end"]),
+            limit=limit,
+        )
+        return render_template(
+            "report_visits.html", rows=rows, sites=sites, filters=filters, limit=limit
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/visits.csv")
+def report_visits_csv():
+    site_code = (request.args.get("site_code") or "").strip()
+    date_start = rq.parse_optional_date(request.args.get("date_start"))
+    date_end = rq.parse_optional_date(request.args.get("date_end"))
+    conn, err = _report_db()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        rows = rq.visit_history_rows(
+            cur, site_code=site_code, date_start=date_start, date_end=date_end, limit=20000
+        )
+        return _csv_download(
+            "visit_history.csv",
+            [
+                "visit_id",
+                "site_code",
+                "sample_date",
+                "method",
+                "has_chemistry",
+                "has_bacteria",
+                "has_habitat",
+                "has_macro",
+            ],
+            [
+                [
+                    r["visit_id"],
+                    r["site_code"],
+                    r["sample_date"],
+                    r["method_name"] or "",
+                    "yes" if r["has_chemistry"] else "no",
+                    "yes" if r["has_bacteria"] else "no",
+                    "yes" if r["has_habitat"] else "no",
+                    "yes" if r["has_macro"] else "no",
+                ]
+                for r in rows
+            ],
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/completeness")
+def report_completeness():
+    filters = {
+        "site_code": (request.args.get("site_code") or "").strip(),
+        "date_start": (request.args.get("date_start") or "").strip(),
+        "date_end": (request.args.get("date_end") or "").strip(),
+        "gap": (request.args.get("gap") or "").strip(),
+    }
+    limit = 500
+    conn, err = _report_db()
+    if err:
+        return render_template(
+            "report_completeness.html",
+            summary={
+                "total_visits": 0,
+                "with_chemistry": 0,
+                "without_chemistry": 0,
+                "with_bacteria": 0,
+                "without_bacteria": 0,
+                "with_macro": 0,
+                "with_habitat": 0,
+            },
+            rows=[],
+            sites=[],
+            filters=filters,
+            limit=limit,
+        ), 503
+    try:
+        cur = conn.cursor()
+        sites = rq.load_site_options(cur)
+        ds = rq.parse_optional_date(filters["date_start"])
+        de = rq.parse_optional_date(filters["date_end"])
+        summary = rq.completeness_summary(
+            cur, site_code=filters["site_code"], date_start=ds, date_end=de
+        )
+        rows = rq.completeness_rows(
+            cur,
+            site_code=filters["site_code"],
+            date_start=ds,
+            date_end=de,
+            gap=filters["gap"],
+            limit=limit,
+        )
+        return render_template(
+            "report_completeness.html",
+            summary=summary,
+            rows=rows,
+            sites=sites,
+            filters=filters,
+            limit=limit,
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/training")
+def report_training():
+    filters = {
+        "volunteer_id": (request.args.get("volunteer_id") or "").strip(),
+        "training_type_id": (request.args.get("training_type_id") or "").strip(),
+        "status": (request.args.get("status") or "").strip().lower(),
+        "expires_before": (request.args.get("expires_before") or "").strip(),
+    }
+    conn, err = _report_db()
+    if err:
+        return render_template(
+            "report_training.html",
+            rows=[],
+            volunteers=[],
+            training_types=[],
+            filters=filters,
+        ), 503
+    try:
+        cur = conn.cursor()
+        volunteers = rq.load_volunteer_options(cur)
+        cur.execute(
+            "SELECT training_type_id, name FROM lst_training_type ORDER BY name"
+        )
+        training_types = [
+            {"training_type_id": r[0], "name": r[1]} for r in cur.fetchall()
+        ]
+        vol_id = int(filters["volunteer_id"]) if filters["volunteer_id"].isdigit() else None
+        type_id = (
+            int(filters["training_type_id"])
+            if filters["training_type_id"].isdigit()
+            else None
+        )
+        rows = rq.training_rows(
+            cur,
+            volunteer_id=vol_id,
+            training_type_id=type_id,
+            status=filters["status"],
+            expires_before=rq.parse_optional_date(filters["expires_before"]),
+        )
+        return render_template(
+            "report_training.html",
+            rows=rows,
+            volunteers=volunteers,
+            training_types=training_types,
+            filters=filters,
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/training.csv")
+def report_training_csv():
+    volunteer_id = request.args.get("volunteer_id") or ""
+    training_type_id = request.args.get("training_type_id") or ""
+    status = (request.args.get("status") or "").strip().lower()
+    expires_before = rq.parse_optional_date(request.args.get("expires_before"))
+    conn, err = _report_db()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        rows = rq.training_rows(
+            cur,
+            volunteer_id=int(volunteer_id) if str(volunteer_id).isdigit() else None,
+            training_type_id=int(training_type_id)
+            if str(training_type_id).isdigit()
+            else None,
+            status=status,
+            expires_before=expires_before,
+        )
+        return _csv_download(
+            "training_compliance.csv",
+            [
+                "volunteer",
+                "training_type",
+                "training_date",
+                "attendance_status",
+                "expiration_date",
+                "days_until_expiration",
+                "expiration_status",
+            ],
+            [
+                [
+                    r["volunteer_name"],
+                    r["training_type"] or "",
+                    r["training_date"] or "",
+                    r["attendance_status"] or "",
+                    r["expiration_date"] or "",
+                    r["days_until_expiration"]
+                    if r["days_until_expiration"] is not None
+                    else "",
+                    r["expiration_status"],
+                ]
+                for r in rows
+            ],
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/assignments")
+def report_assignments():
+    filters = {
+        "site_code": (request.args.get("site_code") or "").strip(),
+        "volunteer_id": (request.args.get("volunteer_id") or "").strip(),
+        "role_id": (request.args.get("role_id") or "").strip(),
+        "active": (request.args.get("active") or "").strip().lower(),
+    }
+    conn, err = _report_db()
+    if err:
+        return render_template(
+            "report_assignments.html",
+            rows=[],
+            sites=[],
+            volunteers=[],
+            roles=[],
+            filters=filters,
+        ), 503
+    try:
+        cur = conn.cursor()
+        sites = rq.load_site_options(cur)
+        volunteers = rq.load_volunteer_options(cur)
+        cur.execute("SELECT role_id, name FROM lst_role ORDER BY name")
+        roles = [{"role_id": r[0], "name": r[1]} for r in cur.fetchall()]
+        rows = rq.assignment_rows(
+            cur,
+            site_code=filters["site_code"],
+            volunteer_id=int(filters["volunteer_id"])
+            if filters["volunteer_id"].isdigit()
+            else None,
+            role_id=int(filters["role_id"]) if filters["role_id"].isdigit() else None,
+            active=filters["active"],
+        )
+        return render_template(
+            "report_assignments.html",
+            rows=rows,
+            sites=sites,
+            volunteers=volunteers,
+            roles=roles,
+            filters=filters,
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/assignments.csv")
+def report_assignments_csv():
+    site_code = (request.args.get("site_code") or "").strip()
+    volunteer_id = request.args.get("volunteer_id") or ""
+    role_id = request.args.get("role_id") or ""
+    active = (request.args.get("active") or "").strip().lower()
+    conn, err = _report_db()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        rows = rq.assignment_rows(
+            cur,
+            site_code=site_code,
+            volunteer_id=int(volunteer_id) if str(volunteer_id).isdigit() else None,
+            role_id=int(role_id) if str(role_id).isdigit() else None,
+            active=active,
+        )
+        return _csv_download(
+            "assignment_coverage.csv",
+            [
+                "volunteer",
+                "site_code",
+                "waterbody",
+                "role",
+                "start_date",
+                "end_date",
+                "status",
+            ],
+            [
+                [
+                    r["volunteer_name"],
+                    r["site_code"],
+                    r["waterbody_name"] or "",
+                    r["role_name"] or "",
+                    r["start_date"] or "",
+                    r["end_date"] or "",
+                    r["assignment_status"],
+                ]
+                for r in rows
+            ],
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/results")
+def report_results():
+    filters = {
+        "site_code": (request.args.get("site_code") or "").strip(),
+        "date_start": (request.args.get("date_start") or "").strip(),
+        "date_end": (request.args.get("date_end") or "").strip(),
+        "family": (request.args.get("family") or "both").strip().lower(),
+    }
+    if filters["family"] not in ("both", "chemistry", "bacteria"):
+        filters["family"] = "both"
+    limit = 400
+    conn, err = _report_db()
+    if err:
+        return render_template(
+            "report_results.html", rows=[], sites=[], filters=filters, limit=limit
+        ), 503
+    try:
+        cur = conn.cursor()
+        sites = rq.load_site_options(cur)
+        rows = rq.results_rows(
+            cur,
+            site_code=filters["site_code"],
+            date_start=rq.parse_optional_date(filters["date_start"]),
+            date_end=rq.parse_optional_date(filters["date_end"]),
+            family=filters["family"],
+            limit=limit,
+        )
+        return render_template(
+            "report_results.html", rows=rows, sites=sites, filters=filters, limit=limit
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/reports/results.csv")
+def report_results_csv():
+    site_code = (request.args.get("site_code") or "").strip()
+    date_start = rq.parse_optional_date(request.args.get("date_start"))
+    date_end = rq.parse_optional_date(request.args.get("date_end"))
+    family = (request.args.get("family") or "both").strip().lower()
+    conn, err = _report_db()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        rows = rq.results_rows(
+            cur,
+            site_code=site_code,
+            date_start=date_start,
+            date_end=date_end,
+            family=family,
+            limit=None,
+        )
+        return _csv_download(
+            "results_extract.csv",
+            [
+                "site_code",
+                "sample_date",
+                "family",
+                "package_or_record",
+                "parameter",
+                "value",
+                "unit",
+                "visit_id",
+            ],
+            [
+                [
+                    r["site_code"],
+                    r["sample_date"],
+                    r["family"],
+                    r["package_label"],
+                    r["parameter_label"],
+                    r["value_display"],
+                    r["unit"] or "",
+                    r["visit_id"],
+                ]
+                for r in rows
+            ],
+        )
+    finally:
+        conn.close()
 
 
 @app.route("/about")

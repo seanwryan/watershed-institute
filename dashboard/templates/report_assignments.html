@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Assignment coverage{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Assignment coverage</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Assignment coverage</h1>
+    <p class="page-subtitle">Volunteer-to-site assignments for program planning. This view does not define required staffing levels.</p>
+  </header>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Filters">
+      <form method="get" action="/reports/assignments">
+        <div class="filter-field">
+          <label for="site_code">Site</label>
+          <select id="site_code" name="site_code">
+            <option value="">All sites</option>
+            {% for s in sites %}
+            <option value="{{ s.site_code }}" {% if filters.site_code == s.site_code %}selected{% endif %}>{{ s.site_code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="volunteer_id">Volunteer</label>
+          <select id="volunteer_id" name="volunteer_id">
+            <option value="">All volunteers</option>
+            {% for v in volunteers %}
+            <option value="{{ v.volunteer_id }}" {% if filters.volunteer_id == (v.volunteer_id|string) %}selected{% endif %}>{{ v.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="role_id">Role</label>
+          <select id="role_id" name="role_id">
+            <option value="">All roles</option>
+            {% for r in roles %}
+            <option value="{{ r.role_id }}" {% if filters.role_id == (r.role_id|string) %}selected{% endif %}>{{ r.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="active">Assignment</label>
+          <select id="active" name="active">
+            <option value="" {% if not filters.active %}selected{% endif %}>All</option>
+            <option value="active" {% if filters.active == 'active' %}selected{% endif %}>Active (no end date or end in future)</option>
+            <option value="ended" {% if filters.active == 'ended' %}selected{% endif %}>Ended</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn-primary">Update results</button>
+          <a class="btn-secondary" href="/reports/assignments.csv?site_code={{ filters.site_code|urlencode }}&amp;volunteer_id={{ filters.volunteer_id|urlencode }}&amp;role_id={{ filters.role_id|urlencode }}&amp;active={{ filters.active|urlencode }}">Download CSV</a>
+        </div>
+      </form>
+    </aside>
+
+    <section class="panel table-panel">
+      <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
+        <h2 class="home-panel-title">Assignments</h2>
+        <p class="muted toolbar-count">{{ rows|length }} assignment{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Volunteer</th>
+              <th scope="col">Site</th>
+              <th scope="col">Waterbody</th>
+              <th scope="col">Role</th>
+              <th scope="col">Start</th>
+              <th scope="col">End</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not rows %}
+            <tr><td colspan="7" class="muted">No assignments match these filters.</td></tr>
+            {% else %}
+            {% for r in rows %}
+            <tr>
+              <td><a href="/volunteers/{{ r.volunteer_id }}">{{ r.volunteer_name }}</a></td>
+              <td><a href="/site/{{ r.site_code }}">{{ r.site_code }}</a></td>
+              <td>{{ r.waterbody_name or '—' }}</td>
+              <td>{{ r.role_name or '—' }}</td>
+              <td>{{ r.start_date or '—' }}</td>
+              <td>{{ r.end_date or '—' }}</td>
+              <td>{{ r.assignment_status }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

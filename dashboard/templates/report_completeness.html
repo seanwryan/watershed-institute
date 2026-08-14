@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Data completeness{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Data completeness</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Data completeness</h1>
+    <p class="page-subtitle">
+      Coverage review of related results for sampling visits. A visit without chemistry or bacteria
+      is not automatically an error—programs and seasons differ.
+    </p>
+  </header>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Filters">
+      <form method="get" action="/reports/completeness">
+        <div class="filter-field">
+          <label for="site_code">Site</label>
+          <select id="site_code" name="site_code">
+            <option value="">All sites</option>
+            {% for s in sites %}
+            <option value="{{ s.site_code }}" {% if filters.site_code == s.site_code %}selected{% endif %}>{{ s.site_code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="date_start">From</label>
+          <input type="date" id="date_start" name="date_start" value="{{ filters.date_start }}">
+        </div>
+        <div class="filter-field">
+          <label for="date_end">To</label>
+          <input type="date" id="date_end" name="date_end" value="{{ filters.date_end }}">
+        </div>
+        <div class="filter-field">
+          <label for="gap">Show visits</label>
+          <select id="gap" name="gap">
+            <option value="" {% if not filters.gap %}selected{% endif %}>All visits in range</option>
+            <option value="no_chemistry" {% if filters.gap == 'no_chemistry' %}selected{% endif %}>Without chemistry</option>
+            <option value="no_bacteria" {% if filters.gap == 'no_bacteria' %}selected{% endif %}>Without bacteria</option>
+            <option value="no_habitat" {% if filters.gap == 'no_habitat' %}selected{% endif %}>Without habitat</option>
+            <option value="no_macro" {% if filters.gap == 'no_macro' %}selected{% endif %}>Without macro counts</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn-primary">Update results</button>
+        </div>
+      </form>
+    </aside>
+
+    <div class="report-stack">
+      <section class="panel site-snapshot" aria-label="Coverage summary">
+        <div class="snapshot-grid">
+          <div><span class="metric-label">Visits in scope</span><span class="snapshot-value">{{ summary.total_visits }}</span></div>
+          <div><span class="metric-label">With chemistry</span><span class="snapshot-value">{{ summary.with_chemistry }}</span></div>
+          <div><span class="metric-label">Without chemistry</span><span class="snapshot-value">{{ summary.without_chemistry }}</span></div>
+          <div><span class="metric-label">With bacteria</span><span class="snapshot-value">{{ summary.with_bacteria }}</span></div>
+          <div><span class="metric-label">Without bacteria</span><span class="snapshot-value">{{ summary.without_bacteria }}</span></div>
+          <div><span class="metric-label">With macro counts</span><span class="snapshot-value">{{ summary.with_macro }}</span></div>
+          <div><span class="metric-label">With habitat</span><span class="snapshot-value">{{ summary.with_habitat }}</span></div>
+        </div>
+        <p class="qa-note muted">Counts reflect stored related records only. They do not imply a required result set for every visit.</p>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
+          <h2 class="home-panel-title">Visit coverage detail</h2>
+          <p class="muted toolbar-count">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }} (max {{ limit }})</p>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Site</th>
+                <th scope="col">Sample date</th>
+                <th scope="col">Chemistry</th>
+                <th scope="col">Bacteria</th>
+                <th scope="col">Habitat</th>
+                <th scope="col">Macro</th>
+                <th scope="col">Visit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if not rows %}
+              <tr><td colspan="7" class="muted">No visits match these filters.</td></tr>
+              {% else %}
+              {% for r in rows %}
+              <tr>
+                <td>{{ r.site_code }}</td>
+                <td>{{ r.sample_date }}</td>
+                <td>{{ 'Yes' if r.has_chemistry else 'No' }}</td>
+                <td>{{ 'Yes' if r.has_bacteria else 'No' }}</td>
+                <td>{{ 'Yes' if r.has_habitat else 'No' }}</td>
+                <td>{{ 'Yes' if r.has_macro else 'No' }}</td>
+                <td><a href="/visits/{{ r.visit_id }}">Open</a></td>
+              </tr>
+              {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

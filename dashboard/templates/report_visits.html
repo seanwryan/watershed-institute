@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Visit history report{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Visit history</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Visit history</h1>
+    <p class="page-subtitle">Chronological monitoring visits with related result coverage.</p>
+  </header>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Filters">
+      <form method="get" action="/reports/visits">
+        <div class="filter-field">
+          <label for="site_code">Site</label>
+          <select id="site_code" name="site_code">
+            <option value="">All sites</option>
+            {% for s in sites %}
+            <option value="{{ s.site_code }}" {% if filters.site_code == s.site_code %}selected{% endif %}>{{ s.site_code }}{% if s.waterbody_name %} – {{ s.waterbody_name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="date_start">From</label>
+          <input type="date" id="date_start" name="date_start" value="{{ filters.date_start }}">
+        </div>
+        <div class="filter-field">
+          <label for="date_end">To</label>
+          <input type="date" id="date_end" name="date_end" value="{{ filters.date_end }}">
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn-primary">Update results</button>
+          <a class="btn-secondary" href="/reports/visits.csv?site_code={{ filters.site_code|urlencode }}&amp;date_start={{ filters.date_start|urlencode }}&amp;date_end={{ filters.date_end|urlencode }}">Download CSV</a>
+        </div>
+        <p class="muted export-hint">Showing up to {{ limit }} most recent matching visits.</p>
+      </form>
+    </aside>
+
+    <section class="panel table-panel">
+      <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
+        <h2 class="home-panel-title">Visits</h2>
+        <p class="muted toolbar-count">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table data-table-clickable">
+          <thead>
+            <tr>
+              <th scope="col">Site</th>
+              <th scope="col">Sample date</th>
+              <th scope="col">Method / program</th>
+              <th scope="col">Chemistry</th>
+              <th scope="col">Bacteria</th>
+              <th scope="col">Habitat</th>
+              <th scope="col">Macro counts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not rows %}
+            <tr><td colspan="7" class="muted">No visits match these filters.</td></tr>
+            {% else %}
+            {% for r in rows %}
+            <tr class="row-link" tabindex="0" data-href="/visits/{{ r.visit_id }}" role="link" aria-label="Open visit {{ r.site_code }} {{ r.sample_date }}">
+              <td><span class="cell-strong">{{ r.site_code }}</span></td>
+              <td><a class="cell-strong" href="/visits/{{ r.visit_id }}">{{ r.sample_date }}</a></td>
+              <td>{{ r.method_name or '—' }}</td>
+              <td>{{ 'Yes' if r.has_chemistry else 'No' }}</td>
+              <td>{{ 'Yes' if r.has_bacteria else 'No' }}</td>
+              <td>{{ 'Yes' if r.has_habitat else 'No' }}</td>
+              <td>{{ 'Yes' if r.has_macro else 'No' }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  var tbody = document.querySelector('#reports-visits-tbody') || document.querySelector('.data-table-clickable tbody');
+  if (!tbody) return;
+  function go(tr) {
+    if (tr && tr.getAttribute('data-href')) window.location.href = tr.getAttribute('data-href');
+  }
+  tbody.addEventListener('click', function(e) {
+    if (e.target.closest('a')) return;
+    go(e.target.closest('tr.row-link'));
+  });
+  tbody.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var tr = e.target.closest('tr.row-link');
+    if (!tr) return;
+    e.preventDefault();
+    go(tr);
+  });
+})();
+</script>
+{% endblock %}

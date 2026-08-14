@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Results extract{% endblock %}
+{% block head %}
+<script src="/static/js/streamwatch_params.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/reports">Reports</a>
+    <span class="breadcrumb-sep" aria-hidden="true">/</span>
+    <span aria-current="page">Chemistry &amp; bacteria results</span>
+  </nav>
+
+  <header class="page-header">
+    <h1>Chemistry &amp; bacteria results</h1>
+    <p class="page-subtitle">
+      Export-focused result list. Multiple chemistry packages for the same visit are each shown.
+      This report does not apply compliance thresholds.
+    </p>
+  </header>
+
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Filters">
+      <form method="get" action="/reports/results">
+        <div class="filter-field">
+          <label for="site_code">Site</label>
+          <select id="site_code" name="site_code">
+            <option value="">All sites</option>
+            {% for s in sites %}
+            <option value="{{ s.site_code }}" {% if filters.site_code == s.site_code %}selected{% endif %}>{{ s.site_code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="date_start">From</label>
+          <input type="date" id="date_start" name="date_start" value="{{ filters.date_start }}">
+        </div>
+        <div class="filter-field">
+          <label for="date_end">To</label>
+          <input type="date" id="date_end" name="date_end" value="{{ filters.date_end }}">
+        </div>
+        <div class="filter-field">
+          <label for="family">Result family</label>
+          <select id="family" name="family">
+            <option value="both" {% if filters.family == 'both' %}selected{% endif %}>Chemistry and bacteria</option>
+            <option value="chemistry" {% if filters.family == 'chemistry' %}selected{% endif %}>Chemistry only</option>
+            <option value="bacteria" {% if filters.family == 'bacteria' %}selected{% endif %}>Bacteria only</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn-primary">Update results</button>
+          <a class="btn-secondary" href="/reports/results.csv?site_code={{ filters.site_code|urlencode }}&amp;date_start={{ filters.date_start|urlencode }}&amp;date_end={{ filters.date_end|urlencode }}&amp;family={{ filters.family|urlencode }}">Download CSV</a>
+        </div>
+        <p class="muted export-hint">Table shows up to {{ limit }} value rows. CSV uses the same filters without that display cap.</p>
+      </form>
+    </aside>
+
+    <section class="panel table-panel">
+      <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
+        <h2 class="home-panel-title">Result values</h2>
+        <p class="muted toolbar-count">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Site</th>
+              <th scope="col">Sample date</th>
+              <th scope="col">Family</th>
+              <th scope="col">Package / record</th>
+              <th scope="col">Parameter</th>
+              <th scope="col" class="num">Value</th>
+              <th scope="col">Unit</th>
+              <th scope="col">Visit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not rows %}
+            <tr><td colspan="8" class="muted">No results match these filters. Try narrowing by site and date.</td></tr>
+            {% else %}
+            {% for r in rows %}
+            <tr>
+              <td>{{ r.site_code }}</td>
+              <td>{{ r.sample_date }}</td>
+              <td>{{ r.family }}</td>
+              <td>{{ r.package_label }}</td>
+              <td>{{ r.parameter_label }}</td>
+              <td class="num">{{ r.value_display }}</td>
+              <td>{{ r.unit or '—' }}</td>
+              <td><a href="/visits/{{ r.visit_id }}">Open</a></td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
