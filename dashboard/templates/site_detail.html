@@ -169,12 +169,15 @@
       }
 
       actionsPanel.hidden = false;
+      var readOnly = document.body.dataset.readOnly === 'true';
+      var writeActions = readOnly ? '' :
+        '<a class="btn-secondary" href="/visits/new?site=' + encodeURIComponent(site.site_code) + '">Add visit</a>' +
+        '<a class="btn-secondary" href="/site/' + encodeURIComponent(site.site_code) + '/edit">Edit site</a>';
       actionsBody.innerHTML =
         '<a class="btn-primary" href="/explore?site_code=' + encodeURIComponent(site.site_code) + '">Explore trends</a>' +
-        '<a class="btn-secondary" href="/visits/new?site=' + encodeURIComponent(site.site_code) + '">Add visit</a>' +
+        writeActions +
         '<a class="btn-secondary" href="/scores?site_code=' + encodeURIComponent(site.site_code) + '">View biology scores</a>' +
-        '<a class="btn-secondary" href="/export?site_code=' + encodeURIComponent(site.site_code) + '">Export site data</a>' +
-        '<a class="btn-secondary" href="/site/' + encodeURIComponent(site.site_code) + '/edit">Edit site</a>';
+        '<a class="btn-secondary" href="/export?site_code=' + encodeURIComponent(site.site_code) + '">Export site data</a>';
 
       recentPanel.hidden = false;
       document.getElementById('site-explore-link').href = '/explore?site_code=' + encodeURIComponent(site.site_code);

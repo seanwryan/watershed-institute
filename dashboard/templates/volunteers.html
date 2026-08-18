@@ -16,7 +16,9 @@
         <option value="">All statuses</option>
       </select>
       <button type="button" class="btn-secondary" id="volunteer-search-clear">Clear</button>
+      {% if not read_only_mode %}
       <a class="btn-primary" href="/volunteers/new">Add volunteer</a>
+      {% endif %}
     </div>
     <p class="toolbar-count muted" id="volunteers-count" aria-live="polite">Loading volunteers…</p>
   </div>

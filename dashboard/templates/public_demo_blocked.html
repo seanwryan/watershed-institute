@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Not available{% endblock %}
+{% block content %}
+<div class="page-monitoring">
+  <header class="page-header">
+    <h1>Not available in public demo</h1>
+    <p class="page-subtitle">{{ message }}</p>
+  </header>
+
+  <section class="panel">
+    <p class="muted">
+      This operational area is reserved for Watershed staff review in a private session.
+    </p>
+    <p style="margin-top:1rem;">
+      <a class="btn-primary" href="/">Return to home</a>
+      <a class="btn-secondary" href="/sites">Browse monitoring sites</a>
+    </p>
+  </section>
+</div>
+{% endblock %}

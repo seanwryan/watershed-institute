@@ -45,6 +45,12 @@ git push -u origin main
    - **Key:** `DATABASE_URL`
    - **Value:** Your Neon connection string (from [Neon Console](https://console.neon.tech) → Connection string). It should include `?sslmode=require` (Neon usually adds this).
 
+   For a public stakeholder demo, also add:
+   - **Key:** `READ_ONLY_MODE`
+   - **Value:** `true`
+   - **Key:** `PUBLIC_DEMO_MODE`
+   - **Value:** `true`
+
 6. Click **Create Web Service**. Render will build and deploy.
 
 **If you see "No open HTTP ports detected"** in the logs: (1) Use the start command above (with `sh -c` and `${PORT:-10000}`) so the port is always set. (2) Scroll up in the same log and look for a **Python traceback** (e.g. `ModuleNotFoundError`, `ImportError`, or database connection errors)—the app may be crashing before it binds; fix that error and redeploy.
@@ -135,6 +141,16 @@ Optional:
 
 - `PORT` – Set by Render/Fly; only needed when running locally with a different port.
 - `FLASK_DEBUG` – Leave unset or `false` in production.
+- `READ_ONLY_MODE` – Set to `true` for a **public read-only demo** (blocks all database-changing web actions server-side). Leave unset or `false` for staff/internal writable use. This does **not** replace authentication for future operational deployments.
+- `PUBLIC_DEMO_MODE` – Set to `true` to hide Watershed staff-only operational areas (volunteers, equipment, training/assignment reports, related APIs) from public browsing. Use together with `READ_ONLY_MODE=true` on the public Render deployment. Leave unset for private staff review sessions (e.g. a walkthrough with Jian where volunteers/equipment should remain visible).
+
+### Public demo vs staff environment
+
+| Environment | `READ_ONLY_MODE` | `PUBLIC_DEMO_MODE` | Notes |
+|---|---|---|---|
+| Public portfolio demo (Render + Neon demo) | `true` | `true` | Browse monitoring data; writes blocked; staff PII/ops hidden |
+| Private read-only staff demo | `true` | `false` | All areas visible; writes blocked (e.g. Jian walkthrough) |
+| Local development / staff internal | unset or `false` | unset or `false` | Full create/edit workflows; use only with proper access controls before production |
 
 ---
 

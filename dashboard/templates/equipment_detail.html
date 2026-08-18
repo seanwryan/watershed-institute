@@ -26,7 +26,9 @@
   <section class="panel site-recent" id="equipment-history" hidden aria-labelledby="equipment-history-title">
     <div class="home-panel-head">
       <h2 class="home-panel-title" id="equipment-history-title">Meter testing history</h2>
+      {% if not read_only_mode %}
       <a class="home-panel-action" id="add-test-link" href="/equipment/{{ equipment_code }}/meter-tests/new">Add meter test</a>
+      {% endif %}
     </div>
     <p class="muted" id="history-empty" hidden>No meter tests have been recorded for this equipment yet.</p>
     <div class="table-wrap" id="history-wrap" hidden>
@@ -120,12 +122,18 @@
         '</div>';
 
       actionsPanel.hidden = false;
+      var readOnly = document.body.dataset.readOnly === 'true';
+      var writeActions = readOnly ? '' :
+        '<a class="btn-primary" href="/equipment/' + encodeURIComponent(eq.equipment_code) + '/meter-tests/new">Add meter test</a>';
       actionsBody.innerHTML =
-        '<a class="btn-primary" href="/equipment/' + encodeURIComponent(eq.equipment_code) + '/meter-tests/new">Add meter test</a>' +
+        writeActions +
         '<a class="btn-secondary" href="/equipment">Back to equipment</a>';
 
       historyPanel.hidden = false;
-      document.getElementById('add-test-link').href = '/equipment/' + encodeURIComponent(eq.equipment_code) + '/meter-tests/new';
+      var addTestLink = document.getElementById('add-test-link');
+      if (addTestLink) {
+        addTestLink.href = '/equipment/' + encodeURIComponent(eq.equipment_code) + '/meter-tests/new';
+      }
       var tests = eq.meter_tests || [];
       if (!tests.length) {
         historyEmpty.hidden = false;

@@ -12,7 +12,9 @@
       <label for="site-search">Search</label>
       <input type="search" id="site-search" placeholder="Site code or waterbody…" autocomplete="off">
       <button type="button" class="btn-secondary" id="site-search-clear">Clear</button>
+      {% if not read_only_mode %}
       <a class="btn-primary" href="/sites/new">Add site</a>
+      {% endif %}
     </div>
     <p class="toolbar-count muted" id="sites-count" aria-live="polite">Loading sites…</p>
   </div>

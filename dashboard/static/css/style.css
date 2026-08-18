@@ -114,6 +114,25 @@ p {
   color: var(--accent);
 }
 
+.read-only-banner {
+  background: var(--surface-alt, #f4f6f8);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted, #5a6472);
+  font-size: 0.875rem;
+  padding: 0.45rem 1.25rem;
+  text-align: center;
+}
+
+.read-only-banner-label {
+  font-weight: 600;
+  color: var(--text);
+  margin-right: 0.5rem;
+}
+
+.read-only-banner-detail {
+  opacity: 0.9;
+}
+
 .nav-toggle {
   display: none;
   margin-left: auto;

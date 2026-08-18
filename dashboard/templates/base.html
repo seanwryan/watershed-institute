@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="/static/css/style.css">
   {% block head %}{% endblock %}
 </head>
-<body>
+<body data-read-only="{{ 'true' if read_only_mode else 'false' }}" data-public-demo="{{ 'true' if public_demo_mode else 'false' }}">
   {% set ep = request.endpoint or '' %}
   {% set monitoring_active = ep in ('map_page', 'sites_page', 'site_detail_page', 'explore_page', 'scores_page') %}
-  {% set operations_active = ep in ('equipment_page', 'equipment_detail_page', 'meter_test_new', 'volunteers_page', 'volunteer_detail_page', 'volunteer_edit') %}
+  {% set operations_active = ep in ('equipment_page', 'equipment_detail_page', 'meter_test_new', 'volunteers_page', 'volunteer_detail_page', 'volunteer_edit') and not public_demo_mode %}
   {% set qa_active = ep == 'qa_page' %}
   {% set reports_active = ep is not none and ep.startswith('report') %}
   {% set imports_active = ep is not none and ep.startswith('imports') %}
@@ -33,6 +33,7 @@
 
         <a href="/qa" class="nav-link {% if qa_active %}active{% endif %}">QA</a>
 
+        {% if not public_demo_mode %}
         <div class="nav-group {% if operations_active %}active{% endif %}" data-nav-group>
           <button type="button" class="nav-group-label" aria-expanded="false" aria-controls="nav-ops" id="nav-ops-btn">Operations</button>
           <div class="nav-submenu" id="nav-ops" role="group" aria-labelledby="nav-ops-btn" hidden>
@@ -40,6 +41,7 @@
             <a href="/equipment" class="{% if ep in ('equipment_page', 'equipment_detail_page', 'meter_test_new') %}active{% endif %}">Equipment</a>
           </div>
         </div>
+        {% endif %}
 
         <a href="/reports" class="nav-link {% if reports_active %}active{% endif %}">Reports</a>
         <a href="/imports" class="nav-link {% if imports_active %}active{% endif %}">Imports</a>
@@ -51,6 +53,21 @@
       </div>
     </div>
   </header>
+
+  {% if read_only_mode or public_demo_mode %}
+  <div class="read-only-banner" role="status">
+    {% if public_demo_mode and read_only_mode %}
+    <span class="read-only-banner-label">Public demo</span>
+    <span class="read-only-banner-detail">Read-only · staff operational areas hidden</span>
+    {% elif read_only_mode %}
+    <span class="read-only-banner-label">Read-only demo</span>
+    <span class="read-only-banner-detail">Data entry and editing are disabled.</span>
+    {% else %}
+    <span class="read-only-banner-label">Public demo</span>
+    <span class="read-only-banner-detail">Staff operational areas are hidden.</span>
+    {% endif %}
+  </div>
+  {% endif %}
 
   <div id="global-filter-bar" class="global-filter-bar" style="display:none;">
     <span class="global-filter-label">Viewing</span>

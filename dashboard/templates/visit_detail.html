@@ -87,6 +87,7 @@
     <section class="panel" aria-labelledby="visit-actions-title">
       <h2 class="home-panel-title" id="visit-actions-title">Actions</h2>
       <div class="site-actions">
+        {% if not read_only_mode %}
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/edit">Edit visit</a>
         <a class="btn-primary" href="/visits/{{ visit.visit_id }}/chemistry/new">Add chemistry result</a>
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/bacteria/new">Add bacteria result</a>
@@ -94,6 +95,7 @@
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/habitat/new">Add habitat assessment</a>
         {% else %}
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/habitat/new">Why habitat entry is unavailable</a>
+        {% endif %}
         {% endif %}
         <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/macro">Macroinvertebrates</a>
         <a class="btn-secondary" href="/explore?site_code={{ visit.site_code }}">Explore trends</a>
@@ -104,7 +106,9 @@
   <section class="panel site-recent" aria-labelledby="visit-chem-title">
     <div class="home-panel-head">
       <h2 class="home-panel-title" id="visit-chem-title">Chemistry results</h2>
+      {% if not read_only_mode %}
       <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/chemistry/new">Add chemistry result</a>
+      {% endif %}
     </div>
     {% if not chemistry %}
     <p class="muted">No chemistry results recorded for this visit.</p>
@@ -118,7 +122,9 @@
             {% if c.method_name %}<span class="site-meta-item">{{ c.method_name }}</span>{% endif %}
             {% if c.data_condition %}<span class="badge">{{ c.data_condition }}</span>{% endif %}
           </div>
+          {% if not read_only_mode %}
           <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/chemistry/{{ c.chemical_id }}/edit">Edit</a>
+          {% endif %}
         </div>
         {% if c.measured %}
         <ul class="result-measure-list">
@@ -141,7 +147,9 @@
   <section class="panel site-recent" aria-labelledby="visit-bact-title">
     <div class="home-panel-head">
       <h2 class="home-panel-title" id="visit-bact-title">Bacteria results</h2>
+      {% if not read_only_mode %}
       <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/bacteria/new">Add bacteria result</a>
+      {% endif %}
     </div>
     {% if not bacteria %}
     <p class="muted">No bacteria results recorded for this visit.</p>
@@ -154,7 +162,9 @@
             <strong>Bacteria result</strong>
             {% if b.data_condition %}<span class="badge">{{ b.data_condition }}</span>{% endif %}
           </div>
+          {% if not read_only_mode %}
           <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/bacteria/{{ b.bacteria_id }}/edit">Edit</a>
+          {% endif %}
         </div>
         <ul class="result-measure-list">
           {% if b.e_coli_mpn_100ml is not none %}
@@ -182,7 +192,7 @@
   <section class="panel site-recent" aria-labelledby="visit-hab-title">
     <div class="home-panel-head">
       <h2 class="home-panel-title" id="visit-hab-title">Habitat assessments</h2>
-      {% if habitat_entry_ok %}
+      {% if habitat_entry_ok and not read_only_mode %}
       <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/habitat/new">Add habitat assessment</a>
       {% endif %}
     </div>
@@ -194,9 +204,11 @@
       {% else %}
       This site does not have a habitat type recorded yet.
       {% endif %}
+      {% if not read_only_mode %}
       <a href="/site/{{ visit.site_code }}/edit">Edit site</a>
       ·
       <a href="/visits/{{ visit.visit_id }}/habitat/new">More detail</a>
+      {% endif %}
     </p>
     {% elif not habitats %}
     <p class="muted">No habitat assessment recorded for this visit.</p>
@@ -209,7 +221,9 @@
             <strong>Assessment {{ loop.index }}</strong>
             {% if h.data_condition %}<span class="badge">{{ h.data_condition }}</span>{% endif %}
           </div>
+          {% if not read_only_mode %}
           <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/habitat/{{ h.habitat_id }}/edit">Edit</a>
+          {% endif %}
         </div>
         {% if h.measured %}
         <ul class="result-measure-list">

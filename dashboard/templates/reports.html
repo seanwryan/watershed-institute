@@ -29,6 +29,7 @@
       <a class="btn-primary" href="/reports/completeness">Open report</a>
     </article>
 
+    {% if not public_demo_mode %}
     <article class="panel report-card">
       <h2 class="home-panel-title">Training compliance</h2>
       <p class="muted">Volunteer training records with expiration dates and current/expired status.</p>
@@ -40,6 +41,7 @@
       <p class="muted">Which volunteers are assigned to which sites, including role and active dates.</p>
       <a class="btn-primary" href="/reports/assignments">Open report</a>
     </article>
+    {% endif %}
 
     <article class="panel report-card">
       <h2 class="home-panel-title">Chemistry &amp; bacteria results</h2>

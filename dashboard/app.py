@@ -32,12 +32,16 @@ from etl.bact_scoring import (
 )
 from etl.hab_status import preview_hab_workbook
 import report_queries as rq
+from read_only import register_read_only
+from public_demo import register_public_demo, is_public_demo_mode
 
 # Strip quotes so pasting 'postgresql://...' in Render Environment still works
 _raw = os.getenv("DATABASE_URL", "postgresql://localhost/streamwatch") or ""
 DATABASE_URL = _raw.strip().strip("'\"").strip()
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
+register_read_only(app)
+register_public_demo(app)
 
 
 def get_db():
@@ -231,8 +235,7 @@ def api_home_summary():
             }
             for r in cur.fetchall()
         ]
-        return jsonify(
-            {
+        payload = {
                 "sites_total": sites_total,
                 "sites_active": sites_active,
                 "sampling_visits": visits,
@@ -241,11 +244,12 @@ def api_home_summary():
                 "flagged_chemistry_results": flagged_chemistry,
                 "exceedance_flags": exceedance_flags,
                 "meter_related_flags": meter_fail_flags,
-                "volunteers": volunteers,
-                "equipment": equipment,
                 "recent_sites": recent,
             }
-        )
+        if not is_public_demo_mode():
+            payload["volunteers"] = volunteers
+            payload["equipment"] = equipment
+        return jsonify(payload)
     finally:
         conn.close()
 

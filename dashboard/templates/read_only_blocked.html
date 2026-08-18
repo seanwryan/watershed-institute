@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Read-only demo{% endblock %}
+{% block content %}
+<div class="page-monitoring">
+  <header class="page-header">
+    <h1>Read-only demo</h1>
+    <p class="page-subtitle">{{ message }}</p>
+  </header>
+
+  <section class="panel">
+    <p class="muted">
+      {% if blocked_form %}
+      Data entry and editing are not available in this public demonstration environment.
+      {% else %}
+      That action is not available in this public demonstration environment.
+      {% endif %}
+    </p>
+    <p style="margin-top:1rem;">
+      <a class="btn-primary" href="/">Return to home</a>
+      <a class="btn-secondary" href="/sites">Browse sites</a>
+    </p>
+  </section>
+</div>
+{% endblock %}

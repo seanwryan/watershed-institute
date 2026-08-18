@@ -483,6 +483,18 @@ GitHub main  →  Render web service  →  Neon Postgres (demo branch)
 Render `DATABASE_URL` must point at the **intended Neon branch**. See
 [DEPLOYMENT.md](DEPLOYMENT.md) for host settings (no credentials in this runbook).
 
+For a **public read-only demo** on Render, set `READ_ONLY_MODE=true` and
+`PUBLIC_DEMO_MODE=true` in the service environment. The app blocks
+PostgreSQL-changing routes server-side, hides staff-only operational areas, and
+suppresses related navigation/API/report paths.
+
+For a **private read-only staff session** (e.g. review with Watershed staff),
+set only `READ_ONLY_MODE=true` and leave `PUBLIC_DEMO_MODE` unset so volunteers,
+equipment, and training/assignment reports remain visible.
+
+Leave both unset for local/staff writable use only when proper access controls
+are in place—neither mode replaces authentication in production.
+
 ---
 
 ## 14. Neon demo refresh

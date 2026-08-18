@@ -76,7 +76,9 @@
   <section class="panel site-recent" aria-labelledby="macro-table-title">
     <div class="home-panel-head">
       <h2 class="home-panel-title" id="macro-table-title">Taxon counts</h2>
+      {% if not read_only_mode %}
       <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/macro/taxa/new">Add taxon</a>
+      {% endif %}
     </div>
     {% if not counts %}
     <p class="muted">No macroinvertebrate counts recorded for this visit.</p>
@@ -88,8 +90,10 @@
             <th scope="col">Taxon</th>
             <th scope="col">Count</th>
             <th scope="col">Excluded</th>
+            {% if not read_only_mode %}
             <th scope="col">Edit</th>
             <th scope="col">Remove</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
@@ -98,6 +102,7 @@
             <td>{{ row.label }}</td>
             <td class="num">{{ row.amount }}</td>
             <td>{% if row.exclude %}Yes{% else %}—{% endif %}</td>
+            {% if not read_only_mode %}
             <td><a href="/visits/{{ visit.visit_id }}/macro/taxa/{{ row.bug_count_id }}/edit">Edit</a></td>
             <td>
               <form method="post" action="/visits/{{ visit.visit_id }}/macro/taxa/{{ row.bug_count_id }}/delete"
@@ -105,6 +110,10 @@
                 <button type="submit" class="btn-link-danger">Remove</button>
               </form>
             </td>
+            {% else %}
+            <td>—</td>
+            <td>—</td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>

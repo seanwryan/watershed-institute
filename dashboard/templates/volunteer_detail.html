@@ -34,7 +34,9 @@
   <section class="panel site-recent" id="trainings-card" hidden aria-labelledby="trainings-title">
     <div class="home-panel-head">
       <h2 class="home-panel-title" id="trainings-title">Training</h2>
+      {% if not read_only_mode %}
       <a class="home-panel-action" id="add-training-link" href="/volunteers/{{ volunteer_id }}/training/new">Add training record</a>
+      {% endif %}
     </div>
     <p class="muted" id="trainings-empty" hidden>No training records for this volunteer.</p>
     <div class="table-wrap" id="trainings-wrap" hidden>
@@ -56,7 +58,9 @@
   <section class="panel site-recent" id="assignments-card" hidden aria-labelledby="assignments-title">
     <div class="home-panel-head">
       <h2 class="home-panel-title" id="assignments-title">Site assignments</h2>
+      {% if not read_only_mode %}
       <a class="home-panel-action" id="add-assignment-link" href="/volunteers/{{ volunteer_id }}/assignments/new">Add site assignment</a>
+      {% endif %}
     </div>
     <p class="muted" id="assignments-empty" hidden>No site assignments for this volunteer.</p>
     <div class="table-wrap" id="assignments-wrap" hidden>
@@ -157,11 +161,14 @@
         '</dl>';
 
       var vid = encodeURIComponent(v.volunteer_id);
+      var readOnly = document.body.dataset.readOnly === 'true';
       document.getElementById('volunteer-actions').hidden = false;
-      document.getElementById('volunteer-actions-body').innerHTML =
+      var writeActions = readOnly ? '' :
         '<a class="btn-primary" href="/volunteers/' + vid + '/edit">Edit volunteer</a>' +
         '<a class="btn-secondary" href="/volunteers/' + vid + '/training/new">Add training record</a>' +
-        '<a class="btn-secondary" href="/volunteers/' + vid + '/assignments/new">Add site assignment</a>' +
+        '<a class="btn-secondary" href="/volunteers/' + vid + '/assignments/new">Add site assignment</a>';
+      document.getElementById('volunteer-actions-body').innerHTML =
+        writeActions +
         '<a class="btn-secondary" href="/volunteers">Back to volunteers</a>';
 
       document.getElementById('volunteer-program').hidden = false;
@@ -202,7 +209,7 @@
           var siteCell = a.site_code
             ? '<a href="/site/' + encodeURIComponent(a.site_code) + '">' + esc(a.site_code) + '</a>'
             : '—';
-          var editCell = a.assignment_id
+          var editCell = (!readOnly && a.assignment_id)
             ? '<a href="/volunteers/' + vid + '/assignments/' + encodeURIComponent(a.assignment_id) + '/edit">Edit</a>'
             : '—';
           return '<tr><td>' + siteCell + '</td><td>' + esc(fmt(a.waterbody_name)) +
