@@ -18,9 +18,13 @@ env/
 .vscode/
 .DS_Store
 
-# Optional: uncomment if you keep large Excel data in repo
-# data/*.xlsx
-# data/*.xlsm
+# Watershed source datasets (never commit operational workbooks)
+data/*.xlsx
+data/*.xlsm
+data/*.xls
+*.accdb
+*.mdb
+*.dump
 backups/
 
 # Generated reconciliation / verification outputs

@@ -1,14 +1,14 @@
 # StreamWatch Web App — How to Use
 
-This guide covers using the StreamWatch web app **locally** or on the **live site** (e.g. https://your-streamwatch-demo.example.com).
+This guide covers using the StreamWatch web app **locally** or on a **deployed demo instance** provided by your project administrator.
 
 ---
 
 ## 1. Opening the app
 
-### Live site (Render)
+### Deployed demo
 
-- Open **https://your-streamwatch-demo.example.com** in your browser.
+- Open the deployed StreamWatch application provided by your project administrator.
 - **First load or after idle:** The server may take **up to a minute** to wake up (free-tier spin-down). If the page hangs, wait and refresh once. Later loads are fast.
 - The **Home** page is the starting point.
 

@@ -2,6 +2,8 @@
 
 Centralized PostgreSQL database, ETL, QA, reporting, and dashboard for the StreamWatch water quality monitoring program (CAT, BAT, BACT), per the [StreamWatch Database Modernization Plan](.cursor/plans/streamwatch_database_modernization_7ab7197e.plan.md).
 
+**Note:** Watershed source datasets are intentionally excluded from this repository. The application and ETL code are included, but original operational datasets and personally identifiable volunteer information are not distributed. Obtain source workbooks from The Watershed Institute for local ETL runs.
+
 ## Quick start
 
 1. **Create database and apply schema**
@@ -43,7 +45,7 @@ Historical chemistry (`migrate_streamwatch_data`) loads the **ALL DATA** sheet o
 - **etl/** – Migration scripts (sites, volunteers, equipment, StreamWatch data, BACT 2025, BAT), QA rules, biological indices, WQX export
 - **dashboard/** – Flask web app (Map, Sites, Explore, Equipment, Volunteers, Scores, QA, Export) and JSON API
 - **docs/** – Operations runbook (`docs/OPERATIONS_RUNBOOK.md`), app tutorial, deployment guide, migration log; **docs/reference/** – source workbook summaries (raw_breakdown.txt)
-- **data/** – Excel/XLSX source files (see “Data sources” below)
+- **data/** – local-only Excel/XLSX source files (not included in this repository; see “Data sources” below)
 - **reports/** – local ETL reconciliation outputs (gitignored)
 
 ## Data sources (expected in `data/` or paths in `etl/config.py`)
