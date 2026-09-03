@@ -131,6 +131,8 @@
   var paramList = [];
   var thresholds = {};
   var P = window.StreamWatchParams;
+  var THRESHOLD_AXIS_MULTIPLIER = 3;
+  var boundsContextKey = '';
   var STORAGE_KEYS = { dateStart: 'streamwatch_global_date_start', dateEnd: 'streamwatch_global_date_end', siteCode: 'streamwatch_global_site_code' };
 
   function saveToGlobalFilter() {
@@ -142,19 +144,56 @@
   }
   function applyGlobalFilter() {
     try {
-      var s = window.sessionStorage;
-      if (!presetSite && s.getItem(STORAGE_KEYS.dateStart)) dateStart.value = s.getItem(STORAGE_KEYS.dateStart);
-      if (!presetSite && s.getItem(STORAGE_KEYS.dateEnd)) dateEnd.value = s.getItem(STORAGE_KEYS.dateEnd);
-      var code = presetSite || s.getItem(STORAGE_KEYS.siteCode);
+      var code = presetSite || window.sessionStorage.getItem(STORAGE_KEYS.siteCode);
       if (code && siteSelect.querySelector('option[value="' + code + '"]')) siteSelect.value = code;
     } catch (e) {}
   }
-  function setDefaultDates() {
-    var end = new Date();
-    var start = new Date(end);
-    start.setFullYear(start.getFullYear() - 1);
-    if (!dateEnd.value) dateEnd.value = end.toISOString().slice(0, 10);
-    if (!dateStart.value) dateStart.value = start.toISOString().slice(0, 10);
+
+  function boundsKeyForLineMode() {
+    if (isScatter()) return '';
+    var param = paramSelect.value || '';
+    if (isCompare()) return 'compare:' + getSelectedSiteCodes().join(',') + '|' + param;
+    return 'single:' + (siteSelect.value || '') + '|' + param;
+  }
+
+  function refreshDateBounds() {
+    if (isScatter()) return Promise.resolve(false);
+    var key = boundsKeyForLineMode();
+    boundsContextKey = key;
+    if (isSingleSiteMode() && !siteSelect.value) {
+      dateStart.value = '';
+      dateEnd.value = '';
+      return Promise.resolve(false);
+    }
+    if (isCompare()) {
+      var codes = getSelectedSiteCodes();
+      if (!codes.length) {
+        dateStart.value = '';
+        dateEnd.value = '';
+        return Promise.resolve(false);
+      }
+    }
+    var url = '/api/time_series_bounds?parameter=' + encodeURIComponent(paramSelect.value);
+    if (isCompare()) {
+      url += '&site_codes=' + encodeURIComponent(getSelectedSiteCodes().join(','));
+    } else {
+      url += '&site_code=' + encodeURIComponent(siteSelect.value);
+    }
+    return fetch(url).then(function(r) {
+      if (!r.ok) throw new Error('bounds API error');
+      return r.json();
+    }).then(function(bounds) {
+      if (boundsContextKey !== key) return false;
+      if (bounds.date_start && bounds.date_end) {
+        dateStart.value = bounds.date_start;
+        dateEnd.value = bounds.date_end;
+        saveToGlobalFilter();
+        return true;
+      }
+      dateStart.value = '';
+      dateEnd.value = '';
+      return false;
+    }).catch(function() { return false; });
   }
 
   var errEl = document.getElementById('explore-error');
@@ -207,6 +246,54 @@
     opts = opts || {};
     chartTitle.textContent = opts.title || 'Chart';
     chartMeta.textContent = opts.meta || '';
+  }
+
+  function numericValues(values) {
+    return values.filter(function(v) { return v != null && !isNaN(v); });
+  }
+
+  function observedMax(values) {
+    var nums = numericValues(values);
+    if (!nums.length) return null;
+    return Math.max.apply(null, nums);
+  }
+
+  function thresholdDisplayPlan(paramId, values) {
+    if (!showThreshold.checked || thresholds[paramId] == null) {
+      return { drawLine: false, note: '' };
+    }
+    var thresh = thresholds[paramId];
+    var dataMax = observedMax(values);
+    if (dataMax == null) return { drawLine: false, note: '' };
+    if (dataMax <= 0) {
+      if (thresh <= 0) return { drawLine: true, note: '', threshold: thresh };
+      return {
+        drawLine: false,
+        note: 'Reference threshold: ' + thresh + (P.unit(paramId) ? ' ' + P.unit(paramId) : '') + ' — above displayed range.',
+        threshold: thresh
+      };
+    }
+    if (thresh <= dataMax * THRESHOLD_AXIS_MULTIPLIER) {
+      return { drawLine: true, note: '', threshold: thresh };
+    }
+    return {
+      drawLine: false,
+      note: 'Reference threshold: ' + thresh + (P.unit(paramId) ? ' ' + P.unit(paramId) : '') + ' — above displayed range.',
+      threshold: thresh
+    };
+  }
+
+  function appendThresholdDataset(datasets, labels, paramId, plan) {
+    if (!plan.drawLine || plan.threshold == null || !labels.length) return;
+    datasets.push({
+      label: 'Reference threshold (' + plan.threshold + (P.unit(paramId) ? ' ' + P.unit(paramId) : '') + ')',
+      data: labels.map(function() { return plan.threshold; }),
+      borderColor: THRESHOLD_COLOR,
+      borderWidth: 1.5,
+      borderDash: [5, 4],
+      fill: false,
+      pointRadius: 0
+    });
   }
 
   function buildCompareOptions(sel, exclude) {
@@ -331,7 +418,6 @@
         if (data.error) { showErr(data.error); setStatus(''); if (chart) chart.destroy(); return; }
         var paramId = data.parameter || paramSelect.value;
         var yLab = P.displayLabel(paramId);
-        var thresh = showThreshold.checked && thresholds[paramId] != null ? thresholds[paramId] : null;
         var datasets = (data.series || []).map(function(s, i) {
           return {
             label: s.label,
@@ -345,10 +431,15 @@
           };
         });
         var labels = (data.series && data.series[0]) ? data.series[0].data.map(function(d) { return d.date; }) : [];
+        var allValues = [];
+        datasets.forEach(function(d) { allValues = allValues.concat(d.data); });
+        var threshPlan = thresholdDisplayPlan(paramId, allValues);
         var hasPoints = datasets.some(function(d) { return d.data.some(function(v) { return v != null; }); });
+        var metaParts = [codes.map(siteLabel).join(' · '), yearRangeText()].filter(Boolean);
+        if (threshPlan.note) metaParts.push(threshPlan.note);
         updateChartHeader({
           title: P.titleLabel(paramId) + (P.unit(paramId) ? ' (' + P.unit(paramId) + ')' : ''),
-          meta: codes.map(siteLabel).join(' · ') + (yearRangeText() ? ' · ' + yearRangeText() : '')
+          meta: metaParts.filter(Boolean).join(' · ')
         });
         if (!hasPoints) {
           if (chart) chart.destroy();
@@ -356,17 +447,7 @@
           setStatus('No data available for the selected filters.');
           return;
         }
-        if (thresh != null && labels.length) {
-          datasets.push({
-            label: 'Reference threshold (' + thresh + (P.unit(paramId) ? ' ' + P.unit(paramId) : '') + ')',
-            data: labels.map(function() { return thresh; }),
-            borderColor: THRESHOLD_COLOR,
-            borderWidth: 1.5,
-            borderDash: [5, 4],
-            fill: false,
-            pointRadius: 0
-          });
-        }
+        appendThresholdDataset(datasets, labels, paramId, threshPlan);
         if (chart) chart.destroy();
         chart = new Chart(document.getElementById('chart'), {
           type: 'line',
@@ -388,11 +469,14 @@
       var values = data.map(function(d) { return d.value; });
       var paramId = paramSelect.value;
       var yLab = P.displayLabel(paramId);
-      var thresh = showThreshold.checked && thresholds[paramId] != null ? thresholds[paramId] : null;
+      var threshPlan = thresholdDisplayPlan(paramId, values);
       var hasPoints = values.some(function(v) { return v != null; });
+      var metaParts = [siteLabel(siteSelect.value), yearRangeText()];
+      if (hasPoints) metaParts.push(values.filter(function(v){return v!=null;}).length + ' values');
+      if (threshPlan.note) metaParts.push(threshPlan.note);
       updateChartHeader({
         title: P.titleLabel(paramId) + (P.unit(paramId) ? ' (' + P.unit(paramId) + ')' : ''),
-        meta: siteLabel(siteSelect.value) + (yearRangeText() ? ' · ' + yearRangeText() : '') + (hasPoints ? ' · ' + values.filter(function(v){return v!=null;}).length + ' values' : '')
+        meta: metaParts.filter(Boolean).join(' · ')
       });
       if (!hasPoints) {
         if (chart) chart.destroy();
@@ -410,17 +494,7 @@
         pointRadius: 0,
         borderWidth: 2
       }];
-      if (thresh != null && labels.length) {
-        datasets.push({
-          label: 'Reference threshold (' + thresh + (P.unit(paramId) ? ' ' + P.unit(paramId) : '') + ')',
-          data: labels.map(function() { return thresh; }),
-          borderColor: THRESHOLD_COLOR,
-          borderWidth: 1.5,
-          borderDash: [5, 4],
-          fill: false,
-          pointRadius: 0
-        });
-      }
+      appendThresholdDataset(datasets, labels, paramId, threshPlan);
       if (chart) chart.destroy();
       chart = new Chart(document.getElementById('chart'), {
         type: 'line',
@@ -456,8 +530,17 @@
     syncSitePlaceholder();
   }
 
+  function onLineFilterContextChange() {
+    refreshDateBounds().then(function() { load(); });
+  }
+
   chartType.addEventListener('change', function() {
     syncFilterVisibility();
+    if (isScatter()) {
+      load();
+    } else {
+      onLineFilterContextChange();
+    }
   });
   mode.addEventListener('change', function() {
     syncFilterVisibility();
@@ -465,16 +548,27 @@
       buildCompareOptions(siteB, [siteSelect.value]);
       buildCompareOptions(siteC, [siteSelect.value, siteB.value]);
     }
+    if (!isScatter()) onLineFilterContextChange();
   });
   siteSelect.addEventListener('change', function() {
     if (isCompare()) {
       buildCompareOptions(siteB, [siteSelect.value]);
       buildCompareOptions(siteC, [siteSelect.value, siteB.value]);
     }
+    saveToGlobalFilter();
+    if (!isScatter()) onLineFilterContextChange();
   });
   siteB.addEventListener('change', function() {
     if (isCompare()) buildCompareOptions(siteC, [siteSelect.value, siteB.value]);
+    if (isCompare()) onLineFilterContextChange();
   });
+  siteC.addEventListener('change', function() {
+    if (isCompare()) onLineFilterContextChange();
+  });
+  paramSelect.addEventListener('change', function() {
+    if (!isScatter()) onLineFilterContextChange();
+  });
+  showThreshold.addEventListener('change', load);
   btn.addEventListener('click', load);
   btnCsv.addEventListener('click', downloadCsv);
 
@@ -504,24 +598,24 @@
     if (presetSite && siteSelect.querySelector('option[value="' + presetSite + '"]')) {
       siteSelect.value = presetSite;
     }
-    setDefaultDates();
     applyGlobalFilter();
     if (presetSite && siteSelect.querySelector('option[value="' + presetSite + '"]')) {
       siteSelect.value = presetSite;
     }
     dateStart.addEventListener('change', saveToGlobalFilter);
     dateEnd.addEventListener('change', saveToGlobalFilter);
-    siteSelect.addEventListener('change', saveToGlobalFilter);
     setStatus('');
-    if (isScatter() || siteSelect.value || (isCompare() && getSelectedSiteCodes().length)) {
-      load();
-    } else {
-      updateChartHeader({
-        title: 'Choose a site',
-        meta: 'Select a monitoring location, then update the chart.'
-      });
-      setStatus('Choose a site to update the chart.');
-    }
+    refreshDateBounds().then(function() {
+      if (isScatter() || siteSelect.value || (isCompare() && getSelectedSiteCodes().length)) {
+        load();
+      } else {
+        updateChartHeader({
+          title: 'Choose a site',
+          meta: 'Select a monitoring location, then update the chart.'
+        });
+        setStatus('Choose a site to update the chart.');
+      }
+    });
   }).catch(function() {
     showErr('Could not load sites or parameters.');
     setStatus('');

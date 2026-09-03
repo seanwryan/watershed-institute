@@ -70,7 +70,7 @@
 
   <section class="panel definitions-panel" aria-labelledby="qa-defs-title">
     <h2 class="home-panel-title" id="qa-defs-title">Status definitions</h2>
-    <p class="muted">Chemistry rows may carry a review status such as Flagged, Provisional, or Unchecked. Flag codes mark specific review reasons.</p>
+    <p class="muted">Chemistry records may carry a data condition describing their review state, an identified issue, or how a value was processed. Result flags identify specific reasons that may require review.</p>
     <div id="data-conditions-legend" class="definitions-list muted">Loading…</div>
   </section>
 </div>
@@ -101,6 +101,11 @@
     Outlier: 'Outlier',
     Suspect: 'Suspect'
   };
+  var CONDITION_DOMAIN_GROUPS = [
+    { domain: 'quality_status', title: 'Quality status' },
+    { domain: 'issues_anomalies', title: 'Data issues' },
+    { domain: 'processing_modifiers', title: 'Processing' }
+  ];
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -173,6 +178,20 @@
     });
   }
 
+  function conditionLabel(code) {
+    return String(code || '').replace(/_/g, ' ');
+  }
+
+  function renderDefinitionList(items, labelFn) {
+    if (!items.length) return '';
+    var html = '<ul>';
+    items.forEach(function(item) {
+      html += '<li><strong>' + esc(labelFn(item)) + '</strong> — ' + esc(item.description || item.code || '') + '</li>';
+    });
+    html += '</ul>';
+    return html;
+  }
+
   function loadLegend() {
     Promise.all([
       fetch('/api/data_conditions').then(function(r) { return r.json(); }),
@@ -182,18 +201,21 @@
       var flagTypes = Array.isArray(res[1]) ? res[1] : [];
       var html = '';
       if (flagTypes.length) {
-        html += '<p class="definitions-group-title">Flags</p><ul>';
-        flagTypes.forEach(function(f) {
-          html += '<li><strong>' + esc(flagLabel(f.code)) + '</strong> — ' + esc(f.description || f.code) + '</li>';
-        });
-        html += '</ul>';
+        html += '<p class="definitions-group-title">Flags</p>';
+        html += renderDefinitionList(flagTypes, function(f) { return flagLabel(f.code); });
       }
-      if (conditions.length) {
-        html += '<p class="definitions-group-title">Review status</p><ul>';
-        conditions.forEach(function(d) {
-          html += '<li><strong>' + esc((d.code || '').replace(/_/g, ' ')) + '</strong> — ' + esc(d.description || '') + '</li>';
-        });
-        html += '</ul>';
+      CONDITION_DOMAIN_GROUPS.forEach(function(group) {
+        var items = conditions.filter(function(d) { return d.domain === group.domain; });
+        if (!items.length) return;
+        html += '<p class="definitions-group-title">' + esc(group.title) + '</p>';
+        html += renderDefinitionList(items, function(d) { return conditionLabel(d.code); });
+      });
+      var otherConditions = conditions.filter(function(d) {
+        return !d.domain || !CONDITION_DOMAIN_GROUPS.some(function(g) { return g.domain === d.domain; });
+      });
+      if (otherConditions.length) {
+        html += '<p class="definitions-group-title">Other</p>';
+        html += renderDefinitionList(otherConditions, function(d) { return conditionLabel(d.code); });
       }
       legendEl.innerHTML = html || 'No definitions available.';
     }).catch(function() {

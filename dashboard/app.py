@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 from etl.biological_indices import calculate_visit_indices
+from dashboard.explore_helpers import fetch_time_series_date_bounds, normalize_explore_parameter
 from etl.bact_reconcile import preview_bact_workbook, validate_bact_workbook
 from etl.bact_scoring import (
     SOURCE_NOTE as BACT_SCORE_SOURCE_NOTE,
@@ -151,6 +152,32 @@ def api_time_series():
         conn.close()
 
 
+@app.route("/api/time_series_bounds")
+def api_time_series_bounds():
+    """Available sample_date range for a site (or sites) and parameter where values are non-null."""
+    site_code = request.args.get("site_code")
+    site_codes_raw = request.args.get("site_codes")
+    parameter = request.args.get("parameter", "water_temp_c")
+    if site_codes_raw:
+        site_codes = [s.strip() for s in site_codes_raw.split(",") if s.strip()]
+    elif site_code:
+        site_codes = [site_code.strip()]
+    else:
+        return jsonify({"error": "Provide site_code or site_codes"}), 400
+    if not site_codes or len(site_codes) > 5:
+        return jsonify({"error": "Provide 1–5 site codes"}), 400
+    parameter = normalize_explore_parameter(parameter)
+    conn, err = get_db_or_503()
+    if err:
+        return err
+    try:
+        cur = conn.cursor()
+        bounds = fetch_time_series_date_bounds(cur, site_codes, parameter)
+        return jsonify(bounds)
+    finally:
+        conn.close()
+
+
 @app.route("/api/qa_summary")
 def api_qa_summary():
     """QA summary: flagged chemical count, exceedance count, meter-fail count (for internal QA dashboard)."""
@@ -262,9 +289,16 @@ def api_data_conditions():
         return err
     try:
         cur = conn.cursor()
-        cur.execute("SELECT code, description FROM data_condition ORDER BY code")
+        cur.execute(
+            "SELECT code, description, domain FROM data_condition "
+            "ORDER BY CASE domain "
+            "WHEN 'quality_status' THEN 1 "
+            "WHEN 'issues_anomalies' THEN 2 "
+            "WHEN 'processing_modifiers' THEN 3 "
+            "ELSE 4 END, code"
+        )
         rows = cur.fetchall()
-        return jsonify([{"code": r[0], "description": r[1] or ""} for r in rows])
+        return jsonify([{"code": r[0], "description": r[1] or "", "domain": r[2] or ""} for r in rows])
     finally:
         conn.close()
 
