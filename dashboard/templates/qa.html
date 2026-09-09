@@ -74,8 +74,40 @@
 
   <section class="panel definitions-panel" aria-labelledby="qa-defs-title">
     <h2 class="home-panel-title" id="qa-defs-title">Status definitions</h2>
-    <p class="muted">Chemistry records may carry a data condition describing their review state, an identified issue, or how a value was processed. Result flags identify specific reasons that may require review.</p>
+    <p class="muted">
+      Chemistry records may carry a data condition, and result flags identify specific review reasons.
+      The grouped lists below are <strong>app organization</strong> of codes stored in this database
+      (including historical lookup values). They are <strong>not</strong> the official Watershed
+      Data Condition taxonomy from the Sep&nbsp;9, 2026 Data Dictionary.
+    </p>
     <div id="data-conditions-legend" class="definitions-list muted">Loading…</div>
+  </section>
+
+  <section class="panel definitions-panel" aria-labelledby="qa-watershed-vocab-title">
+    <h2 class="home-panel-title" id="qa-watershed-vocab-title">Watershed source vocabulary (Sep&nbsp;9, 2026)</h2>
+    <p class="muted">
+      The StreamWatch Data Dictionary (last updated September&nbsp;9, 2026) describes these
+      Data Condition tags as currently in use in the raw dataset. Tags may appear alone or
+      combined with semicolons. A full review of Data Condition tags was completed in August&nbsp;2026.
+    </p>
+    <ul class="definitions-list muted">
+      <li><strong>Provisional</strong> — Preliminary; has not yet completed final review and may still change.</li>
+      <li><strong>Incomplete</strong> — Missing key elements or measurements.</li>
+      <li><strong>Outlier</strong> — A value falls well outside the typical range for that parameter or site and has been flagged for review. This does not necessarily mean the value is wrong—only that it warrants a second look before use.</li>
+      <li><strong>Minor Deviation</strong> — Small inconsistencies, generally usable as-is.</li>
+      <li><strong>Flagged</strong> — Marked for review due to a potential issue; see Notes where available. Flagged records are excluded from analysis under Watershed’s own practice.</li>
+      <li><strong>Corrected</strong> — An identified issue has been found and fixed.</li>
+      <li><strong>Erroneous</strong> — Contains a physically impossible value (for example pH or conductivity of 0). Unusual but physically possible values are tagged Outlier instead.</li>
+      <li><strong>Duplicate</strong> — A repeated entry that does not add new information beyond another record already in the dataset.</li>
+      <li><strong>Duplicate?</strong> — Appears to repeat another entry, but this has not yet been confirmed. A bare Duplicate or Duplicate? tag (with no other status) means the pair is still awaiting reconciliation against original paper field sheets—not a signal for which copy to keep.</li>
+    </ul>
+    <p class="muted methods-small-note">
+      Codes such as Accepted, Unchecked, Validated, Approved, or Certified may still appear in
+      this application’s lookup lists or older records. The Sep&nbsp;9 Dictionary does not list them
+      among the tags currently in use in the raw workbook. Prefer the Watershed vocabulary on this
+      page when interpreting source Data Condition wording; use the app-organized lists (Flags /
+      App groups) for codes stored in PostgreSQL today.
+    </p>
   </section>
 </div>
 {% endblock %}
@@ -106,9 +138,9 @@
     Suspect: 'Suspect'
   };
   var CONDITION_DOMAIN_GROUPS = [
-    { domain: 'quality_status', title: 'Quality status' },
-    { domain: 'issues_anomalies', title: 'Data issues' },
-    { domain: 'processing_modifiers', title: 'Processing' }
+    { domain: 'quality_status', title: 'App groups — quality status' },
+    { domain: 'issues_anomalies', title: 'App groups — data issues' },
+    { domain: 'processing_modifiers', title: 'App groups — processing' }
   ];
 
   function esc(s) {

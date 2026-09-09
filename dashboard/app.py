@@ -25,7 +25,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 from etl.biological_indices import calculate_visit_indices
 from dashboard.explore_helpers import fetch_time_series_date_bounds, normalize_explore_parameter
-from dashboard.methods_reference import CHLORIDE_NOTE, METHOD_ROWS, METHODS_SUBTITLE, SOURCE_NOTES, TIMELINE_EVENTS
+from dashboard.methods_reference import (
+    ANALYSIS_EXCLUSION_NOTE,
+    CHLORIDE_NOTE,
+    METHOD_GROUPS,
+    METHOD_ROWS,
+    METHODS_SUBTITLE,
+    SOURCE_NOTES,
+    TIMELINE_EVENTS,
+)
 from dashboard.data_pipeline_reference import (
     ETL_DEFINITION,
     FLOW_STEPS,
@@ -34,6 +42,7 @@ from dashboard.data_pipeline_reference import (
     PIPELINE_OVERVIEW,
     PIPELINE_RAW_DATA_NOTE,
     PIPELINE_SECTIONS,
+    PIPELINE_SOURCE_CAVEAT,
     PIPELINE_SUBTITLE,
 )
 from etl.bact_reconcile import preview_bact_workbook, validate_bact_workbook
@@ -3721,9 +3730,11 @@ def methods_page():
         "methods.html",
         subtitle=METHODS_SUBTITLE,
         rows=METHOD_ROWS,
+        method_groups=METHOD_GROUPS,
         timeline=TIMELINE_EVENTS,
         source_notes=SOURCE_NOTES,
         chloride_note=CHLORIDE_NOTE,
+        analysis_exclusion_note=ANALYSIS_EXCLUSION_NOTE,
     )
 
 
@@ -3735,6 +3746,7 @@ def data_pipeline_page():
         overview=PIPELINE_OVERVIEW,
         etl_definition=ETL_DEFINITION,
         raw_data_note=PIPELINE_RAW_DATA_NOTE,
+        source_caveat=PIPELINE_SOURCE_CAVEAT,
         flow_steps=FLOW_STEPS,
         sections=PIPELINE_SECTIONS,
         lineage=LINEAGE_ROWS,

@@ -2,9 +2,22 @@
 
 This document describes **what the Python ETL scripts currently do**. It is not a redesign proposal.
 
-Staff-facing overview: in-app page **`/data-pipeline`**.
+Staff-facing overview: in-app page **`/data-pipeline`**. Methods reference: **`/methods`**.
 
 Related: `docs/migration_log.md` (historical migration notes), `docs/OPERATIONS_RUNBOOK.md` (rebuild counts and ops).
+
+## Authoritative Watershed sources (Sep 9, 2026)
+
+Documentation and UI wording for methods / Data Condition vocabulary should follow:
+
+- StreamWatch Data Summary & Description (last updated September 9, 2026)
+- StreamWatch Data Dictionary (last updated September 9, 2026)
+
+Supporting Original Resources workbooks remain useful for ETL file names and sheets.
+
+**Important caveat:** The final Sep 9 documentation package references an updated **All StreamWatch Data.xlsx**, but that workbook is **not present** in the current authoritative source folder. Do **not** assume the live/demo PostgreSQL database is fully aligned with final Watershed chemistry data until that workbook is confirmed and a deliberate refresh is planned.
+
+Do not put local absolute filesystem paths in public-facing pages or committed docs beyond generic filenames.
 
 ## Terminology
 
@@ -23,6 +36,31 @@ Pipelines may:
 Unresolved cases are logged or left for review rather than forced into matches.
 
 **ETL** = Extract (read sources) → Transform (clean/match) → Load (write PostgreSQL), or preview/export without loading.
+
+### Method strings (raw / documentation)
+
+Sep 9 Summary Method groups include:
+
+- `CAT: Hanna`
+- `CAT: LaMotte`
+- `CAT: Early LaMotte` (predecessor; turbidity not comparable — exclude from analysis)
+- `BAT`
+- `BACT`
+- `Salt Watch` (Dictionary-only: in-house Hach chloride strip check vs Gallery — **not** community Salt Watch program data)
+
+Legacy ETL lookup seeds may still use shorter names (`Hanna`, `LaMotte`, `BACT`, …). Do not silently rename stored method values in this documentation-only update.
+
+### Data Condition vocabulary (Sep 9 Dictionary)
+
+Tags described as currently in use in the raw dataset:
+
+Provisional, Incomplete, Outlier, Minor Deviation, Flagged, Corrected, Erroneous, Duplicate, Duplicate?
+
+August 2026: full review of Data Condition tags completed (per Summary timeline).
+
+App/database seed still includes additional historical codes (Accepted, Unchecked, Validated, Approved, Certified, …). Those are **app organization / legacy lookups**, not the Sep 9 Dictionary’s current raw-workbook tag list. Do not change schema or seed in a docs-only pass.
+
+Watershed analysis practice excludes: Flagged records; trailing `?` values; CAT: Early LaMotte turbidity.
 
 ## Environment
 
@@ -54,6 +92,8 @@ python -m etl.apply_qa_rules
 ```
 
 Chemistry / BACT writers call `refuse_if_protected_database()` before mutating results.
+
+**Do not run a chemistry rebuild expecting the missing final Sep 9 All StreamWatch Data workbook until that file is confirmed available.**
 
 ## Inventory
 
@@ -109,14 +149,18 @@ Schema/seed: `db/run_schema.sql` and numbered `db/*.sql` (not Excel ETL).
 ### Chemistry (historical) — `migrate_streamwatch_data.py`
 
 - **Source:** `All StreamWatch Data.xlsx` → sheet **`ALL DATA` only** (hard-coded; never auto-loads watershed sheets)
+- **Availability:** Final Sep 9 authoritative folder currently **missing** this workbook; ETL still expects the filename when a rebuild is run against whatever `STREAMWATCH_DATA_DIR` provides.
 - **Dest:** `visit`, `chemical`, and bacteria only when an integer E. coli column matches aliases below
 - **Chem fields:** Mapped via `CHEM_HEADER_ALIASES` in `chem_recon.py` (air/water temp, nitrate, phosphates, pH, turbidity, DO ppm/%DO, conductivity, **Chloride (mg/L)**)
-- **Chloride:** Values are copied as numbers after float parse + round. **There is no ÷10 (or ×10) correction in ETL.** If the workbook already contains corrected chloride, the ETL must not “correct” again.
+- **Chloride:** Watershed documented a 2026 standard-preparation error; discrete-analyzer chloride results “to date” were divided by 10; newer candidate workbooks appear already corrected. ETL copies chloride as numbers after float parse + round — **there is no ÷10 (or ×10) correction in ETL.** A future refresh from a confirmed corrected workbook must **avoid double-correction**. Live DB alignment cannot be guaranteed until the final workbook is confirmed.
 - **Duplicates:** Application fingerprint on site + date + method + rounded chem values; exact clones skipped; **differing same-day packages retained** (no `UNIQUE(visit_id)` on chemical)
 - **Visits:** `ensure_visit(site_id, sample_date, sample_code=None, …)`
 - **Skipped:** Missing site code; site code not in `site`; missing date; unresolved sites listed in `reports/chem_recon_*.json`
 - **Not loaded from ALL DATA:** Per-watershed sheets (when present historically); RBP habitat columns; index columns (NJIS/HGMI/…); Gallery-style fields. Known watershed-only site/dates listed in `chem_recon.UNRESOLVED_WATERSHED_ONLY`
-- **E. coli on ALL DATA:** Code looks for headers `E. coli`, `E coli`, `E_coli`, `e_coli_mpn_100ml`. Current source columns include **`E. coli Result`** and **`E. coli mod.`**, which **do not match** those aliases, so historical Result values are typically **not inserted** by this script. Bacteria for recent BACT seasons come primarily from IDEXX (`migrate_bact_2025`).
+- **E. coli header mismatch (known issue — do not “fix” in a docs-only pass):**
+  Current source / Dictionary variants use columns such as **`E. coli Result`** and **`E. coli mod.`**
+  Current ETL looks for **`E. coli`**, `E coli`, `E_coli`, `e_coli_mpn_100ml`.
+  Those names do not match, so historical Result values are typically **not inserted** by `migrate_streamwatch_data`. This needs a **future ETL review once the final workbook is confirmed**. Recent BACT bacteria primarily come from IDEXX (`migrate_bact_2025`).
 - **Scientific values:** Inserted as mapped; no unit conversion beyond float/round.
 - **Protected DB:** Refuses protected names before write.
 
@@ -148,6 +192,7 @@ Schema/seed: `db/run_schema.sql` and numbered `db/*.sql` (not Excel ETL).
 
 - Flags water temp > 31 °C or nitrate_ug_l > 10000; meter-fail windows when visit has equipment linked to failing `meter_testing.pass_fail` codes
 - Updates `chemical.data_condition_id` / inserts `result_flag` with `NOT EXISTS` guards
+- Does **not** implement the full Sep 9 Dictionary analysis-exclusion rules for trailing `?` or Early LaMotte turbidity (those are source-workbook conventions documented on Methods / Data Dictionary)
 
 ### WQX — `export_wqx.py`
 
@@ -181,14 +226,16 @@ Writers for chemistry/BACT refuse configured protected DB names so archive/produ
 
 ## Known limitations / review points
 
-1. **Chloride:** ETL does not apply the 2026 ÷10 correction; source workbook correction status and DB contents must be interpreted carefully (see Methods page note).
-2. **ALL DATA E. coli headers** vs ETL aliases → historical Result column usually unloaded.
-3. **Volunteer / equipment** re-runs can duplicate some child rows.
-4. **Habitat assessments** and HAB phycocyanin not bulk-loaded.
-5. **Gallery / Turbidity / Phycocyanin** sheets in BACT workbook not loaded by migrate.
-6. **Watershed sheets** deliberately not co-loaded with ALL DATA (historical duplication).
-7. **WQX** export is preparation CSV, not a full EPA submission package.
-8. Ambiguous Watershed rules stay as review points — scripts skip or log rather than invent matches.
+1. **Missing final All StreamWatch Data.xlsx** in the Sep 9 authoritative folder — blocks confident chemistry refresh / alignment claims.
+2. **Chloride:** ETL does not apply the 2026 ÷10 correction; avoid double-correction on a future refresh from an already-corrected workbook.
+3. **E. coli header mismatch** (`E. coli Result` / `E. coli mod.` vs ETL `E. coli`) — future ETL review after final workbook confirmation; **do not change ETL in a docs-only task**.
+4. **Volunteer / equipment** re-runs can duplicate some child rows.
+5. **Habitat assessments** and HAB phycocyanin not bulk-loaded.
+6. **Gallery / Turbidity / Phycocyanin** sheets in BACT workbook not loaded by migrate.
+7. **Watershed sheets** deliberately not co-loaded with ALL DATA (historical duplication).
+8. **WQX** export is preparation CSV, not a full EPA submission package.
+9. **Colilert vs Colisure** naming remains unresolved source ambiguity (timeline vs Methods table).
+10. Ambiguous Watershed rules stay as review points — scripts skip or log rather than invent matches.
 
 ---
 

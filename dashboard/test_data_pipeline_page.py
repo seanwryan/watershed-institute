@@ -41,7 +41,11 @@ def test_reference_data_shape():
     assert "Loaded" in statuses
     assert "Preview only" in statuses
     assert "Export only" in statuses
-    assert any("÷10" in n["body"] for n in INTERPRETATION_NOTES)
+    assert any(
+        "÷10" in n["body"] or "divide-by-10" in n["body"] or "divided by 10" in n["body"]
+        for n in INTERPRETATION_NOTES
+    )
+    assert "Needs review" in statuses
 
 
 def test_data_pipeline_page_route():
@@ -56,9 +60,20 @@ def test_data_pipeline_page_route():
     assert "Extract, Transform, Load" in body
     assert "Pipeline reference" in body
     assert "Data lineage summary" in body
-    assert 'href="/data-pipeline"' in body or "Data Pipeline" in body
+    assert "Authoritative source caveat" in body
+    assert "not present" in body.lower() or "not present in the current" in body
     assert "etl/migrate_streamwatch_data.py" in body
     assert "Preview only" in body
+    assert "Needs review" in body
+    assert "divide-by-10" in body or "÷10" in body or "divided by 10" in body
+
+
+def test_reference_includes_source_caveat():
+    from dashboard.data_pipeline_reference import INTERPRETATION_NOTES, PIPELINE_SOURCE_CAVEAT
+
+    assert "All StreamWatch Data" in PIPELINE_SOURCE_CAVEAT
+    assert "not present" in PIPELINE_SOURCE_CAVEAT
+    assert any("missing" in n["title"].lower() or "missing" in n["body"].lower() for n in INTERPRETATION_NOTES)
 
 
 def test_methods_still_ok():
@@ -71,6 +86,7 @@ def test_methods_still_ok():
 
 def main():
     test_reference_data_shape()
+    test_reference_includes_source_caveat()
     test_data_pipeline_page_route()
     test_methods_still_ok()
     print("DATA_PIPELINE_PAGE_OK")

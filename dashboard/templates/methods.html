@@ -11,17 +11,22 @@
     <div class="snapshot-grid methods-summary-grid">
       <div>
         <span class="metric-label">CAT</span>
-        <p class="muted methods-summary-text">Physical and chemical monitoring. Historical LaMotte field chemistry; Hanna multimeters and discrete-analyzer workflow introduced in 2023.</p>
+        <p class="muted methods-summary-text">Physical and chemical monitoring under named protocols CAT: Hanna, CAT: LaMotte, and historical CAT: Early LaMotte. Hanna meters and discrete-analyzer workflow introduced in 2023.</p>
       </div>
       <div>
         <span class="metric-label">BACT</span>
-        <p class="muted methods-summary-text">Sunday-season bacteria and nutrient monitoring. Source notes IDEXX/Colilert in the timeline and later wording that also references Idexx colisure tests.</p>
+        <p class="muted methods-summary-text">Sunday-season bacteria and nutrient monitoring (May–September). Timeline notes a 2015 switch to IDEXX/Colilert; the Sep 9 Methods table lists Idexx Colisure — both wordings are preserved below.</p>
       </div>
       <div>
         <span class="metric-label">BAT</span>
-        <p class="muted methods-summary-text">Macroinvertebrate and habitat assessment program. Frequency and identification workflow change across years are called out below.</p>
+        <p class="muted methods-summary-text">Macroinvertebrate and habitat assessment program. Sampling frequency and identification workflow changes are listed in the timeline.</p>
       </div>
     </div>
+  </section>
+
+  <section class="panel methods-alert" aria-label="Analysis exclusions">
+    <h2 class="home-panel-title">What to exclude from analysis</h2>
+    <p class="muted">{{ analysis_exclusion_note }}</p>
   </section>
 
   <section class="panel methods-alert" aria-label="Chloride note">
@@ -29,11 +34,21 @@
     <p class="muted">{{ chloride_note }}</p>
   </section>
 
+  <section class="panel" aria-labelledby="method-groups-title">
+    <h2 class="home-panel-title" id="method-groups-title">Method groups</h2>
+    <p class="muted methods-table-help">The Method field in the raw dataset names a protocol group. Parameter lists below follow the Sep 9 Data Summary.</p>
+    <ul class="methods-source-list">
+      {% for group in method_groups %}
+      <li><strong>{{ group.name }}</strong> — {{ group.summary }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
   <section class="panel table-panel" aria-labelledby="methods-table-title">
     <div class="home-panel-head table-header-row">
       <div>
-        <h2 class="home-panel-title" id="methods-table-title">Methods reference</h2>
-        <p class="muted methods-table-help">Search, filter, or sort the source-backed reference rows below. Blank or uncertain source details are left unresolved on purpose.</p>
+        <h2 class="home-panel-title" id="methods-table-title">Instrument &amp; detection ranges</h2>
+        <p class="muted methods-table-help">Search, filter, or sort the Sep 9 source-backed rows below. Blank or uncertain source details are left unresolved on purpose.</p>
       </div>
       <p class="muted toolbar-count" id="methods-count" aria-live="polite"></p>
     </div>
@@ -41,9 +56,9 @@
       <div class="toolbar-main">
         <label for="methods-search">Search</label>
         <input type="search" id="methods-search" placeholder="Parameter, program, method, note">
-        <label for="methods-program">Program</label>
+        <label for="methods-program">Program / method</label>
         <select id="methods-program">
-          <option value="">All programs</option>
+          <option value="">All</option>
         </select>
         <label for="methods-field-lab">Field / Lab</label>
         <select id="methods-field-lab">
@@ -56,11 +71,11 @@
         <thead>
           <tr>
             <th scope="col"><button type="button" class="table-sort" data-sort-key="parameter">Parameter / Data Type</button></th>
-            <th scope="col"><button type="button" class="table-sort" data-sort-key="program">Program</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="program">Program / Method</button></th>
             <th scope="col"><button type="button" class="table-sort" data-sort-key="field_lab">Field / Lab</button></th>
             <th scope="col"><button type="button" class="table-sort" data-sort-key="activity_type">WQX Activity Type</button></th>
             <th scope="col"><button type="button" class="table-sort" data-sort-key="units">Units</button></th>
-            <th scope="col"><button type="button" class="table-sort" data-sort-key="limit">Detection / Quantitation Limit</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="limit">Detection / Range</button></th>
             <th scope="col"><button type="button" class="table-sort" data-sort-key="equipment">Equipment / Method</button></th>
             <th scope="col"><button type="button" class="table-sort" data-sort-key="effective_period">Effective Period</button></th>
             <th scope="col"><button type="button" class="table-sort" data-sort-key="notes">Notes</button></th>

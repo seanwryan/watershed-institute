@@ -32,6 +32,17 @@ PIPELINE_RAW_DATA_NOTE = (
     "a match."
 )
 
+PIPELINE_SOURCE_CAVEAT = (
+    "As of the final Sep 9, 2026 Watershed documentation package, the "
+    "authoritative source set includes the StreamWatch Data Summary & "
+    "Description and StreamWatch Data Dictionary, plus supporting Original "
+    "Resources. The final All StreamWatch Data.xlsx referenced by those "
+    "documents is not present in that authoritative source set. The current "
+    "database should therefore be treated as based on the previously available "
+    "chemistry source until the final workbook is confirmed. Do not assume the "
+    "live demo database is fully aligned with final Watershed data."
+)
+
 FLOW_STEPS = [
     "Source Files",
     "Python ETL",
@@ -57,10 +68,10 @@ LINEAGE_ROWS = [
     },
     {
         "area": "Chemistry (historical)",
-        "source": "All StreamWatch Data.xlsx → ALL DATA",
+        "source": "All StreamWatch Data.xlsx → ALL DATA (when available)",
         "processing": "Map headers; skip exact package clones; keep differing same-day packages",
         "destination": "chemical",
-        "status": "Loaded",
+        "status": "Needs review",
     },
     {
         "area": "Chemistry (Survey123 fill)",
@@ -150,6 +161,16 @@ LINEAGE_ROWS = [
 
 INTERPRETATION_NOTES = [
     {
+        "title": "Final chemistry workbook is currently missing from the authoritative set",
+        "body": (
+            "The final Sep 9 source documentation references an updated All "
+            "StreamWatch Data workbook, but that workbook is not present in the "
+            "current authoritative source folder. The current database should "
+            "therefore be treated as based on the previously available chemistry "
+            "source until the final workbook is confirmed."
+        ),
+    },
+    {
         "title": "Multiple chemistry packages on one day can be legitimate",
         "body": (
             "The chemistry load keeps packages that differ in method or measured "
@@ -184,10 +205,13 @@ INTERPRETATION_NOTES = [
     {
         "title": "Chloride is not divided by 10 again in the loading scripts",
         "body": (
-            "The chemistry ETL maps Chloride (mg/L) as a number. It does not "
-            "apply a second ÷10 correction. The Methods page documents the "
-            "2026 source correction separately; confirm how any given value "
-            "should be interpreted before drawing conclusions."
+            "Watershed documented a 2026 chloride standard-preparation error; "
+            "discrete-analyzer chloride results \"to date\" were divided by 10, "
+            "and 2026 report cards were adjusted. Newer candidate workbooks "
+            "appear already corrected. Current ETL does not apply another "
+            "divide-by-10. A future refresh from a confirmed corrected workbook "
+            "must avoid double-correction. Live DB alignment cannot be "
+            "guaranteed until the final workbook is confirmed."
         ),
     },
     {
@@ -262,17 +286,22 @@ PIPELINE_SECTIONS = [
         "id": "chemistry",
         "title": "Chemistry",
         "source": (
-            "Primary historical source: All StreamWatch Data.xlsx, sheet "
-            "ALL DATA only. Additional NULL-fill enrichment can come from "
-            "Survey123 in the BACT and HAB 2025 workbook."
+            "Primary historical source when present: All StreamWatch Data.xlsx, "
+            "sheet ALL DATA only. The final Sep 9 documentation set currently "
+            "lacks that workbook in the authoritative folder. Additional "
+            "NULL-fill enrichment can come from Survey123 in the BACT and HAB "
+            "2025 workbook."
         ),
         "what_happens": (
             "Headers such as Water Temperature, Nitrate, Phosphates, pH, "
             "Turbidity, DO ppm, %DO, Conductivity, and Chloride (mg/L) are "
             "mapped into chemistry columns. Exact duplicate packages (same "
             "site, date, method, and rounded values) are skipped. Packages "
-            "that differ are kept even on the same day. Survey123 enrichment "
-            "fills empty fields only and does not overwrite existing numbers."
+            "that differ are kept even on the same day. Method values in the "
+            "raw data include CAT: Hanna, CAT: LaMotte, CAT: Early LaMotte, "
+            "BAT, BACT, and related labels documented in the Sep 9 Summary. "
+            "Survey123 enrichment fills empty fields only and does not "
+            "overwrite existing numbers."
         ),
         "where_it_goes": "PostgreSQL table: chemical (linked to visit).",
         "skipped": (
@@ -284,7 +313,10 @@ PIPELINE_SECTIONS = [
         "caveats": (
             "ALL DATA also contains habitat and index-style columns that are "
             "not loaded by the chemistry script. Chloride is stored as read "
-            "from the workbook—there is no second ÷10 adjustment in ETL."
+            "from the workbook—there is no second ÷10 adjustment in ETL. "
+            "Until the final workbook is confirmed, treat demo chemistry as "
+            "based on the previously available source, not guaranteed final "
+            "Watershed alignment."
         ),
         "technical": {
             "script": "etl/migrate_streamwatch_data.py; etl/migrate_bact_2025.py (Survey123)",
