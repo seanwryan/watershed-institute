@@ -26,6 +26,16 @@ from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 from etl.biological_indices import calculate_visit_indices
 from dashboard.explore_helpers import fetch_time_series_date_bounds, normalize_explore_parameter
 from dashboard.methods_reference import CHLORIDE_NOTE, METHOD_ROWS, METHODS_SUBTITLE, SOURCE_NOTES, TIMELINE_EVENTS
+from dashboard.data_pipeline_reference import (
+    ETL_DEFINITION,
+    FLOW_STEPS,
+    INTERPRETATION_NOTES,
+    LINEAGE_ROWS,
+    PIPELINE_OVERVIEW,
+    PIPELINE_RAW_DATA_NOTE,
+    PIPELINE_SECTIONS,
+    PIPELINE_SUBTITLE,
+)
 from etl.bact_reconcile import preview_bact_workbook, validate_bact_workbook
 from etl.bact_scoring import (
     SOURCE_NOTE as BACT_SCORE_SOURCE_NOTE,
@@ -3714,6 +3724,21 @@ def methods_page():
         timeline=TIMELINE_EVENTS,
         source_notes=SOURCE_NOTES,
         chloride_note=CHLORIDE_NOTE,
+    )
+
+
+@app.route("/data-pipeline")
+def data_pipeline_page():
+    return render_template(
+        "data_pipeline.html",
+        subtitle=PIPELINE_SUBTITLE,
+        overview=PIPELINE_OVERVIEW,
+        etl_definition=ETL_DEFINITION,
+        raw_data_note=PIPELINE_RAW_DATA_NOTE,
+        flow_steps=FLOW_STEPS,
+        sections=PIPELINE_SECTIONS,
+        lineage=LINEAGE_ROWS,
+        notes=INTERPRETATION_NOTES,
     )
 
 

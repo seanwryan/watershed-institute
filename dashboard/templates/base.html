@@ -16,6 +16,7 @@
   {% set reports_active = ep is not none and ep.startswith('report') %}
   {% set imports_active = ep is not none and ep.startswith('imports') %}
   {% set methods_active = ep == 'methods_page' %}
+  {% set data_pipeline_active = ep == 'data_pipeline_page' %}
   <header class="site-header">
     <div class="site-header-inner">
       <a href="/" class="logo">StreamWatch</a>
@@ -37,6 +38,7 @@
 
         {% if not public_demo_mode %}
         <a href="/methods" class="nav-link {% if methods_active %}active{% endif %}">Methods</a>
+        <a href="/data-pipeline" class="nav-link {% if data_pipeline_active %}active{% endif %}">Data Pipeline</a>
         {% endif %}
 
         {% if not public_demo_mode %}

@@ -2,6 +2,8 @@
 
 Source → target mapping per Database Project Plan. ETL scripts in `etl/`.
 
+For the current developer-facing inventory and behavior notes, see **`docs/ETL.md`**. Staff overview: in-app **`/data-pipeline`**.
+
 ## 1. Sites and lookups
 
 | Source | Sheet/Table | Target | Script |

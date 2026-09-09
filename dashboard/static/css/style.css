@@ -1215,6 +1215,113 @@ tr:hover {
 .methods-source-list li {
   margin-bottom: 0.45rem;
 }
+.pipeline-flow {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+.pipeline-flow li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pipeline-flow-step {
+  display: inline-block;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2, var(--bg));
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.pipeline-flow-arrow {
+  color: var(--muted);
+  font-weight: 600;
+}
+.pipeline-sections {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+.pipeline-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  padding: 0;
+}
+.pipeline-card > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.85rem 1rem;
+  font-weight: 650;
+}
+.pipeline-card > summary::-webkit-details-marker {
+  display: none;
+}
+.pipeline-card > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1.1rem;
+  color: var(--muted);
+}
+.pipeline-card[open] > summary::before {
+  content: "▾";
+}
+.pipeline-card-body {
+  padding: 0 1rem 1rem 1rem;
+  border-top: 1px solid var(--border);
+}
+.pipeline-card-body p {
+  margin: 0.65rem 0 0;
+}
+.pipeline-tech {
+  margin-top: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-2, var(--bg));
+  border-radius: 6px;
+}
+.pipeline-tech > summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.pipeline-tech-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.875rem;
+}
+.pipeline-tech-list li {
+  margin: 0.25rem 0;
+}
+.pipeline-notes-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.15rem;
+}
+.pipeline-notes-list li {
+  margin: 0.75rem 0;
+}
+.pipeline-status {
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.pipeline-status-loaded,
+.pipeline-status-derived {
+  color: var(--success, #1f6b3a);
+}
+.pipeline-status-preview-only,
+.pipeline-status-export-only {
+  color: var(--muted);
+}
+.pipeline-status-partially-migrated,
+.pipeline-status-needs-review {
+  color: var(--warning, #9a6700);
+}
 .methods-small-note {
   margin: 0.65rem 0 0;
   max-width: 52rem;

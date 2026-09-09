@@ -37,14 +37,14 @@ Centralized PostgreSQL database, ETL, QA, reporting, and dashboard for the Strea
    ```
    Open http://localhost:5000 for the multi-page app (Home, Map, Sites, Site detail, Explore, Equipment, Volunteers, Scores, QA, Export). See `dashboard/README.md` for deployment on a free tier (e.g. Render, Fly.io).
 
-Historical chemistry (`migrate_streamwatch_data`) loads the **ALL DATA** sheet only as the evidence-supported technical primary pending Watershed confirmation; see `docs/migration_log.md`. Generated reconciliation JSON under `reports/` is gitignored. Rebuild migrations refuse protected DB names (default `streamwatch_final`; set `STREAMWATCH_PROTECTED_DBS` to customize).
+Historical chemistry (`migrate_streamwatch_data`) loads the **ALL DATA** sheet only as the evidence-supported technical primary pending Watershed confirmation; see `docs/ETL.md` and `docs/migration_log.md`. Generated reconciliation JSON under `reports/` is gitignored. Rebuild migrations refuse protected DB names (default `streamwatch_final`; set `STREAMWATCH_PROTECTED_DBS` to customize).
 
 ## Layout
 
 - **db/** – PostgreSQL schema (lookups, site, volunteer, equipment, visit, results, flags, QA views, reporting views) and seed data
 - **etl/** – Migration scripts (sites, volunteers, equipment, StreamWatch data, BACT 2025, BAT), QA rules, biological indices, WQX export
 - **dashboard/** – Flask web app (Map, Sites, Explore, Equipment, Volunteers, Scores, QA, Export) and JSON API
-- **docs/** – Operations runbook (`docs/OPERATIONS_RUNBOOK.md`), app tutorial, deployment guide, migration log; **docs/reference/** – source workbook summaries (raw_breakdown.txt)
+- **docs/** – Operations runbook (`docs/OPERATIONS_RUNBOOK.md`), ETL reference (`docs/ETL.md`), app tutorial, deployment guide, migration log; **docs/reference/** – source workbook summaries (raw_breakdown.txt)
 - **data/** – local-only Excel/XLSX source files (not included in this repository; see “Data sources” below)
 - **reports/** – local ETL reconciliation outputs (gitignored)
 

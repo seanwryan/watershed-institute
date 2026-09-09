@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Data Pipeline{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting data-pipeline-page">
+  <header class="page-header">
+    <h1>Data Pipeline</h1>
+    <p class="page-subtitle">{{ subtitle }}</p>
+  </header>
+
+  <section class="panel" aria-labelledby="pipeline-overview-title">
+    <h2 class="home-panel-title" id="pipeline-overview-title">Overview</h2>
+    <p>{{ overview }}</p>
+    <p class="muted">{{ etl_definition }}</p>
+    <p>{{ raw_data_note }}</p>
+  </section>
+
+  <section class="panel" aria-labelledby="pipeline-flow-title">
+    <h2 class="home-panel-title" id="pipeline-flow-title">High-level flow</h2>
+    <ol class="pipeline-flow" aria-label="Data pipeline stages">
+      {% for step in flow_steps %}
+      <li>
+        <span class="pipeline-flow-step">{{ step }}</span>
+        {% if not loop.last %}<span class="pipeline-flow-arrow" aria-hidden="true">→</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section class="panel" aria-labelledby="pipeline-reference-title">
+    <h2 class="home-panel-title" id="pipeline-reference-title">Pipeline reference</h2>
+    <p class="muted methods-table-help">Expand a topic for plain-language source → process → destination details. Technical script names are optional and folded under each section.</p>
+    <div class="pipeline-sections">
+      {% for section in sections %}
+      <details class="pipeline-card" id="{{ section.id }}">
+        <summary>
+          <span class="pipeline-card-title">{{ section.title }}</span>
+        </summary>
+        <div class="pipeline-card-body">
+          <p><strong>Source.</strong> {{ section.source }}</p>
+          <p><strong>What happens.</strong> {{ section.what_happens }}</p>
+          <p><strong>Where it goes.</strong> {{ section.where_it_goes }}</p>
+          <p><strong>Skipped or reviewed.</strong> {{ section.skipped }}</p>
+          <p><strong>Important caveats.</strong> {{ section.caveats }}</p>
+          {% if section.technical %}
+          <details class="pipeline-tech">
+            <summary>Technical details</summary>
+            <ul class="pipeline-tech-list">
+              <li><span class="metric-label">Script</span> {{ section.technical.script }}</li>
+              <li><span class="metric-label">Source sheet</span> {{ section.technical.sheet }}</li>
+              <li><span class="metric-label">Destination</span> {{ section.technical.destination }}</li>
+              <li><span class="metric-label">Matching / duplicates</span> {{ section.technical.matching }}</li>
+            </ul>
+          </details>
+          {% endif %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel table-panel" aria-labelledby="pipeline-lineage-title">
+    <div class="home-panel-head table-header-row">
+      <div>
+        <h2 class="home-panel-title" id="pipeline-lineage-title">Data lineage summary</h2>
+        <p class="muted methods-table-help">Compact status of major areas. Status labels reflect current application behavior.</p>
+      </div>
+    </div>
+    <div class="table-tools">
+      <label for="pipeline-lineage-search">Search table</label>
+      <input type="search" id="pipeline-lineage-search" placeholder="Filter lineage rows…" autocomplete="off">
+      <p class="muted toolbar-count" id="pipeline-lineage-count" aria-live="polite"></p>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table data-table-sticky" data-enhance="table" data-search="#pipeline-lineage-search" data-count="#pipeline-lineage-count">
+        <caption class="sr-only">Data area, source, processing, destination, and status</caption>
+        <thead>
+          <tr>
+            <th scope="col">Data area</th>
+            <th scope="col">Source</th>
+            <th scope="col">Processing</th>
+            <th scope="col">Destination</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in lineage %}
+          <tr>
+            <td><span class="cell-strong">{{ row.area }}</span></td>
+            <td>{{ row.source }}</td>
+            <td>{{ row.processing }}</td>
+            <td>{{ row.destination }}</td>
+            <td><span class="pipeline-status pipeline-status-{{ row.status|lower|replace(' ', '-') }}">{{ row.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel methods-alert" aria-labelledby="pipeline-notes-title">
+    <h2 class="home-panel-title" id="pipeline-notes-title">Important interpretation notes</h2>
+    <ul class="pipeline-notes-list">
+      {% for note in notes %}
+      <li>
+        <strong>{{ note.title }}</strong>
+        <p class="muted methods-summary-text">{{ note.body }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="muted methods-small-note">
+      Related pages:
+      <a href="/methods">Methods</a>
+      · <a href="/imports">Imports</a>
+      · <a href="/export">Export</a>
+      · developer notes in <code>docs/ETL.md</code>
+    </p>
+  </section>
+</div>
+{% endblock %}
