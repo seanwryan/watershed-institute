@@ -61,24 +61,28 @@
     <section class="panel table-panel">
       <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
         <h2 class="home-panel-title">Assignments</h2>
-        <p class="muted toolbar-count">{{ rows|length }} assignment{{ '' if rows|length == 1 else 's' }}</p>
+        <p class="muted toolbar-count" id="assignments-report-count" aria-live="polite">{{ rows|length }} assignment{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-tools">
+        <label for="assignments-report-search">Search table</label>
+        <input type="search" id="assignments-report-search" placeholder="Volunteer, site, role…" autocomplete="off">
       </div>
       <div class="table-wrap">
-        <table class="data-table">
+        <table class="data-table" data-enhance="table" data-search="#assignments-report-search" data-count="#assignments-report-count">
           <thead>
             <tr>
               <th scope="col">Volunteer</th>
               <th scope="col">Site</th>
               <th scope="col">Waterbody</th>
               <th scope="col">Role</th>
-              <th scope="col">Start</th>
-              <th scope="col">End</th>
+              <th scope="col" data-type="date">Start</th>
+              <th scope="col" data-type="date">End</th>
               <th scope="col">Status</th>
             </tr>
           </thead>
           <tbody>
             {% if not rows %}
-            <tr><td colspan="7" class="muted">No assignments match these filters.</td></tr>
+            <tr data-empty-row="true"><td colspan="7" class="muted">No assignments match these filters.</td></tr>
             {% else %}
             {% for r in rows %}
             <tr>
@@ -86,8 +90,8 @@
               <td><a href="/site/{{ r.site_code }}">{{ r.site_code }}</a></td>
               <td>{{ r.waterbody_name or '—' }}</td>
               <td>{{ r.role_name or '—' }}</td>
-              <td>{{ r.start_date or '—' }}</td>
-              <td>{{ r.end_date or '—' }}</td>
+              <td data-sort-value="{{ r.start_date or '' }}">{{ r.start_date or '—' }}</td>
+              <td data-sort-value="{{ r.end_date or '' }}">{{ r.end_date or '—' }}</td>
               <td>{{ r.assignment_status }}</td>
             </tr>
             {% endfor %}

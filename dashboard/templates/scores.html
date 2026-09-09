@@ -68,23 +68,27 @@
           <h2 class="home-panel-title" id="scores-table-title">Index results</h2>
           <p class="muted toolbar-count" id="scores-count" aria-live="polite"></p>
         </div>
+        <div class="table-tools">
+          <label for="scores-table-search">Search table</label>
+          <input type="search" id="scores-table-search" placeholder="Site or rating…" autocomplete="off">
+        </div>
         <div class="table-wrap">
-          <table class="data-table data-table-sticky" id="scores-table">
+          <table class="data-table data-table-sticky" id="scores-table" data-enhance="table" data-search="#scores-table-search" data-count="#scores-count">
             <thead>
               <tr>
                 <th scope="col">Site</th>
-                <th scope="col">Sample date</th>
-                <th scope="col" class="num">NJIS</th>
+                <th scope="col" data-type="date">Sample date</th>
+                <th scope="col" class="num th-num" data-type="number">NJIS</th>
                 <th scope="col">NJIS rating</th>
-                <th scope="col" class="num">HGMI (genus)</th>
-                <th scope="col" class="num">HGMI (family)</th>
+                <th scope="col" class="num th-num" data-type="number">HGMI (genus)</th>
+                <th scope="col" class="num th-num" data-type="number">HGMI (family)</th>
                 <th scope="col">HGMI rating</th>
-                <th scope="col" class="num">CPMI</th>
+                <th scope="col" class="num th-num" data-type="number">CPMI</th>
                 <th scope="col">CPMI rating</th>
               </tr>
             </thead>
             <tbody id="scores-tbody">
-              <tr><td colspan="9" class="muted">Loading biology scores…</td></tr>
+              <tr data-empty-row="true"><td colspan="9" class="muted">Loading biology scores…</td></tr>
             </tbody>
           </table>
         </div>
@@ -148,30 +152,33 @@
     if (filterDateEnd.value) url += '&date_end=' + encodeURIComponent(filterDateEnd.value);
     fetch(url).then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(data) {
       scoresData = data.scores || [];
-      countEl.textContent = scoresData.length
-        ? (scoresData.length + ' result' + (scoresData.length === 1 ? '' : 's'))
-        : '';
+      var searchEl = document.getElementById('scores-table-search');
+      if (searchEl) searchEl.value = '';
       if (!scoresData.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="muted">No biology scores match these filters.</td></tr>';
+        tbody.innerHTML = '<tr data-empty-row="true"><td colspan="9" class="muted">No biology scores match these filters.</td></tr>';
+        countEl.textContent = '';
+        if (window.StreamWatchTables) StreamWatchTables.refresh(document.getElementById('scores-table'));
         return;
       }
       tbody.innerHTML = scoresData.map(function(r) {
         var siteLink = '<a href="/site/' + encodeURIComponent(r.site_code) + '">' + esc(r.site_code) + '</a>';
         return '<tr>' +
           '<td><span class="cell-strong">' + siteLink + '</span></td>' +
-          '<td>' + esc(fmtDate(r.sample_date)) + '</td>' +
-          '<td class="num">' + esc(fmtScore(r.njis_score)) + '</td>' +
+          '<td data-sort-value="' + esc(r.sample_date || '') + '">' + esc(fmtDate(r.sample_date)) + '</td>' +
+          '<td class="num" data-sort-value="' + esc(r.njis_score == null ? '' : r.njis_score) + '">' + esc(fmtScore(r.njis_score)) + '</td>' +
           '<td>' + ratingBadge(r.njis_rating) + '</td>' +
-          '<td class="num">' + esc(fmtScore(r.hgmi_genus)) + '</td>' +
-          '<td class="num">' + esc(fmtScore(r.hgmi_family)) + '</td>' +
+          '<td class="num" data-sort-value="' + esc(r.hgmi_genus == null ? '' : r.hgmi_genus) + '">' + esc(fmtScore(r.hgmi_genus)) + '</td>' +
+          '<td class="num" data-sort-value="' + esc(r.hgmi_family == null ? '' : r.hgmi_family) + '">' + esc(fmtScore(r.hgmi_family)) + '</td>' +
           '<td>' + ratingBadge(r.hgmi_rating) + '</td>' +
-          '<td class="num">' + esc(fmtScore(r.cpmi_score)) + '</td>' +
+          '<td class="num" data-sort-value="' + esc(r.cpmi_score == null ? '' : r.cpmi_score) + '">' + esc(fmtScore(r.cpmi_score)) + '</td>' +
           '<td>' + ratingBadge(r.cpmi_rating) + '</td>' +
           '</tr>';
       }).join('');
+      if (window.StreamWatchTables) StreamWatchTables.refresh(document.getElementById('scores-table'));
+      else countEl.textContent = scoresData.length + ' result' + (scoresData.length === 1 ? '' : 's');
     }).catch(function() {
       countEl.textContent = '';
-      tbody.innerHTML = '<tr><td colspan="9" class="error">We couldn\'t load biology scores right now. Please try again in a moment.</td></tr>';
+      tbody.innerHTML = '<tr data-empty-row="true"><td colspan="9" class="error">We couldn\'t load biology scores right now. Please try again in a moment.</td></tr>';
     });
   }
 

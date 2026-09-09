@@ -38,14 +38,19 @@
     <section class="panel">
       <h2 class="home-panel-title">PHYCOCYANIN rows</h2>
       {% if phyco.rows %}
+      <div class="table-tools">
+        <label for="phyco-search">Search table</label>
+        <input type="search" id="phyco-search" placeholder="Sample code, site, status…" autocomplete="off">
+        <p class="muted toolbar-count" id="phyco-count" aria-live="polite">{{ phyco.rows|length }} rows</p>
+      </div>
       <div class="table-wrap">
-        <table class="data-table">
+        <table class="data-table" data-enhance="table" data-search="#phyco-search" data-count="#phyco-count">
           <thead>
             <tr>
               <th>Sample code</th>
               <th>Site</th>
-              <th>Date flagged</th>
-              <th>Median phyco</th>
+              <th data-type="date">Date flagged</th>
+              <th class="num th-num" data-type="number">Median phyco</th>
               <th>Reported to DEP?</th>
               <th>Derived status</th>
               <th>Workbook status</th>
@@ -56,8 +61,8 @@
             <tr>
               <td class="mono">{{ r.sample_code }}</td>
               <td>{{ r.site_code or "—" }}</td>
-              <td>{{ r.sample_date or "—" }}</td>
-              <td class="mono">{{ r.phycocyanin_median if r.phycocyanin_median is not none else "—" }}</td>
+              <td data-sort-value="{{ r.sample_date or '' }}">{{ r.sample_date or "—" }}</td>
+              <td class="mono" data-sort-value="{{ r.phycocyanin_median if r.phycocyanin_median is not none else '' }}">{{ r.phycocyanin_median if r.phycocyanin_median is not none else "—" }}</td>
               <td>{{ r.reported_to_dep or "—" }}</td>
               <td>{{ r.derived_hab_status or "(blank)" }}</td>
               <td>{{ r.workbook_hab_status or "(blank)" }}</td>
@@ -74,8 +79,13 @@
     <section class="panel">
       <h2 class="home-panel-title">SURVEY123 HAB rows (non-blank derived or workbook)</h2>
       {% set ns = namespace(n=0) %}
+      <div class="table-tools">
+        <label for="hab-s123-search">Search table</label>
+        <input type="search" id="hab-s123-search" placeholder="Sample code, site, status…" autocomplete="off">
+        <p class="muted toolbar-count" id="hab-s123-count" aria-live="polite"></p>
+      </div>
       <div class="table-wrap">
-        <table class="data-table">
+        <table class="data-table" data-enhance="table" data-search="#hab-s123-search" data-count="#hab-s123-count">
           <thead>
             <tr>
               <th>Sample code</th>

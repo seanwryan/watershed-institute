@@ -193,17 +193,21 @@
       <section class="panel">
         <div class="table-header-row">
           <h2 class="home-panel-title">Survey123 rows</h2>
-          <p class="muted">{{ survey123_rows|length }} shown</p>
+          <p class="muted" id="s123-count" aria-live="polite">{{ survey123_rows|length }} shown</p>
         </div>
         {% if survey123_rows %}
+        <div class="table-tools">
+          <label for="s123-search">Search table</label>
+          <input type="search" id="s123-search" placeholder="Site, sample code, status…" autocomplete="off">
+        </div>
         <div class="table-wrap">
-          <table class="data-table">
+          <table class="data-table" data-enhance="table" data-search="#s123-search" data-count="#s123-count">
             <thead>
               <tr>
                 <th>Site</th>
-                <th>Sample date</th>
+                <th data-type="date">Sample date</th>
                 <th>Sample code</th>
-                <th>Visit</th>
+                <th data-sortable="false">Visit</th>
                 <th>Proposed fill</th>
                 <th>Status</th>
                 <th>Explanation</th>
@@ -219,7 +223,7 @@
                   {{ r.site_code or "—" }}
                   {% endif %}
                 </td>
-                <td>{{ r.sample_date or "—" }}</td>
+                <td data-sort-value="{{ r.sample_date or '' }}">{{ r.sample_date or "—" }}</td>
                 <td class="mono">{{ r.sample_code or "—" }}</td>
                 <td>
                   {% if r.link_visit and r.visit_id %}
@@ -250,16 +254,20 @@
       <section class="panel">
         <div class="table-header-row">
           <h2 class="home-panel-title">IDEXX rows</h2>
-          <p class="muted">{{ idexx_rows|length }} shown</p>
+          <p class="muted" id="idexx-count" aria-live="polite">{{ idexx_rows|length }} shown</p>
         </div>
         {% if idexx_rows %}
+        <div class="table-tools">
+          <label for="idexx-search">Search table</label>
+          <input type="search" id="idexx-search" placeholder="Sample code, site, status…" autocomplete="off">
+        </div>
         <div class="table-wrap">
-          <table class="data-table">
+          <table class="data-table" data-enhance="table" data-search="#idexx-search" data-count="#idexx-count">
             <thead>
               <tr>
                 <th>Sample code</th>
                 <th>Site / date</th>
-                <th>Visit</th>
+                <th data-sortable="false">Visit</th>
                 <th>E. coli (source)</th>
                 <th>Status</th>
                 <th>Explanation</th>

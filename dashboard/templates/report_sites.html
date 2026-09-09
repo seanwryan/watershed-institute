@@ -38,24 +38,28 @@
     <section class="panel table-panel" aria-labelledby="sites-report-title">
       <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
         <h2 class="home-panel-title" id="sites-report-title">Sites</h2>
-        <p class="muted toolbar-count">{{ rows|length }} site{{ '' if rows|length == 1 else 's' }}</p>
+        <p class="muted toolbar-count" id="sites-report-count" aria-live="polite">{{ rows|length }} site{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-tools">
+        <label for="sites-report-search">Search table</label>
+        <input type="search" id="sites-report-search" placeholder="Filter loaded rows…" autocomplete="off">
       </div>
       <div class="table-wrap">
-        <table class="data-table">
+        <table class="data-table" id="sites-report-table" data-enhance="table" data-search="#sites-report-search" data-count="#sites-report-count">
           <thead>
             <tr>
               <th scope="col">Site</th>
               <th scope="col">Waterbody</th>
               <th scope="col">Status</th>
               <th scope="col">Habitat type</th>
-              <th scope="col">Latest sample</th>
-              <th scope="col" class="num">Visits</th>
-              <th scope="col">Links</th>
+              <th scope="col" data-type="date">Latest sample</th>
+              <th scope="col" class="num th-num" data-type="number">Visits</th>
+              <th scope="col" data-sortable="false">Links</th>
             </tr>
           </thead>
           <tbody>
             {% if not rows %}
-            <tr><td colspan="7" class="muted">No sites match these filters.</td></tr>
+            <tr data-empty-row="true"><td colspan="7" class="muted">No sites match these filters.</td></tr>
             {% else %}
             {% for r in rows %}
             <tr>
@@ -63,7 +67,7 @@
               <td>{{ r.waterbody_name or '—' }}</td>
               <td>{% if r.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-warning">Inactive</span>{% endif %}</td>
               <td>{{ r.habitat_type or 'Not recorded' }}</td>
-              <td>{{ r.last_sample_date or '—' }}</td>
+              <td data-sort-value="{{ r.last_sample_date or '' }}">{{ r.last_sample_date or '—' }}</td>
               <td class="num">{{ r.visit_count }}</td>
               <td>
                 <a href="/site/{{ r.site_code }}">Detail</a>

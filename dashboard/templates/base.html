@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}StreamWatch{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/table_enhance.js" defer></script>
   {% block head %}{% endblock %}
 </head>
 <body data-read-only="{{ 'true' if read_only_mode else 'false' }}" data-public-demo="{{ 'true' if public_demo_mode else 'false' }}">

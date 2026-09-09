@@ -21,13 +21,13 @@
 
   <div class="panel table-panel">
     <div class="table-wrap">
-      <table class="data-table data-table-clickable" id="sites-table">
+      <table class="data-table data-table-clickable" id="sites-table" data-enhance="table">
         <thead>
           <tr>
             <th scope="col">Site</th>
             <th scope="col">Waterbody</th>
-            <th scope="col">Latest sample</th>
-            <th scope="col" class="num">Sampling visits</th>
+            <th scope="col" data-type="date">Latest sample</th>
+            <th scope="col" class="num th-num" data-type="number">Sampling visits</th>
           </tr>
         </thead>
         <tbody id="sites-tbody">
@@ -81,7 +81,7 @@
       : (list.length + ' of ' + allSites.length + ' active sites');
 
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="muted">No sites match your search.</td></tr>';
+      tbody.innerHTML = '<tr data-empty-row="true"><td colspan="4" class="muted">No sites match your search.</td></tr>';
       return;
     }
 
@@ -90,10 +90,11 @@
       return '<tr class="row-link" tabindex="0" data-href="' + href + '" role="link" aria-label="Open site ' + esc(s.site_code) + '">' +
         '<td><span class="cell-strong">' + esc(s.site_code) + '</span></td>' +
         '<td>' + esc(s.waterbody_name || '—') + '</td>' +
-        '<td>' + esc(fmtDate(s.last_sample_date)) + '</td>' +
+        '<td data-sort-value="' + esc(s.last_sample_date || '') + '">' + esc(fmtDate(s.last_sample_date)) + '</td>' +
         '<td class="num">' + esc(fmtNum(s.visit_count)) + '</td>' +
         '</tr>';
     }).join('');
+    if (window.StreamWatchTables) StreamWatchTables.refresh(document.getElementById('sites-table'));
   }
 
   function go(tr) {

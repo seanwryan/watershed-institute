@@ -1177,12 +1177,34 @@ tr:hover {
   font-weight: 650;
   cursor: pointer;
   text-align: left;
+  white-space: nowrap;
 }
 .table-sort:hover {
   color: var(--accent);
 }
 .table-sort.active {
   color: var(--accent);
+}
+.table-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0 1rem 0.75rem;
+}
+.table-tools label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0;
+}
+.table-tools input[type="search"] {
+  min-width: 12rem;
+  flex: 1 1 12rem;
+}
+.th-num .table-sort {
+  width: 100%;
+  text-align: right;
 }
 .methods-timeline-list,
 .methods-source-list {

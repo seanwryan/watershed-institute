@@ -58,32 +58,36 @@
     <section class="panel table-panel">
       <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
         <h2 class="home-panel-title">Training records</h2>
-        <p class="muted toolbar-count">{{ rows|length }} record{{ '' if rows|length == 1 else 's' }}</p>
+        <p class="muted toolbar-count" id="training-report-count" aria-live="polite">{{ rows|length }} record{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-tools">
+        <label for="training-report-search">Search table</label>
+        <input type="search" id="training-report-search" placeholder="Volunteer, training type…" autocomplete="off">
       </div>
       <div class="table-wrap">
-        <table class="data-table">
+        <table class="data-table" data-enhance="table" data-search="#training-report-search" data-count="#training-report-count">
           <thead>
             <tr>
               <th scope="col">Volunteer</th>
               <th scope="col">Training type</th>
-              <th scope="col">Training date</th>
+              <th scope="col" data-type="date">Training date</th>
               <th scope="col">Attendance status</th>
-              <th scope="col">Expiration</th>
-              <th scope="col">Days until expiration</th>
+              <th scope="col" data-type="date">Expiration</th>
+              <th scope="col" class="num th-num" data-type="number">Days until expiration</th>
               <th scope="col">Expiration status</th>
             </tr>
           </thead>
           <tbody>
             {% if not rows %}
-            <tr><td colspan="7" class="muted">No training records match these filters.</td></tr>
+            <tr data-empty-row="true"><td colspan="7" class="muted">No training records match these filters.</td></tr>
             {% else %}
             {% for r in rows %}
             <tr>
               <td><a href="/volunteers/{{ r.volunteer_id }}">{{ r.volunteer_name }}</a></td>
               <td>{{ r.training_type or '—' }}</td>
-              <td>{{ r.training_date or '—' }}</td>
+              <td data-sort-value="{{ r.training_date or '' }}">{{ r.training_date or '—' }}</td>
               <td>{{ r.attendance_status or '—' }}</td>
-              <td>{{ r.expiration_date or '—' }}</td>
+              <td data-sort-value="{{ r.expiration_date or '' }}">{{ r.expiration_date or '—' }}</td>
               <td class="num">{% if r.days_until_expiration is not none %}{{ r.days_until_expiration }}{% else %}—{% endif %}</td>
               <td>{{ r.expiration_status }}</td>
             </tr>

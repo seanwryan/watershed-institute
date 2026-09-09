@@ -22,14 +22,14 @@
 
   <div class="panel table-panel">
     <div class="table-wrap">
-      <table class="data-table data-table-clickable" id="equipment-table">
+      <table class="data-table data-table-clickable" id="equipment-table" data-enhance="table">
         <thead>
           <tr>
             <th scope="col">Equipment</th>
             <th scope="col">Type</th>
             <th scope="col">Serial number</th>
             <th scope="col">Status</th>
-            <th scope="col">Last test</th>
+            <th scope="col" data-type="date">Last test</th>
           </tr>
         </thead>
         <tbody id="equipment-tbody">
@@ -88,7 +88,7 @@
       ? (allItems.length + ' meters')
       : (list.length + ' of ' + allItems.length + ' meters');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="muted">No equipment matches your filters.</td></tr>';
+      tbody.innerHTML = '<tr data-empty-row="true"><td colspan="5" class="muted">No equipment matches your filters.</td></tr>';
       return;
     }
     tbody.innerHTML = list.map(function(e) {
@@ -98,9 +98,10 @@
         '<td>' + esc(e.equipment_type || '—') + '</td>' +
         '<td>' + esc(e.serial_number || '—') + '</td>' +
         '<td>' + statusBadge(e.status) + '</td>' +
-        '<td>' + esc(fmtDate(e.last_test_date)) + '</td>' +
+        '<td data-sort-value="' + esc(e.last_test_date || '') + '">' + esc(fmtDate(e.last_test_date)) + '</td>' +
         '</tr>';
     }).join('');
+    if (window.StreamWatchTables) StreamWatchTables.refresh(document.getElementById('equipment-table'));
   }
 
   function go(tr) {

@@ -69,29 +69,33 @@
       <section class="panel table-panel">
         <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
           <h2 class="home-panel-title">Visit coverage detail</h2>
-          <p class="muted toolbar-count">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }} (max {{ limit }})</p>
+          <p class="muted toolbar-count" id="completeness-count" aria-live="polite">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }} (max {{ limit }})</p>
+        </div>
+        <div class="table-tools">
+          <label for="completeness-search">Search table</label>
+          <input type="search" id="completeness-search" placeholder="Filter loaded rows…" autocomplete="off">
         </div>
         <div class="table-wrap">
-          <table class="data-table">
+          <table class="data-table" data-enhance="table" data-search="#completeness-search" data-count="#completeness-count">
             <thead>
               <tr>
                 <th scope="col">Site</th>
-                <th scope="col">Sample date</th>
+                <th scope="col" data-type="date">Sample date</th>
                 <th scope="col">Chemistry</th>
                 <th scope="col">Bacteria</th>
                 <th scope="col">Habitat</th>
                 <th scope="col">Macro</th>
-                <th scope="col">Visit</th>
+                <th scope="col" data-sortable="false">Visit</th>
               </tr>
             </thead>
             <tbody>
               {% if not rows %}
-              <tr><td colspan="7" class="muted">No visits match these filters.</td></tr>
+              <tr data-empty-row="true"><td colspan="7" class="muted">No visits match these filters.</td></tr>
               {% else %}
               {% for r in rows %}
               <tr>
                 <td>{{ r.site_code }}</td>
-                <td>{{ r.sample_date }}</td>
+                <td data-sort-value="{{ r.sample_date }}">{{ r.sample_date }}</td>
                 <td>{{ 'Yes' if r.has_chemistry else 'No' }}</td>
                 <td>{{ 'Yes' if r.has_bacteria else 'No' }}</td>
                 <td>{{ 'Yes' if r.has_habitat else 'No' }}</td>

@@ -32,15 +32,15 @@
     </div>
     <p class="muted" id="history-empty" hidden>No meter tests have been recorded for this equipment yet.</p>
     <div class="table-wrap" id="history-wrap" hidden>
-      <table class="data-table" id="history-table">
+      <table class="data-table" id="history-table" data-enhance="table">
         <thead>
           <tr>
-            <th scope="col">Test date</th>
+            <th scope="col" data-type="date">Test date</th>
             <th scope="col">Parameter</th>
-            <th scope="col" class="num">Round</th>
-            <th scope="col" class="num">Reference</th>
-            <th scope="col" class="num">Measured</th>
-            <th scope="col" class="num">Difference</th>
+            <th scope="col" class="num th-num" data-type="number">Round</th>
+            <th scope="col" class="num th-num" data-type="number">Reference</th>
+            <th scope="col" class="num th-num" data-type="number">Measured</th>
+            <th scope="col" class="num th-num" data-type="number">Difference</th>
             <th scope="col">Pass/Fail</th>
           </tr>
         </thead>
@@ -142,15 +142,16 @@
       historyWrap.hidden = false;
       historyBody.innerHTML = tests.map(function(t) {
         return '<tr>' +
-          '<td>' + esc(fmtDate(t.test_date)) + '</td>' +
+          '<td data-sort-value="' + esc(t.test_date || '') + '">' + esc(fmtDate(t.test_date)) + '</td>' +
           '<td>' + esc(t.parameter_type || '—') + '</td>' +
           '<td class="num">' + esc(t.round_number != null ? t.round_number : '—') + '</td>' +
-          '<td class="num">' + esc(fmtNum(t.reference_value)) + '</td>' +
-          '<td class="num">' + esc(fmtNum(t.measured_value)) + '</td>' +
-          '<td class="num">' + esc(fmtNum(t.difference)) + '</td>' +
+          '<td class="num" data-sort-value="' + esc(t.reference_value == null ? '' : t.reference_value) + '">' + esc(fmtNum(t.reference_value)) + '</td>' +
+          '<td class="num" data-sort-value="' + esc(t.measured_value == null ? '' : t.measured_value) + '">' + esc(fmtNum(t.measured_value)) + '</td>' +
+          '<td class="num" data-sort-value="' + esc(t.difference == null ? '' : t.difference) + '">' + esc(fmtNum(t.difference)) + '</td>' +
           '<td>' + passFailBadge(t.pass_fail) + '</td>' +
           '</tr>';
       }).join('');
+      if (window.StreamWatchTables) StreamWatchTables.refresh(document.getElementById('history-table'));
     })
     .catch(function(e) {
       header.innerHTML = '';

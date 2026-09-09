@@ -58,34 +58,38 @@
     <section class="panel table-panel">
       <div class="home-panel-head" style="padding: 0.85rem 1rem 0;">
         <h2 class="home-panel-title">Result values</h2>
-        <p class="muted toolbar-count">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }}</p>
+        <p class="muted toolbar-count" id="results-report-count" aria-live="polite">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }}</p>
+      </div>
+      <div class="table-tools">
+        <label for="results-report-search">Search table</label>
+        <input type="search" id="results-report-search" placeholder="Parameter, site, package…" autocomplete="off">
       </div>
       <div class="table-wrap">
-        <table class="data-table">
+        <table class="data-table" data-enhance="table" data-search="#results-report-search" data-count="#results-report-count">
           <thead>
             <tr>
               <th scope="col">Site</th>
-              <th scope="col">Sample date</th>
+              <th scope="col" data-type="date">Sample date</th>
               <th scope="col">Family</th>
               <th scope="col">Package / record</th>
               <th scope="col">Parameter</th>
-              <th scope="col" class="num">Value</th>
+              <th scope="col" class="num th-num" data-type="number">Value</th>
               <th scope="col">Unit</th>
-              <th scope="col">Visit</th>
+              <th scope="col" data-sortable="false">Visit</th>
             </tr>
           </thead>
           <tbody>
             {% if not rows %}
-            <tr><td colspan="8" class="muted">No results match these filters. Try narrowing by site and date.</td></tr>
+            <tr data-empty-row="true"><td colspan="8" class="muted">No results match these filters. Try narrowing by site and date.</td></tr>
             {% else %}
             {% for r in rows %}
             <tr>
               <td>{{ r.site_code }}</td>
-              <td>{{ r.sample_date }}</td>
+              <td data-sort-value="{{ r.sample_date }}">{{ r.sample_date }}</td>
               <td>{{ r.family }}</td>
               <td>{{ r.package_label }}</td>
               <td>{{ r.parameter_label }}</td>
-              <td class="num">{{ r.value_display }}</td>
+              <td class="num" data-sort-value="{{ r.value_display }}">{{ r.value_display }}</td>
               <td>{{ r.unit or '—' }}</td>
               <td><a href="/visits/{{ r.visit_id }}">Open</a></td>
             </tr>

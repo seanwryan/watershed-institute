@@ -49,19 +49,23 @@
         <h2 class="home-panel-title" id="qa-flags-title">Flagged records</h2>
         <p class="muted toolbar-count" id="qa-flags-count" aria-live="polite"></p>
       </div>
+      <div class="table-tools">
+        <label for="qa-table-search">Search table</label>
+        <input type="search" id="qa-table-search" placeholder="Site, flag, detail…" autocomplete="off">
+      </div>
       <div class="table-wrap">
-        <table class="data-table" id="qa-flags-table">
+        <table class="data-table" id="qa-flags-table" data-enhance="table" data-search="#qa-table-search" data-count="#qa-flags-count">
           <thead>
             <tr>
               <th scope="col">Site</th>
-              <th scope="col">Date</th>
+              <th scope="col" data-type="date">Date</th>
               <th scope="col">Result type</th>
               <th scope="col">Flag</th>
               <th scope="col">Detail</th>
             </tr>
           </thead>
           <tbody id="qa-flags-tbody">
-            <tr><td colspan="5" class="muted">Loading flagged records…</td></tr>
+            <tr data-empty-row="true"><td colspan="5" class="muted">Loading flagged records…</td></tr>
           </tbody>
         </table>
       </div>
@@ -156,9 +160,12 @@
     if (filterDateEnd.value) url += '&date_end=' + encodeURIComponent(filterDateEnd.value);
     fetch(url).then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function(data) {
       var flags = data.flags || [];
-      countEl.textContent = flags.length ? (flags.length + ' record' + (flags.length === 1 ? '' : 's')) : '';
+      var searchEl = document.getElementById('qa-table-search');
+      if (searchEl) searchEl.value = '';
       if (!flags.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="muted">No flagged records match these filters.</td></tr>';
+        tbody.innerHTML = '<tr data-empty-row="true"><td colspan="5" class="muted">No flagged records match these filters.</td></tr>';
+        countEl.textContent = '';
+        if (window.StreamWatchTables) StreamWatchTables.refresh(document.getElementById('qa-flags-table'));
         return;
       }
       tbody.innerHTML = flags.map(function(f) {
@@ -166,15 +173,17 @@
         var detail = f.flag_type_description || flagLabel(f.flag_type_code);
         return '<tr>' +
           '<td><span class="cell-strong">' + siteLink + '</span></td>' +
-          '<td>' + esc(fmtDate(f.sample_date)) + '</td>' +
+          '<td data-sort-value="' + esc(f.sample_date || '') + '">' + esc(fmtDate(f.sample_date)) + '</td>' +
           '<td>' + esc(resultLabel(f.result_table)) + '</td>' +
           '<td><span class="' + flagBadgeClass(f.flag_type_code) + '">' + esc(flagLabel(f.flag_type_code)) + '</span></td>' +
           '<td>' + esc(detail) + '</td>' +
           '</tr>';
       }).join('');
+      if (window.StreamWatchTables) StreamWatchTables.refresh(document.getElementById('qa-flags-table'));
+      else countEl.textContent = flags.length + ' record' + (flags.length === 1 ? '' : 's');
     }).catch(function() {
       countEl.textContent = '';
-      tbody.innerHTML = '<tr><td colspan="5" class="error">We couldn\'t load flagged records right now. Please try again in a moment.</td></tr>';
+      tbody.innerHTML = '<tr data-empty-row="true"><td colspan="5" class="error">We couldn\'t load flagged records right now. Please try again in a moment.</td></tr>';
     });
   }
 

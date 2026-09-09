@@ -25,7 +25,7 @@
 
   <div class="panel table-panel">
     <div class="table-wrap">
-      <table class="data-table data-table-clickable" id="volunteers-table">
+      <table class="data-table data-table-clickable" id="volunteers-table" data-enhance="table">
         <thead>
           <tr>
             <th scope="col">Name</th>
@@ -94,7 +94,7 @@
       ? (allItems.length + ' volunteers')
       : (list.length + ' of ' + allItems.length + ' volunteers');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="muted">No volunteers match your filters.</td></tr>';
+      tbody.innerHTML = '<tr data-empty-row="true"><td colspan="4" class="muted">No volunteers match your filters.</td></tr>';
       return;
     }
     tbody.innerHTML = list.map(function(v) {
@@ -107,6 +107,7 @@
         '<td>' + esc(v.email || '—') + '</td>' +
         '</tr>';
     }).join('');
+    if (window.StreamWatchTables) StreamWatchTables.refresh(document.getElementById('volunteers-table'));
   }
 
   function go(tr) {
