@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Methods{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting methods-page">
+  <header class="page-header">
+    <h1>Methods</h1>
+    <p class="page-subtitle">{{ subtitle }}</p>
+  </header>
+
+  <section class="panel site-snapshot" aria-label="Program summary">
+    <div class="snapshot-grid methods-summary-grid">
+      <div>
+        <span class="metric-label">CAT</span>
+        <p class="muted methods-summary-text">Physical and chemical monitoring. Historical LaMotte field chemistry; Hanna multimeters and discrete-analyzer workflow introduced in 2023.</p>
+      </div>
+      <div>
+        <span class="metric-label">BACT</span>
+        <p class="muted methods-summary-text">Sunday-season bacteria and nutrient monitoring. Source notes IDEXX/Colilert in the timeline and later wording that also references Idexx colisure tests.</p>
+      </div>
+      <div>
+        <span class="metric-label">BAT</span>
+        <p class="muted methods-summary-text">Macroinvertebrate and habitat assessment program. Frequency and identification workflow change across years are called out below.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel methods-alert" aria-label="Chloride note">
+    <h2 class="home-panel-title">2026 Chloride Correction Note</h2>
+    <p class="muted">{{ chloride_note }}</p>
+  </section>
+
+  <section class="panel table-panel" aria-labelledby="methods-table-title">
+    <div class="home-panel-head table-header-row">
+      <div>
+        <h2 class="home-panel-title" id="methods-table-title">Methods reference</h2>
+        <p class="muted methods-table-help">Search, filter, or sort the source-backed reference rows below. Blank or uncertain source details are left unresolved on purpose.</p>
+      </div>
+      <p class="muted toolbar-count" id="methods-count" aria-live="polite"></p>
+    </div>
+    <div class="toolbar" aria-label="Methods filters">
+      <div class="toolbar-main">
+        <label for="methods-search">Search</label>
+        <input type="search" id="methods-search" placeholder="Parameter, program, method, note">
+        <label for="methods-program">Program</label>
+        <select id="methods-program">
+          <option value="">All programs</option>
+        </select>
+        <label for="methods-field-lab">Field / Lab</label>
+        <select id="methods-field-lab">
+          <option value="">All</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table data-table-sticky methods-table" id="methods-table">
+        <thead>
+          <tr>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="parameter">Parameter / Data Type</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="program">Program</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="field_lab">Field / Lab</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="activity_type">WQX Activity Type</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="units">Units</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="limit">Detection / Quantitation Limit</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="equipment">Equipment / Method</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="effective_period">Effective Period</button></th>
+            <th scope="col"><button type="button" class="table-sort" data-sort-key="notes">Notes</button></th>
+          </tr>
+        </thead>
+        <tbody id="methods-tbody">
+          {% for row in rows %}
+          <tr>
+            <td><span class="cell-strong">{{ row.parameter }}</span></td>
+            <td>{{ row.program }}</td>
+            <td>{{ row.field_lab }}</td>
+            <td>{{ row.activity_type }}</td>
+            <td>{{ row.units }}</td>
+            <td>{{ row.limit }}</td>
+            <td>{{ row.equipment }}</td>
+            <td>{{ row.effective_period }}</td>
+            <td>{{ row.notes }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel methods-timeline" aria-labelledby="methods-timeline-title">
+    <h2 class="home-panel-title" id="methods-timeline-title">Historical Method &amp; Program Changes</h2>
+    <ul class="methods-timeline-list">
+      {% for event in timeline %}
+      <li><strong>{{ event.year }}</strong> — {{ event.event }}</li>
+      {% endfor %}
+    </ul>
+    <p class="muted methods-small-note">If source sections use different wording for the same method era, this timeline preserves the source wording rather than resolving it silently.</p>
+  </section>
+
+  <section class="panel definitions-panel" aria-labelledby="methods-source-title">
+    <h2 class="home-panel-title" id="methods-source-title">Source &amp; Interpretation Notes</h2>
+    <ul class="methods-source-list">
+      {% for note in source_notes %}
+      <li>{{ note }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  var rows = {{ rows|tojson }};
+  var tbody = document.getElementById('methods-tbody');
+  var searchInput = document.getElementById('methods-search');
+  var programSelect = document.getElementById('methods-program');
+  var fieldLabSelect = document.getElementById('methods-field-lab');
+  var countEl = document.getElementById('methods-count');
+  var sortButtons = Array.prototype.slice.call(document.querySelectorAll('.table-sort'));
+  var sortState = { key: 'parameter', desc: false };
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function rowText(row) {
+    return [
+      row.parameter, row.program, row.field_lab, row.activity_type, row.units,
+      row.limit, row.equipment, row.effective_period, row.notes
+    ].join(' ').toLowerCase();
+  }
+
+  function populateFilters() {
+    var programs = Array.from(new Set(rows.map(function(r) { return r.program; }))).sort();
+    var fieldLabs = Array.from(new Set(rows.map(function(r) { return r.field_lab; }))).sort();
+    programs.forEach(function(program) {
+      programSelect.appendChild(new Option(program, program));
+    });
+    fieldLabs.forEach(function(value) {
+      fieldLabSelect.appendChild(new Option(value, value));
+    });
+  }
+
+  function renderTable() {
+    var search = (searchInput.value || '').trim().toLowerCase();
+    var program = programSelect.value || '';
+    var fieldLab = fieldLabSelect.value || '';
+    var filtered = rows.filter(function(row) {
+      if (program && row.program !== program) return false;
+      if (fieldLab && row.field_lab !== fieldLab) return false;
+      if (search && rowText(row).indexOf(search) === -1) return false;
+      return true;
+    });
+    filtered.sort(function(a, b) {
+      var av = String(a[sortState.key] || '').toLowerCase();
+      var bv = String(b[sortState.key] || '').toLowerCase();
+      if (av < bv) return sortState.desc ? 1 : -1;
+      if (av > bv) return sortState.desc ? -1 : 1;
+      return 0;
+    });
+    tbody.innerHTML = filtered.map(function(row) {
+      return '<tr>' +
+        '<td><span class="cell-strong">' + esc(row.parameter) + '</span></td>' +
+        '<td>' + esc(row.program) + '</td>' +
+        '<td>' + esc(row.field_lab) + '</td>' +
+        '<td>' + esc(row.activity_type) + '</td>' +
+        '<td>' + esc(row.units) + '</td>' +
+        '<td>' + esc(row.limit) + '</td>' +
+        '<td>' + esc(row.equipment) + '</td>' +
+        '<td>' + esc(row.effective_period) + '</td>' +
+        '<td>' + esc(row.notes) + '</td>' +
+      '</tr>';
+    }).join('') || '<tr><td colspan="9" class="muted">No method rows match these filters.</td></tr>';
+    countEl.textContent = filtered.length + ' row' + (filtered.length === 1 ? '' : 's');
+    sortButtons.forEach(function(btn) {
+      var isActive = btn.getAttribute('data-sort-key') === sortState.key;
+      btn.setAttribute('aria-sort', isActive ? (sortState.desc ? 'descending' : 'ascending') : 'none');
+      btn.classList.toggle('active', isActive);
+    });
+  }
+
+  sortButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var key = btn.getAttribute('data-sort-key');
+      if (sortState.key === key) {
+        sortState.desc = !sortState.desc;
+      } else {
+        sortState.key = key;
+        sortState.desc = false;
+      }
+      renderTable();
+    });
+  });
+
+  searchInput.addEventListener('input', renderTable);
+  programSelect.addEventListener('change', renderTable);
+  fieldLabSelect.addEventListener('change', renderTable);
+
+  populateFilters();
+  renderTable();
+})();
+</script>
+{% endblock %}

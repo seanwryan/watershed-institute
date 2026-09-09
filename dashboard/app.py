@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 from etl.biological_indices import calculate_visit_indices
 from dashboard.explore_helpers import fetch_time_series_date_bounds, normalize_explore_parameter
+from dashboard.methods_reference import CHLORIDE_NOTE, METHOD_ROWS, METHODS_SUBTITLE, SOURCE_NOTES, TIMELINE_EVENTS
 from etl.bact_reconcile import preview_bact_workbook, validate_bact_workbook
 from etl.bact_scoring import (
     SOURCE_NOTE as BACT_SCORE_SOURCE_NOTE,
@@ -3702,6 +3703,18 @@ def taxon_delete(visit_id, bug_count_id):
 @app.route("/explore")
 def explore_page():
     return render_template("explore.html")
+
+
+@app.route("/methods")
+def methods_page():
+    return render_template(
+        "methods.html",
+        subtitle=METHODS_SUBTITLE,
+        rows=METHOD_ROWS,
+        timeline=TIMELINE_EVENTS,
+        source_notes=SOURCE_NOTES,
+        chloride_note=CHLORIDE_NOTE,
+    )
 
 
 @app.route("/api/bio_scores")

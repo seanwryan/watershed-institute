@@ -1142,6 +1142,61 @@ tr:hover {
   text-transform: none;
   letter-spacing: 0;
 }
+.methods-summary-grid {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 720px) {
+  .methods-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.methods-summary-text {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+}
+.methods-alert {
+  border-left: 4px solid var(--warning);
+}
+.methods-table-help {
+  max-width: 56rem;
+  margin: 0.25rem 0 0;
+}
+.methods-table th {
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+.methods-table td {
+  vertical-align: top;
+}
+.table-sort {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: left;
+}
+.table-sort:hover {
+  color: var(--accent);
+}
+.table-sort.active {
+  color: var(--accent);
+}
+.methods-timeline-list,
+.methods-source-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.15rem;
+}
+.methods-timeline-list li,
+.methods-source-list li {
+  margin-bottom: 0.45rem;
+}
+.methods-small-note {
+  margin: 0.65rem 0 0;
+  max-width: 52rem;
+}
 .scores-help {
   margin: 0.55rem 0 0;
   max-width: 48rem;

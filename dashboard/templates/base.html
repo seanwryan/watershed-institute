@@ -14,6 +14,7 @@
   {% set qa_active = ep == 'qa_page' %}
   {% set reports_active = ep is not none and ep.startswith('report') %}
   {% set imports_active = ep is not none and ep.startswith('imports') %}
+  {% set methods_active = ep == 'methods_page' %}
   <header class="site-header">
     <div class="site-header-inner">
       <a href="/" class="logo">StreamWatch</a>
@@ -32,6 +33,10 @@
         </div>
 
         <a href="/qa" class="nav-link {% if qa_active %}active{% endif %}">QA</a>
+
+        {% if not public_demo_mode %}
+        <a href="/methods" class="nav-link {% if methods_active %}active{% endif %}">Methods</a>
+        {% endif %}
 
         {% if not public_demo_mode %}
         <div class="nav-group {% if operations_active %}active{% endif %}" data-nav-group>
