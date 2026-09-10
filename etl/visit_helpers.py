@@ -95,11 +95,37 @@ def insert_chemical(cur, visit_id, data_condition_id=None, method_id=None, **kwa
     cur.execute("INSERT INTO chemical (" + ", ".join(cols) + ") VALUES (" + ", ".join(["%s"] * len(cols)) + ")", vals)
 
 
-def insert_bacteria(cur, visit_id, data_condition_id=None, e_coli_mpn_100ml=None, total_coliform_mpn=None, holding_time_flag=None, holding_temp_flag=None):
-    """Insert one bacteria row."""
+def insert_bacteria(
+    cur,
+    visit_id,
+    data_condition_id=None,
+    e_coli_mpn_100ml=None,
+    total_coliform_mpn=None,
+    holding_time_flag=None,
+    holding_temp_flag=None,
+    detection_limit_note=None,
+):
+    """Insert one bacteria row.
+
+    detection_limit_note may carry source modifier text (e.g. E. coli Mod. from ALL DATA).
+    IDEXX path typically leaves it null.
+    """
     if e_coli_mpn_100ml is None and total_coliform_mpn is None:
         return
     cur.execute(
-        "INSERT INTO bacteria (visit_id, data_condition_id, e_coli_mpn_100ml, total_coliform_mpn, holding_time_flag, holding_temp_flag) VALUES (%s, %s, %s, %s, %s, %s)",
-        (visit_id, data_condition_id, _int(e_coli_mpn_100ml), _int(total_coliform_mpn), holding_time_flag, holding_temp_flag),
+        """
+        INSERT INTO bacteria (
+            visit_id, data_condition_id, e_coli_mpn_100ml, total_coliform_mpn,
+            detection_limit_note, holding_time_flag, holding_temp_flag
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            visit_id,
+            data_condition_id,
+            _int(e_coli_mpn_100ml),
+            _int(total_coliform_mpn),
+            detection_limit_note,
+            holding_time_flag,
+            holding_temp_flag,
+        ),
     )

@@ -61,7 +61,7 @@ def test_data_pipeline_page_route():
     assert "Pipeline reference" in body
     assert "Data lineage summary" in body
     assert "Authoritative source caveat" in body
-    assert "not present" in body.lower() or "not present in the current" in body
+    assert "refresh" in body.lower() or "compatible" in body.lower()
     assert "etl/migrate_streamwatch_data.py" in body
     assert "Preview only" in body
     assert "Needs review" in body
@@ -72,8 +72,11 @@ def test_reference_includes_source_caveat():
     from dashboard.data_pipeline_reference import INTERPRETATION_NOTES, PIPELINE_SOURCE_CAVEAT
 
     assert "All StreamWatch Data" in PIPELINE_SOURCE_CAVEAT
-    assert "not present" in PIPELINE_SOURCE_CAVEAT
-    assert any("missing" in n["title"].lower() or "missing" in n["body"].lower() for n in INTERPRETATION_NOTES)
+    assert "refresh" in PIPELINE_SOURCE_CAVEAT.lower() or "not been run" in PIPELINE_SOURCE_CAVEAT
+    assert any(
+        "refresh" in n["title"].lower() or "pending" in n["title"].lower()
+        for n in INTERPRETATION_NOTES
+    )
 
 
 def test_methods_still_ok():

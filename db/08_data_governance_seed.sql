@@ -8,8 +8,10 @@ INSERT INTO data_condition (code, description, domain) VALUES
   ('Moderate_Deviation', 'Moderate deviation', 'issues_anomalies'),
   ('Site_Conflict', 'Site conflict', 'issues_anomalies'),
   ('Duplicate', 'Duplicate record', 'issues_anomalies'),
+  ('Duplicate?', 'Apparent duplicate awaiting paper-sheet reconciliation', 'issues_anomalies'),
   ('Incomplete', 'Incomplete data', 'issues_anomalies'),
-  ('Erroneous', 'Known error', 'issues_anomalies'),
+  ('Erroneous', 'Known error / physically impossible value', 'issues_anomalies'),
+  ('Outlier', 'Value outside typical range; review warranted (not automatically wrong)', 'issues_anomalies'),
   ('Provisional', 'Not yet verified', 'quality_status'),
   ('Unchecked', 'Not yet reviewed', 'quality_status'),
   ('Validated', 'Validated', 'quality_status'),
@@ -44,14 +46,18 @@ INSERT INTO lst_groundtruthing_status (label) VALUES
   ('Not Started')
 ON CONFLICT (label) DO NOTHING;
 
--- Seed lst_method
+-- Seed lst_method (legacy short names + final Sep 9 workbook Method labels)
 INSERT INTO lst_method (name) VALUES
   ('BACT'),
   ('BAT'),
   ('LaMotte'),
   ('Hanna'),
   ('Survey123'),
-  ('Gallery')
+  ('Gallery'),
+  ('CAT: Early LaMotte'),
+  ('CAT: LaMotte'),
+  ('CAT: Hanna'),
+  ('Salt Watch')
 ON CONFLICT (name) DO NOTHING;
 
 -- Seed lst_session_type

@@ -49,8 +49,12 @@ CHEM_VALUE_FIELDS = [
 ]
 
 # Source workbook header → chemical column (plus compatible aliases).
+# Final Sep 9 workbook uses unit-suffixed headers; older copies omit units.
+# Nitrate: final header is "Nitrate (mg/L)"; values are stored as-is into
+# nitrate_ug_l without mg↔µg conversion (historical behavior; see docs/ETL.md).
 CHEM_HEADER_ALIASES: Dict[str, Tuple[str, ...]] = {
     "air_temp_c": (
+        "Air Temperature (°C)",
         "Air Temperature",
         "Air temperature",
         "Air temp",
@@ -58,6 +62,7 @@ CHEM_HEADER_ALIASES: Dict[str, Tuple[str, ...]] = {
         "air_temp_c",
     ),
     "water_temp_c": (
+        "Water Temperature (°C)",
         "Water Temperature",
         "Water temperature",
         "Water temp",
@@ -65,19 +70,49 @@ CHEM_HEADER_ALIASES: Dict[str, Tuple[str, ...]] = {
         "Field water temperature",
         "water_temp_c",
     ),
-    "nitrate_ug_l": ("Nitrate", "nitrate", "Nitrate (ug/L)", "nitrate_ug_l"),
-    "phosphate_mg_l": ("Phosphates", "Phosphate", "phosphate", "phosphate_mg_l"),
+    "nitrate_ug_l": (
+        "Nitrate (mg/L)",
+        "Nitrate",
+        "nitrate",
+        "Nitrate (ug/L)",
+        "nitrate_ug_l",
+    ),
+    "phosphate_mg_l": (
+        "Phosphate (mg/L)",
+        "Phosphates",
+        "Phosphate",
+        "phosphate",
+        "phosphate_mg_l",
+    ),
     "ph": ("pH", "ph"),
-    "turbidity_ntu": ("Turbidity", "Turbidity (NTU)", "turbidity_ntu"),
+    "turbidity_ntu": (
+        "Turbidity (JTU/NTU)",
+        "Turbidity",
+        "Turbidity (NTU)",
+        "turbidity_ntu",
+    ),
     "dissolved_oxygen_ppm": (
+        "DO (ppm)",
         "DO ppm",
         "Dissolved oxygen",
         "Dissolved Oxygen",
         "DO",
         "dissolved_oxygen_ppm",
     ),
-    "dissolved_oxygen_pct": ("%DO", "DO %", "Percent DO", "dissolved_oxygen_pct"),
-    "conductivity_us_cm": ("Conductivity", "conductivity", "conductivity_us_cm"),
+    "dissolved_oxygen_pct": (
+        "DO (%)",
+        "%DO",
+        "DO %",
+        "Percent DO",
+        "dissolved_oxygen_pct",
+    ),
+    "conductivity_us_cm": (
+        "Conductivity (µS/cm)",
+        "Conductivity (uS/cm)",
+        "Conductivity",
+        "conductivity",
+        "conductivity_us_cm",
+    ),
     "chloride_mg_l": ("Chloride (mg/L)", "Chloride", "chloride", "chloride_mg_l"),
 }
 

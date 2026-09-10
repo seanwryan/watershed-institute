@@ -33,14 +33,12 @@ PIPELINE_RAW_DATA_NOTE = (
 )
 
 PIPELINE_SOURCE_CAVEAT = (
-    "As of the final Sep 9, 2026 Watershed documentation package, the "
-    "authoritative source set includes the StreamWatch Data Summary & "
-    "Description and StreamWatch Data Dictionary, plus supporting Original "
-    "Resources. The final All StreamWatch Data.xlsx referenced by those "
-    "documents is not present in that authoritative source set. The current "
-    "database should therefore be treated as based on the previously available "
-    "chemistry source until the final workbook is confirmed. Do not assume the "
-    "live demo database is fully aligned with final Watershed data."
+    "The final Sep 9 All StreamWatch Data workbook is present in the "
+    "authoritative source set, and the application ETL is now compatible with "
+    "that workbook. A controlled database refresh from it has not been run yet. "
+    "Treat the live demo database as still based on the previously loaded "
+    "chemistry (including pre-correction chloride scale) until that refresh "
+    "is planned and completed."
 )
 
 FLOW_STEPS = [
@@ -161,13 +159,13 @@ LINEAGE_ROWS = [
 
 INTERPRETATION_NOTES = [
     {
-        "title": "Final chemistry workbook is currently missing from the authoritative set",
+        "title": "ETL is compatible; database refresh is still pending",
         "body": (
-            "The final Sep 9 source documentation references an updated All "
-            "StreamWatch Data workbook, but that workbook is not present in the "
-            "current authoritative source folder. The current database should "
-            "therefore be treated as based on the previously available chemistry "
-            "source until the final workbook is confirmed."
+            "Chemistry loading code can read the final All StreamWatch Data "
+            "workbook (including banner headers, CAT method labels, and "
+            "E. coli Result). The demo database has not yet been rebuilt from "
+            "that file, so live chemistry—especially chloride—may still reflect "
+            "the older load."
         ),
     },
     {
@@ -286,22 +284,17 @@ PIPELINE_SECTIONS = [
         "id": "chemistry",
         "title": "Chemistry",
         "source": (
-            "Primary historical source when present: All StreamWatch Data.xlsx, "
-            "sheet ALL DATA only. The final Sep 9 documentation set currently "
-            "lacks that workbook in the authoritative folder. Additional "
-            "NULL-fill enrichment can come from Survey123 in the BACT and HAB "
-            "2025 workbook."
+            "Primary historical source: All StreamWatch Data.xlsx, sheet "
+            "ALL DATA (final workbook includes START HERE / SITES / SITE FINDER; "
+            "ETL loads ALL DATA only). Survey123 NULL-fill remains separate."
         ),
         "what_happens": (
-            "Headers such as Water Temperature, Nitrate, Phosphates, pH, "
-            "Turbidity, DO ppm, %DO, Conductivity, and Chloride (mg/L) are "
-            "mapped into chemistry columns. Exact duplicate packages (same "
-            "site, date, method, and rounded values) are skipped. Packages "
-            "that differ are kept even on the same day. Method values in the "
-            "raw data include CAT: Hanna, CAT: LaMotte, CAT: Early LaMotte, "
-            "BAT, BACT, and related labels documented in the Sep 9 Summary. "
-            "Survey123 enrichment fills empty fields only and does not "
-            "overwrite existing numbers."
+            "Headers such as Water Temperature (°C), Nitrate (mg/L), Phosphate "
+            "(mg/L), pH, Turbidity (JTU/NTU), DO (ppm), Conductivity (µS/cm), and "
+            "Chloride (mg/L) are mapped into chemistry columns. Exact duplicate "
+            "packages are skipped; differing same-day packages are kept. Method "
+            "values include CAT: Hanna, CAT: LaMotte, CAT: Early LaMotte, BACT, "
+            "BAT, and Salt Watch. Survey123 enrichment fills empty fields only."
         ),
         "where_it_goes": "PostgreSQL table: chemical (linked to visit).",
         "skipped": (
@@ -311,12 +304,10 @@ PIPELINE_SECTIONS = [
             "ALL DATA (that combination previously duplicated packages)."
         ),
         "caveats": (
-            "ALL DATA also contains habitat and index-style columns that are "
-            "not loaded by the chemistry script. Chloride is stored as read "
-            "from the workbook—there is no second ÷10 adjustment in ETL. "
-            "Until the final workbook is confirmed, treat demo chemistry as "
-            "based on the previously available source, not guaranteed final "
-            "Watershed alignment."
+            "ALL DATA habitat/index columns are not loaded by the chemistry "
+            "script. Chloride is stored as read—no second ÷10 in ETL. The "
+            "application database has not yet been rebuilt from the final "
+            "workbook, so live demo chemistry may still be outdated."
         ),
         "technical": {
             "script": "etl/migrate_streamwatch_data.py; etl/migrate_bact_2025.py (Survey123)",
@@ -329,10 +320,10 @@ PIPELINE_SECTIONS = [
         "id": "bacteria",
         "title": "Bacteria / IDEXX",
         "source": (
-            "BACT and HAB 2025 Data.xlsx → IDEXX sheet for recent bacteria "
-            "results. Historical ALL DATA E. coli columns use different header "
-            "names than the chemistry script currently looks for, so those "
-            "Result values are typically not loaded by that path."
+            "BACT and HAB 2025 Data.xlsx → IDEXX for recent bacteria. "
+            "Historical ALL DATA E. coli Result values are loaded by the "
+            "chemistry migration when present (modifier text stored on "
+            "detection_limit_note when available)."
         ),
         "what_happens": (
             "IDEXX rows are matched to visits by sample code. Integer E. coli "
