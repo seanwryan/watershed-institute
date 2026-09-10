@@ -45,7 +45,7 @@ def test_reference_data_shape():
         "÷10" in n["body"] or "divide-by-10" in n["body"] or "divided by 10" in n["body"]
         for n in INTERPRETATION_NOTES
     )
-    assert "Needs review" in statuses
+    assert "Needs review" in statuses or "Partially migrated" in statuses
 
 
 def test_data_pipeline_page_route():
@@ -64,7 +64,7 @@ def test_data_pipeline_page_route():
     assert "refresh" in body.lower() or "compatible" in body.lower()
     assert "etl/migrate_streamwatch_data.py" in body
     assert "Preview only" in body
-    assert "Needs review" in body
+    assert "Needs review" in body or "Partially migrated" in body
     assert "divide-by-10" in body or "÷10" in body or "divided by 10" in body
 
 
@@ -72,9 +72,10 @@ def test_reference_includes_source_caveat():
     from dashboard.data_pipeline_reference import INTERPRETATION_NOTES, PIPELINE_SOURCE_CAVEAT
 
     assert "All StreamWatch Data" in PIPELINE_SOURCE_CAVEAT
-    assert "refresh" in PIPELINE_SOURCE_CAVEAT.lower() or "not been run" in PIPELINE_SOURCE_CAVEAT
+    assert "streamwatch_demo" in PIPELINE_SOURCE_CAVEAT.lower() or "rebuilt" in PIPELINE_SOURCE_CAVEAT.lower()
+    assert "refresh" in PIPELINE_SOURCE_CAVEAT.lower() or "Render" in PIPELINE_SOURCE_CAVEAT or "Neon" in PIPELINE_SOURCE_CAVEAT
     assert any(
-        "refresh" in n["title"].lower() or "pending" in n["title"].lower()
+        "refresh" in n["title"].lower() or "rebuilt" in n["title"].lower() or "hosted" in n["title"].lower()
         for n in INTERPRETATION_NOTES
     )
 

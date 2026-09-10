@@ -33,12 +33,12 @@ PIPELINE_RAW_DATA_NOTE = (
 )
 
 PIPELINE_SOURCE_CAVEAT = (
-    "The final Sep 9 All StreamWatch Data workbook is present in the "
-    "authoritative source set, and the application ETL is now compatible with "
-    "that workbook. A controlled database refresh from it has not been run yet. "
-    "Treat the live demo database as still based on the previously loaded "
-    "chemistry (including pre-correction chloride scale) until that refresh "
-    "is planned and completed."
+    "The final Sep 9 All StreamWatch Data workbook is the chemistry source, "
+    "and ETL reads it with banner/header detection and unit-suffixed columns. "
+    "The local streamwatch_demo database has been clean-rebuilt from that "
+    "workbook (chloride stored as-is at the corrected scale). A hosted "
+    "Render/Neon database still needs its own controlled refresh before live "
+    "data can be assumed to match the final source."
 )
 
 FLOW_STEPS = [
@@ -66,10 +66,10 @@ LINEAGE_ROWS = [
     },
     {
         "area": "Chemistry (historical)",
-        "source": "All StreamWatch Data.xlsx → ALL DATA (when available)",
+        "source": "All StreamWatch Data.xlsx → ALL DATA",
         "processing": "Map headers; skip exact package clones; keep differing same-day packages",
         "destination": "chemical",
-        "status": "Needs review",
+        "status": "Loaded",
     },
     {
         "area": "Chemistry (Survey123 fill)",
@@ -159,13 +159,13 @@ LINEAGE_ROWS = [
 
 INTERPRETATION_NOTES = [
     {
-        "title": "ETL is compatible; database refresh is still pending",
+        "title": "Local demo rebuilt; hosted database refresh is separate",
         "body": (
-            "Chemistry loading code can read the final All StreamWatch Data "
-            "workbook (including banner headers, CAT method labels, and "
-            "E. coli Result). The demo database has not yet been rebuilt from "
-            "that file, so live chemistry—especially chloride—may still reflect "
-            "the older load."
+            "Local streamwatch_demo has been rebuilt from the final All "
+            "StreamWatch Data workbook (banner headers, CAT method labels, "
+            "E. coli Result, corrected chloride scale). Render/Neon data is "
+            "not updated by that local rebuild and still needs an explicit "
+            "controlled refresh if live chemistry must match."
         ),
     },
     {
@@ -204,12 +204,10 @@ INTERPRETATION_NOTES = [
         "title": "Chloride is not divided by 10 again in the loading scripts",
         "body": (
             "Watershed documented a 2026 chloride standard-preparation error; "
-            "discrete-analyzer chloride results \"to date\" were divided by 10, "
-            "and 2026 report cards were adjusted. Newer candidate workbooks "
-            "appear already corrected. Current ETL does not apply another "
-            "divide-by-10. A future refresh from a confirmed corrected workbook "
-            "must avoid double-correction. Live DB alignment cannot be "
-            "guaranteed until the final workbook is confirmed."
+            "the final workbook already contains corrected discrete-analyzer "
+            "values. ETL stores chloride as-is and does not apply another "
+            "divide-by-10. Local streamwatch_demo chloride now matches that "
+            "corrected scale; avoid double-correction on any hosted refresh."
         ),
     },
     {
@@ -305,9 +303,9 @@ PIPELINE_SECTIONS = [
         ),
         "caveats": (
             "ALL DATA habitat/index columns are not loaded by the chemistry "
-            "script. Chloride is stored as read—no second ÷10 in ETL. The "
-            "application database has not yet been rebuilt from the final "
-            "workbook, so live demo chemistry may still be outdated."
+            "script. Chloride is stored as read—no second ÷10 in ETL. Local "
+            "streamwatch_demo has been rebuilt from the final workbook; hosted "
+            "Render/Neon still needs a separate controlled refresh."
         ),
         "technical": {
             "script": "etl/migrate_streamwatch_data.py; etl/migrate_bact_2025.py (Survey123)",

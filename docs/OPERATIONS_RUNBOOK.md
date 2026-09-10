@@ -113,14 +113,14 @@ Order notes:
 - Indices then QA (QA flags chemistry; indices use bug tables).
 - Root `README.md` uses this same rebuild sequence.
 
-### Expected `streamwatch_demo` baselines (current dataset)
+### Expected `streamwatch_demo` baselines (final workbook rebuild)
 
 | Table | Count |
 |---|---:|
 | site | 168 |
-| visit | 17221 |
-| chemical | 17313 |
-| bacteria | 544 |
+| visit | 17736 |
+| chemical | 17604 |
+| bacteria | 2920 |
 | volunteer | 428 |
 | training | 55 |
 | training_log | 181 |
@@ -132,8 +132,10 @@ Order notes:
 | bug_count | 1301 |
 | rbp100_bug | 1227 |
 | macro_analysis | 108 |
-| result_flag | 40 |
+| result_flag | 18 |
 | habitat_assessment | 0 |
+
+Chloride (post-rebuild, corrected workbook scale): non-null ≈ 3107; median ≈ 45.5 mg/L (was ≈ 441 on the prior stale load).
 
 Habitat type distribution (`site.habitat_type`):
 
@@ -144,6 +146,8 @@ Habitat type distribution (`site.habitat_type`):
 | Lake | 36 |
 | Canal | 1 |
 | NULL | 2 |
+
+Fresh tidal appears on the workbook `SITES` sheet but is **not** imported via Locations-based site migration (deferred).
 
 ### Do not
 
@@ -261,7 +265,9 @@ migration. Spreadsheet refresh and UI entry are separate paths.
 
 ### Expect
 
-- On a clean full rebuild with the current workbook: **chemical ≈ 17,313**
+- On a clean full rebuild with the final ALL DATA workbook: **chemical ≈ 17,604**
+  (dry-run chemistry-capable ≈ 17,654; ≈48 chemistry packages skipped for unresolved
+  Locations site codes; 2 exact duplicate packages skipped)
 - Exact-package dedupe skips clones; **differing** same-day packages are retained
   (no `UNIQUE(visit_id)` on chemical)
 

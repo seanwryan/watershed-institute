@@ -17,7 +17,11 @@ Supporting Original Resources workbooks remain useful for ETL file names and she
 
 **ETL status (code):** Chemistry ETL is compatible with the final Sep 9 **All StreamWatch Data.xlsx** (banner/header detection, unit-suffixed columns, CAT:* / Salt Watch methods, E. coli Result, Outlier / Duplicate?).
 
-**Database status:** A controlled demo/production **refresh has not been run** from that workbook yet. Do **not** assume live PostgreSQL matches the final corrected chemistry (especially chloride). Use `python -m etl.migrate_streamwatch_data --dry-run` to validate a workbook without writing.
+**Local demo database:** `streamwatch_demo` was clean-rebuilt from the final workbook (post-ETL compatibility work). Chloride in that local demo matches the corrected workbook scale (stored as-is; ETL does not ÷10).
+
+**Hosted / Render-connected database:** A separate controlled refresh is still required before assuming live Neon/production matches the final source. Do not treat a local rebuild as an automatic live-data deploy.
+
+Use `python -m etl.migrate_streamwatch_data --dry-run` to validate a workbook without writing.
 
 Do not put local absolute filesystem paths in public-facing pages or committed docs beyond generic filenames.
 
@@ -95,7 +99,7 @@ python -m etl.apply_qa_rules
 
 Chemistry / BACT writers call `refuse_if_protected_database()` before mutating results.
 
-**Do not run a chemistry rebuild expecting the missing final Sep 9 All StreamWatch Data workbook until that file is confirmed available.**
+The final Sep 9 **All StreamWatch Data.xlsx** is the chemistry source for clean rebuilds (set `STREAMWATCH_DATA_DIR` / pass the workbook path; do not commit source files into the repo).
 
 ## Inventory
 
@@ -237,11 +241,11 @@ Writers for chemistry/BACT refuse configured protected DB names so archive/produ
 
 ## Known limitations / review points
 
-1. **Demo/production DB not yet refreshed** from the final workbook — chloride in current demo remains pre-correction scale until a controlled rebuild.
-2. **Chloride:** ETL does not apply ÷10; avoid double-correction on refresh.
+1. **Hosted / Render-connected DB** may still need its own controlled refresh; local `streamwatch_demo` alignment does not update Neon automatically.
+2. **Chloride:** Final workbook values are stored as-is; ETL does not apply ÷10 (avoid double-correction on any future refresh).
 3. **Compound Data Conditions** remain unresolved by design until Watershed specifies compound policy.
 4. **Nitrate:** `nitrate_ug_l` name vs mg/L-scale values — conversion deferred.
-5. **Workbook SITES vs Locations** site-set / Fresh tidal sync deferred.
+5. **Workbook SITES vs Locations** site-set / Fresh tidal sync deferred (Locations remains site source).
 6. **Volunteer / equipment** re-runs can duplicate some child rows.
 7. **Habitat assessments** and HAB phycocyanin not bulk-loaded.
 8. **Gallery / Turbidity / Phycocyanin** sheets in BACT workbook not loaded by migrate.
