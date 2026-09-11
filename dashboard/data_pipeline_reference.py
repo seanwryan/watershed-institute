@@ -3,129 +3,128 @@
 from __future__ import annotations
 
 PIPELINE_SUBTITLE = (
-    "How StreamWatch source files are cleaned, matched, and organized into "
-    "the application database."
+    "Where StreamWatch data comes from, and what happens to it before you "
+    "see it in this website."
 )
 
 PIPELINE_OVERVIEW = (
     "Historical StreamWatch data came from multiple spreadsheets, databases, "
-    "forms, and program-specific files. Python loading scripts (often called "
-    "ETL) read those sources, standardize the records, connect related "
-    "information, and load supported data into PostgreSQL so staff can work "
-    "with it in this application."
+    "forms, and program-specific files. Loading scripts (often called ETL) "
+    "read those sources, organize and check the records, match related "
+    "information such as sites and visits, and add the supported data to "
+    "StreamWatch so staff can work with it here."
 )
 
 ETL_DEFINITION = (
     "ETL stands for Extract, Transform, Load: "
-    "Extract — read the source data; "
-    "Transform — clean and organize it; "
-    "Load — save it into the centralized database. "
-    "Some tools only preview or export and do not load."
+    "Extract — read the source files; "
+    "Transform — clean, check, and organize the records; "
+    "Load — save supported data into StreamWatch. "
+    "Some tools only preview or export and do not add data."
 )
 
 PIPELINE_RAW_DATA_NOTE = (
-    "The database is not a byte-for-byte copy of every spreadsheet cell. "
-    "It holds cleaned and structured records derived from the provided source "
-    "files. Exact duplicates may be skipped, related rows are linked to sites "
-    "and visits, some values are derived after load, and unresolved or "
-    "unsupported cases are skipped or left for review rather than forced into "
-    "a match."
+    "StreamWatch is not a cell-by-cell copy of every spreadsheet. "
+    "It holds cleaned and structured records derived from the source files. "
+    "Exact duplicates may be skipped, related rows are linked to sites and "
+    "visits, some values are calculated after loading, and unresolved or "
+    "unsupported cases are skipped or left for review rather than forced "
+    "into a match."
 )
 
 PIPELINE_SOURCE_CAVEAT = (
-    "The final Sep 9 All StreamWatch Data workbook is the chemistry source, "
-    "and ETL reads it with banner/header detection and unit-suffixed columns. "
-    "The local streamwatch_demo database has been clean-rebuilt from that "
-    "workbook (chloride stored as-is at the corrected scale). A hosted "
-    "Render/Neon database still needs its own controlled refresh before live "
-    "data can be assumed to match the final source."
+    "The chemistry and related monitoring results you see here are based "
+    "primarily on the final All StreamWatch Data workbook (ALL DATA sheet), "
+    "together with supporting Watershed files for sites, volunteers, "
+    "equipment, bacteria (IDEXX), and macroinvertebrates. Chloride values "
+    "already reflect Watershed’s 2026 discrete-analyzer correction."
 )
 
 FLOW_STEPS = [
-    "Source Files",
-    "Python ETL",
-    "Cleaning & Matching",
-    "PostgreSQL",
-    "StreamWatch Application",
+    "Source files",
+    "Data processing",
+    "Cleaning & matching",
+    "StreamWatch database",
+    "Website",
 ]
 
 LINEAGE_ROWS = [
     {
         "area": "Sites",
         "source": "2025 StreamWatch Locations.xlsx (SWSites_2024)",
-        "processing": "Normalize columns; upsert by site code",
-        "destination": "site (+ lookups)",
+        "processing": "Normalize columns; update existing sites by site code",
+        "destination": "Sites and related lookups",
         "status": "Loaded",
     },
     {
         "area": "Visits (from chemistry / BAT / BACT)",
         "source": "Created when results load",
         "processing": "Match or create by site, date, sample code",
-        "destination": "visit",
+        "destination": "Visits",
         "status": "Loaded",
     },
     {
         "area": "Chemistry (historical)",
         "source": "All StreamWatch Data.xlsx → ALL DATA",
         "processing": "Map headers; skip exact package clones; keep differing same-day packages",
-        "destination": "chemical",
+        "destination": "Chemistry results",
         "status": "Loaded",
     },
     {
         "area": "Chemistry (Survey123 fill)",
         "source": "BACT and HAB 2025 Data.xlsx → Survey123",
-        "processing": "Fill NULL fields only on matched visits",
-        "destination": "chemical (update)",
+        "processing": "Fill empty fields only on matched visits",
+        "destination": "Chemistry results (updates)",
         "status": "Loaded",
     },
     {
         "area": "Bacteria (IDEXX)",
         "source": "BACT and HAB 2025 Data.xlsx → IDEXX",
         "processing": "Attach by sample code; skip duplicates and censored values",
-        "destination": "bacteria",
+        "destination": "Bacteria results",
         "status": "Loaded",
     },
     {
         "area": "Volunteers / training / assignments",
         "source": "Volunteer_Tracking.xlsm",
         "processing": "Detect headers; link sites by code",
-        "destination": "volunteer, training, training_log, junc_assignments",
+        "destination": "Volunteers, training, assignments",
         "status": "Loaded",
     },
     {
         "area": "Equipment / meter testing",
         "source": "CAT Meter Tracking v.1.xlsx",
         "processing": "Accept TWI### meters; parse quarterly test matrices",
-        "destination": "equipment, sensor, session, meter_testing",
+        "destination": "Equipment and meter tests",
         "status": "Loaded",
     },
     {
         "area": "Macroinvertebrates",
         "source": "tblSampleDates.xlsx (preferred)",
         "processing": "Taxonomy + counts + RBP100; skip existing observations",
-        "destination": "bug_list, bug_count, rbp100_bug",
+        "destination": "Bug list, counts, and RBP100",
         "status": "Loaded",
     },
     {
         "area": "Biology scores",
         "source": "Derived from bug tables",
         "processing": "HGMI / NJIS / CPMI formulas",
-        "destination": "macro_analysis",
+        "destination": "Macro analysis scores",
         "status": "Derived",
     },
     {
         "area": "QA flags",
         "source": "Derived after load",
         "processing": "Temperature / nitrate thresholds; meter-fail windows",
-        "destination": "result_flag / data_condition",
+        "destination": "Result flags / Data Conditions",
         "status": "Derived",
     },
     {
         "area": "Habitat assessments (historical)",
         "source": "RBP columns on ALL DATA (and related forms)",
-        "processing": "Not bulk-migrated",
-        "destination": "habitat_assessment",
-        "status": "Partially migrated",
+        "processing": "Not bulk-loaded historically",
+        "destination": "Habitat assessments",
+        "status": "Partially loaded",
     },
     {
         "area": "BACT import reconciliation",
@@ -138,7 +137,7 @@ LINEAGE_ROWS = [
         "area": "HAB status",
         "source": "BACT and HAB workbook (Phycocyanin / Survey123)",
         "processing": "Workbook formulas mirrored for review",
-        "destination": "— (phycocyanin not in PostgreSQL)",
+        "destination": "— (phycocyanin not stored in StreamWatch)",
         "status": "Preview only",
     },
     {
@@ -150,7 +149,7 @@ LINEAGE_ROWS = [
     },
     {
         "area": "WQX",
-        "source": "PostgreSQL",
+        "source": "StreamWatch monitoring data",
         "processing": "Build preparation CSV (all chemistry packages)",
         "destination": "Download file",
         "status": "Export only",
@@ -159,20 +158,11 @@ LINEAGE_ROWS = [
 
 INTERPRETATION_NOTES = [
     {
-        "title": "Local demo rebuilt; hosted database refresh is separate",
-        "body": (
-            "Local streamwatch_demo has been rebuilt from the final All "
-            "StreamWatch Data workbook (banner headers, CAT method labels, "
-            "E. coli Result, corrected chloride scale). Render/Neon data is "
-            "not updated by that local rebuild and still needs an explicit "
-            "controlled refresh if live chemistry must match."
-        ),
-    },
-    {
         "title": "Multiple chemistry packages on one day can be legitimate",
         "body": (
-            "The chemistry load keeps packages that differ in method or measured "
-            "values on the same site and date. Only exact clones are skipped."
+            "StreamWatch keeps chemistry packages that differ in method or "
+            "measured values on the same site and date. Only exact duplicates "
+            "are skipped."
         ),
     },
     {
@@ -184,36 +174,37 @@ INTERPRETATION_NOTES = [
         ),
     },
     {
-        "title": "Some BACT and HAB tools are reconciliation previews",
+        "title": "Some BACT and HAB tools are review previews only",
         "body": (
             "The Imports BACT and HAB pages help staff compare a workbook to "
-            "the database. They do not automatically rewrite PostgreSQL. "
-            "Bulk Survey123 / IDEXX loading is a separate migration script."
+            "current StreamWatch records. They do not automatically change "
+            "stored data. Larger bulk loads are handled separately by staff "
+            "data-loading procedures."
         ),
     },
     {
-        "title": "Historical habitat is not fully bulk migrated",
+        "title": "Historical habitat assessments are not fully loaded",
         "body": (
             "Sites may carry a habitat type (for example High Gradient or "
             "Low Gradient). Full historical Rapid Bioassessment Protocol "
-            "habitat score sheets are not loaded into habitat_assessment; "
-            "staff can enter assessments in the application."
+            "habitat score sheets are not bulk-loaded; staff can enter "
+            "assessments in the application."
         ),
     },
     {
-        "title": "Chloride is not divided by 10 again in the loading scripts",
+        "title": "Chloride already reflects the 2026 correction",
         "body": (
-            "Watershed documented a 2026 chloride standard-preparation error; "
-            "the final workbook already contains corrected discrete-analyzer "
-            "values. ETL stores chloride as-is and does not apply another "
-            "divide-by-10. Local streamwatch_demo chloride now matches that "
-            "corrected scale; avoid double-correction on any hosted refresh."
+            "Watershed identified a chloride standard-preparation error in "
+            "2026. Affected discrete-analyzer measurements were corrected by "
+            "dividing by 10 in the source data. StreamWatch shows those "
+            "corrected values—do not divide chloride by 10 again when using "
+            "or analyzing this data."
         ),
     },
     {
         "title": "Ambiguous Watershed rules stay as review points",
         "body": (
-            "Where source authority or matching is unclear, the pipeline "
+            "Where source authority or matching is unclear, StreamWatch "
             "documents skips and conflicts instead of inventing cleanup rules."
         ),
     },
@@ -234,9 +225,9 @@ PIPELINE_SECTIONS = [
             "notes, and program priorities (CAT / BAT / BACT) are carried over "
             "when present."
         ),
-        "where_it_goes": "PostgreSQL tables: site and related lookups.",
+        "where_it_goes": "Sites and related lookups in StreamWatch.",
         "skipped": (
-            "Rows without a usable site code are skipped. Re-running updates "
+            "Rows without a usable site code are skipped. Reloading updates "
             "existing sites by site code instead of creating duplicates."
         ),
         "caveats": (
@@ -259,10 +250,10 @@ PIPELINE_SECTIONS = [
             "“visits only” workbook."
         ),
         "what_happens": (
-            "The loader looks for an existing visit for the same site, sample "
+            "StreamWatch looks for an existing visit for the same site, sample "
             "date, and sample code (when present). If none exists, it creates one."
         ),
-        "where_it_goes": "PostgreSQL table: visit.",
+        "where_it_goes": "Visits in StreamWatch.",
         "skipped": (
             "Results that cannot resolve to a known site or date never create "
             "a visit."
@@ -283,29 +274,29 @@ PIPELINE_SECTIONS = [
         "title": "Chemistry",
         "source": (
             "Primary historical source: All StreamWatch Data.xlsx, sheet "
-            "ALL DATA (final workbook includes START HERE / SITES / SITE FINDER; "
-            "ETL loads ALL DATA only). Survey123 NULL-fill remains separate."
+            "ALL DATA (the workbook also has START HERE / SITES / SITE FINDER "
+            "sheets that are not used for chemistry loading). Survey123 empty-"
+            "field fill is a separate step."
         ),
         "what_happens": (
             "Headers such as Water Temperature (°C), Nitrate (mg/L), Phosphate "
             "(mg/L), pH, Turbidity (JTU/NTU), DO (ppm), Conductivity (µS/cm), and "
-            "Chloride (mg/L) are mapped into chemistry columns. Exact duplicate "
+            "Chloride (mg/L) become chemistry results. Exact duplicate "
             "packages are skipped; differing same-day packages are kept. Method "
             "values include CAT: Hanna, CAT: LaMotte, CAT: Early LaMotte, BACT, "
             "BAT, and Salt Watch. Survey123 enrichment fills empty fields only."
         ),
-        "where_it_goes": "PostgreSQL table: chemical (linked to visit).",
+        "where_it_goes": "Chemistry results linked to visits.",
         "skipped": (
             "Unknown site codes; missing dates; exact duplicate packages; "
             "Survey123 rows with no matching visit or nothing left to fill. "
-            "Per-watershed sheets are intentionally not bulk-imported alongside "
+            "Per-watershed sheets are intentionally not loaded alongside "
             "ALL DATA (that combination previously duplicated packages)."
         ),
         "caveats": (
-            "ALL DATA habitat/index columns are not loaded by the chemistry "
-            "script. Chloride is stored as read—no second ÷10 in ETL. Local "
-            "streamwatch_demo has been rebuilt from the final workbook; hosted "
-            "Render/Neon still needs a separate controlled refresh."
+            "Habitat and index columns on ALL DATA are not loaded with "
+            "chemistry. Chloride values already include Watershed’s 2026 "
+            "correction—do not divide by 10 again."
         ),
         "technical": {
             "script": "etl/migrate_streamwatch_data.py; etl/migrate_bact_2025.py (Survey123)",
@@ -319,24 +310,23 @@ PIPELINE_SECTIONS = [
         "title": "Bacteria / IDEXX",
         "source": (
             "BACT and HAB 2025 Data.xlsx → IDEXX for recent bacteria. "
-            "Historical ALL DATA E. coli Result values are loaded by the "
-            "chemistry migration when present (modifier text stored on "
-            "detection_limit_note when available)."
+            "Historical ALL DATA E. coli Result values are loaded with "
+            "chemistry when present (modifier text is kept when available)."
         ),
         "what_happens": (
             "IDEXX rows are matched to visits by sample code. Integer E. coli "
-            "MPN values are inserted. Values that cannot be parsed as integers "
+            "MPN values are stored. Values that cannot be read as integers "
             "(including censored results such as >2419.6) are skipped. "
-            "Re-runs skip an identical visit + MPN pair."
+            "Reloading skips an identical visit + MPN pair."
         ),
-        "where_it_goes": "PostgreSQL table: bacteria.",
+        "where_it_goes": "Bacteria results in StreamWatch.",
         "skipped": (
             "Missing sample code; no visit with that sample code; censored or "
             "non-integer MPN; already-recorded identical pairs."
         ),
         "caveats": (
-            "The in-app BACT import page is a read-only reconciliation preview "
-            "using the same matching ideas."
+            "The in-app BACT import page is a read-only review preview using "
+            "the same matching ideas."
         ),
         "technical": {
             "script": "etl/migrate_bact_2025.py; preview etl/bact_reconcile.py",
@@ -354,11 +344,12 @@ PIPELINE_SECTIONS = [
             "the table. Names, contact fields, status, and active CAT/BAT/BACT "
             "flags are loaded."
         ),
-        "where_it_goes": "PostgreSQL table: volunteer (+ municipality lookup).",
+        "where_it_goes": "Volunteer records (and municipality lookup).",
         "skipped": "Rows with no first or last name.",
         "caveats": (
-            "Re-running the volunteer migration inserts volunteers again; it is "
-            "not fully idempotent. Prefer a clean database rebuild when reloading."
+            "Reloading volunteers can create duplicate people if the same "
+            "workbook is loaded again. Prefer a clean rebuild when reloading "
+            "volunteers from scratch."
         ),
         "technical": {
             "script": "etl/migrate_volunteers.py",
@@ -378,12 +369,12 @@ PIPELINE_SECTIONS = [
             "connect volunteers to sites (site codes resolved against the "
             "sites table)."
         ),
-        "where_it_goes": "training, training_log, junc_assignments.",
+        "where_it_goes": "Training sessions, attendance, and site assignments.",
         "skipped": (
             "Trainings without a date; log/assignment rows that cannot resolve "
             "volunteer or site."
         ),
-        "caveats": "Sites_Live in the workbook is reference only; sites come from the sites migration.",
+        "caveats": "Sites_Live in the workbook is reference only; monitoring sites come from the Locations workbook.",
         "technical": {
             "script": "etl/migrate_volunteers.py",
             "sheet": "Trainings, TrainingLog, Assignments",
@@ -405,8 +396,8 @@ PIPELINE_SECTIONS = [
             "LaMotte-user name rows and other non-TWI### Meter ID values."
         ),
         "caveats": (
-            "The Tracking sheet is present in the workbook but not used by the "
-            "current loader."
+            "The Tracking sheet is present in the workbook but is not used when "
+            "loading equipment."
         ),
         "technical": {
             "script": "etl/migrate_equipment.py",
@@ -479,10 +470,11 @@ PIPELINE_SECTIONS = [
             "status tools on Imports mirror workbook formulas for review only."
         ),
         "where_it_goes": (
-            "site.habitat_type when migrated; habitat_assessment when staff "
-            "enter data; HAB preview does not write phycocyanin to PostgreSQL."
+            "Habitat type on the site when available; habitat assessments when "
+            "staff enter them; HAB preview does not store phycocyanin in "
+            "StreamWatch."
         ),
-        "skipped": "Bulk historical habitat score rows (not migrated in this milestone).",
+        "skipped": "Bulk historical habitat score rows (not loaded).",
         "caveats": "Canal and Lake scoring rules remain review topics for future work.",
         "technical": {
             "script": "etl/migrate_sites.py (type only); etl/hab_status.py (preview)",
@@ -498,11 +490,11 @@ PIPELINE_SECTIONS = [
         "what_happens": (
             "The app classifies Survey123 and IDEXX rows (ready to enrich, "
             "needs review, censored, needs visit match, and similar) using the "
-            "same parsing helpers as the migration script."
+            "same matching rules as the bulk bacteria load."
         ),
         "where_it_goes": "Nowhere automatically—preview tables and downloads only.",
-        "skipped": "Same unresolved classes as the write-path migration.",
-        "caveats": "Read-only. Does not change review or write policy of the bulk migrate.",
+        "skipped": "Same unresolved classes as the bulk bacteria load.",
+        "caveats": "Read-only review. Does not change how bulk loads are handled.",
         "technical": {
             "script": "etl/bact_reconcile.py",
             "sheet": "SURVEY123, IDEXX",
@@ -520,7 +512,7 @@ PIPELINE_SECTIONS = [
             "workbook-stored values where available."
         ),
         "where_it_goes": "Preview only.",
-        "skipped": "Does not load Gallery / Turbidity / Phycocyanin numeric series into PostgreSQL.",
+        "skipped": "Does not store Gallery / Turbidity / Phycocyanin numeric series in StreamWatch.",
         "caveats": "Manual DEP Watch/Advisory overrides are outside the calculated rule.",
         "technical": {
             "script": "etl/hab_status.py",
@@ -532,7 +524,7 @@ PIPELINE_SECTIONS = [
     {
         "id": "wqx",
         "title": "WQX export",
-        "source": "PostgreSQL monitoring data already in the application.",
+        "source": "Monitoring data already stored in StreamWatch.",
         "what_happens": (
             "Builds a WQX-style preparation CSV: one result row per non-null "
             "characteristic. Every chemistry package on a visit is included. "
@@ -540,9 +532,9 @@ PIPELINE_SECTIONS = [
             "the chemical id; multiple bacteria rows append -B plus the "
             "bacteria id."
         ),
-        "where_it_goes": "Downloadable CSV (CLI or Export page)—not an import into PostgreSQL.",
-        "skipped": "Null measurements; this is not a full EPA portal package.",
-        "caveats": "Export / preparation logic only.",
+        "where_it_goes": "Downloadable CSV (Export page)—not an import into StreamWatch.",
+        "skipped": "Empty measurements; this is not a full EPA portal package.",
+        "caveats": "Export / preparation only.",
         "technical": {
             "script": "etl/export_wqx.py",
             "sheet": "— (database)",

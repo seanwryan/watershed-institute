@@ -19,7 +19,7 @@ Supporting Original Resources workbooks remain useful for ETL file names and she
 
 **Local demo database:** `streamwatch_demo` was clean-rebuilt from the final workbook (post-ETL compatibility work). Chloride in that local demo matches the corrected workbook scale (stored as-is; ETL does not ÷10).
 
-**Hosted / Render-connected database:** A separate controlled refresh is still required before assuming live Neon/production matches the final source. Do not treat a local rebuild as an automatic live-data deploy.
+**Hosted / Render-connected database:** Live cutover to the final-source Neon branch completed 2026-09-10. Staff-facing pages should not claim a refresh is still pending. Chloride on live matches the corrected workbook scale (stored as-is; ETL does not ÷10).
 
 Use `python -m etl.migrate_streamwatch_data --dry-run` to validate a workbook without writing.
 
@@ -241,8 +241,8 @@ Writers for chemistry/BACT refuse configured protected DB names so archive/produ
 
 ## Known limitations / review points
 
-1. **Hosted / Render-connected DB** may still need its own controlled refresh; local `streamwatch_demo` alignment does not update Neon automatically.
-2. **Chloride:** Final workbook values are stored as-is; ETL does not apply ÷10 (avoid double-correction on any future refresh).
+1. **Chloride (developer):** Final workbook values are already corrected (÷10 applied in the source). ETL stores chloride as-is and must not apply another ÷10 (`CHLORIDE_APPLY_DIVIDE_BY_TEN = False`) on any future reload.
+2. **Live vs local:** Live Render/Neon was cut over to the final-source branch (2026-09-10). Local `streamwatch_demo` rebuilds still do not automatically update hosted data.
 3. **Compound Data Conditions** remain unresolved by design until Watershed specifies compound policy.
 4. **Nitrate:** `nitrate_ug_l` name vs mg/L-scale values — conversion deferred.
 5. **Workbook SITES vs Locations** site-set / Fresh tidal sync deferred (Locations remains site source).

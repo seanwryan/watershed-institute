@@ -22,12 +22,12 @@
     <p class="form-error" role="alert">{{ error }}</p>
     {% endif %}
     <div class="import-preview-banner" role="note">
-      <strong>No StreamWatch database data is read or changed.</strong>
+      <strong>No StreamWatch data is read or changed.</strong>
       Upload a saved <span class="mono">2025 BACT Analysis.xlsx</span> (with calculated
       values). Scores are computed from that file’s weekly parameter sheets—the same
       series Watershed uses (SURVEY123-linked field temp, IDEXX E. coli, Gallery
-      nutrients, TURBIDITY NTU). PostgreSQL chemical packages are intentionally not used
-      as the official season series.
+      nutrients, TURBIDITY NTU). Chemistry packages stored in StreamWatch are
+      intentionally not used as the official season series.
     </div>
     <form class="stack-form" method="post" action="/reports/bact/preview" enctype="multipart/form-data">
       <label for="workbook">2025 BACT Analysis workbook (.xlsx)</label>

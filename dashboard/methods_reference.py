@@ -14,25 +14,17 @@ METHODS_SUBTITLE = (
 )
 
 CHLORIDE_NOTE = (
-    "In 2026, Watershed documented a chloride standard-preparation error. "
-    "The Data Summary states that discrete-analyzer chloride measurements "
-    "\"to date\" were divided by 10, and that 2026 report cards were also "
-    "adjusted. Newer candidate chemistry workbooks appear already corrected. "
-    "This application's loading scripts do not apply another divide-by-10. "
-    "A future refresh from a confirmed corrected workbook must avoid "
-    "double-correction. Live database alignment cannot be guaranteed until "
-    "the final All StreamWatch Data workbook is confirmed and present in the "
-    "authoritative source set. This page is documentation only and does not "
-    "change stored chloride values."
+    "In 2026, Watershed identified a historical chloride standard-preparation "
+    "error. Affected discrete-analyzer chloride measurements were corrected by "
+    "dividing them by 10 (2026 report cards were adjusted as well). The "
+    "chloride values shown in StreamWatch already reflect that correction."
 )
 
 ANALYSIS_EXCLUSION_NOTE = (
-    "Before analyzing StreamWatch raw data, Watershed's own practice is to "
-    "exclude: (1) any record tagged Flagged in the Data Condition column "
-    "(alone or combined with other tags); (2) any individual value carrying "
-    "a trailing \"?\"; and (3) any Turbidity value collected under the "
-    "discontinued CAT: Early LaMotte method. See the StreamWatch Data "
-    "Dictionary for the full set of cell-level conventions."
+    "When analyzing StreamWatch data, Watershed practice is to exclude: "
+    "records marked Flagged; individual values marked with \"?\"; and "
+    "turbidity collected using CAT: Early LaMotte. See the StreamWatch Data "
+    "Dictionary for additional cell-level conventions."
 )
 
 METHOD_GROUPS = [

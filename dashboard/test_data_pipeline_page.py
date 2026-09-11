@@ -13,6 +13,7 @@ from dashboard.data_pipeline_reference import (
     INTERPRETATION_NOTES,
     LINEAGE_ROWS,
     PIPELINE_SECTIONS,
+    PIPELINE_SOURCE_CAVEAT,
     PIPELINE_SUBTITLE,
 )
 
@@ -42,10 +43,16 @@ def test_reference_data_shape():
     assert "Preview only" in statuses
     assert "Export only" in statuses
     assert any(
-        "÷10" in n["body"] or "divide-by-10" in n["body"] or "divided by 10" in n["body"]
+        "divided by 10" in n["body"] or "dividing by 10" in n["body"] or "÷10" in n["body"]
         for n in INTERPRETATION_NOTES
     )
-    assert "Needs review" in statuses or "Partially migrated" in statuses
+    assert "Needs review" in statuses or "Partially loaded" in statuses or "Partially migrated" in statuses
+    # Outdated hosted-refresh messaging must not remain in interpretation notes
+    for note in INTERPRETATION_NOTES:
+        blob = (note["title"] + " " + note["body"]).lower()
+        assert "render" not in blob
+        assert "neon" not in blob
+        assert "streamwatch_demo" not in blob
 
 
 def test_data_pipeline_page_route():
@@ -60,24 +67,26 @@ def test_data_pipeline_page_route():
     assert "Extract, Transform, Load" in body
     assert "Pipeline reference" in body
     assert "Data lineage summary" in body
-    assert "Authoritative source caveat" in body
-    assert "refresh" in body.lower() or "compatible" in body.lower()
+    assert "Current source data" in body
+    assert "Authoritative source caveat" not in body
+    assert "All StreamWatch Data" in body
     assert "etl/migrate_streamwatch_data.py" in body
     assert "Preview only" in body
-    assert "Needs review" in body or "Partially migrated" in body
-    assert "divide-by-10" in body or "÷10" in body or "divided by 10" in body
+    assert "Needs review" in body or "Partially loaded" in body or "Partially migrated" in body
+    assert "divided by 10" in body or "dividing by 10" in body or "÷10" in body
+    assert "streamwatch_demo" not in body
+    assert "Neon" not in body
+    assert "Render" not in body
+    assert "controlled refresh" not in body.lower()
 
 
-def test_reference_includes_source_caveat():
-    from dashboard.data_pipeline_reference import INTERPRETATION_NOTES, PIPELINE_SOURCE_CAVEAT
-
+def test_reference_includes_source_note():
     assert "All StreamWatch Data" in PIPELINE_SOURCE_CAVEAT
-    assert "streamwatch_demo" in PIPELINE_SOURCE_CAVEAT.lower() or "rebuilt" in PIPELINE_SOURCE_CAVEAT.lower()
-    assert "refresh" in PIPELINE_SOURCE_CAVEAT.lower() or "Render" in PIPELINE_SOURCE_CAVEAT or "Neon" in PIPELINE_SOURCE_CAVEAT
-    assert any(
-        "refresh" in n["title"].lower() or "rebuilt" in n["title"].lower() or "hosted" in n["title"].lower()
-        for n in INTERPRETATION_NOTES
-    )
+    assert "streamwatch_demo" not in PIPELINE_SOURCE_CAVEAT.lower()
+    assert "Render" not in PIPELINE_SOURCE_CAVEAT
+    assert "Neon" not in PIPELINE_SOURCE_CAVEAT
+    assert "refresh" not in PIPELINE_SOURCE_CAVEAT.lower()
+    assert any("chloride" in n["title"].lower() for n in INTERPRETATION_NOTES)
 
 
 def test_methods_still_ok():
@@ -90,7 +99,7 @@ def test_methods_still_ok():
 
 def main():
     test_reference_data_shape()
-    test_reference_includes_source_caveat()
+    test_reference_includes_source_note()
     test_data_pipeline_page_route()
     test_methods_still_ok()
     print("DATA_PIPELINE_PAGE_OK")

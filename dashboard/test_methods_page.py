@@ -47,9 +47,23 @@ def test_reference_data_shape():
         "BACT",
         "Salt Watch",
     }.issubset(group_names)
-    assert "divided by 10" in CHLORIDE_NOTE
-    assert "do not apply another divide-by-10" in CHLORIDE_NOTE
+    note_l = CHLORIDE_NOTE.lower()
+    assert ("divided" in note_l or "dividing" in note_l) and "10" in CHLORIDE_NOTE
+    assert "standard-preparation" in note_l or "standard preparation" in note_l
+    # Staff-facing note should not expose ETL / deployment jargon
+    for banned in (
+        "loading scripts",
+        "divide-by-10",
+        "candidate",
+        "database alignment",
+        "ETL",
+        "Neon",
+        "Render",
+        "streamwatch_demo",
+    ):
+        assert banned not in CHLORIDE_NOTE
     assert "Flagged" in ANALYSIS_EXCLUSION_NOTE
+    assert "?" in ANALYSIS_EXCLUSION_NOTE
     assert "CAT: Early LaMotte" in ANALYSIS_EXCLUSION_NOTE
     assert any("0.2 OR 1" not in (r.get("limit") or "") for r in METHOD_ROWS)
     assert not any("0.2 OR 1" in (r.get("limit") or "") for r in METHOD_ROWS)
@@ -79,6 +93,11 @@ def test_methods_page_route():
     assert "4.5 OR 10" not in body
     assert "Colisure" in body
     assert "IDEXX/Colilert" in body
+    assert "database alignment" not in body
+    assert "candidate chemistry" not in body.lower()
+    assert "streamwatch_demo" not in body
+    assert "Neon" not in body
+    assert "Render" not in body
 
 
 def main():
