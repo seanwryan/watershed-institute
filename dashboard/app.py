@@ -66,7 +66,8 @@ register_public_demo(app)
 
 
 def get_db():
-    return psycopg2.connect(DATABASE_URL)
+    # Short timeout so an unreachable DB cannot wedge the single Gunicorn worker.
+    return psycopg2.connect(DATABASE_URL, connect_timeout=5)
 
 
 def get_db_or_503():

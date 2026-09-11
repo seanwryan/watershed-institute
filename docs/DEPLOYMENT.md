@@ -36,7 +36,7 @@ git push -u origin main
 | **Name** | `streamwatch` (or any name) |
 | **Region** | Choose closest to your users |
 | **Branch** | `main` (or your default branch) |
-| **Runtime** | Python 3 |
+| **Runtime** | Python (pinned via `.python-version`, currently 3.12.x) |
 | **Build Command** | `pip install -r requirements.txt` |
 | **Start Command** | `sh -c 'gunicorn -w 1 -b 0.0.0.0:${PORT:-10000} dashboard.app:app'` |
 | **Instance Type** | Free |
