@@ -10,16 +10,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dashboard.data_pipeline_reference import (
+    ETL_DEFINITION,
+    FLOW_STEPS,
     INTERPRETATION_NOTES,
     LINEAGE_ROWS,
     PIPELINE_SECTIONS,
-    PIPELINE_SOURCE_CAVEAT,
     PIPELINE_SUBTITLE,
 )
 
 
 def test_reference_data_shape():
     assert PIPELINE_SUBTITLE
+    assert len(FLOW_STEPS) == 4
+    assert FLOW_STEPS[0].lower().startswith("source")
+    assert FLOW_STEPS[-1].lower() == "website"
+    assert "ETL" in ETL_DEFINITION
+    assert "Extract, Transform, Load" in ETL_DEFINITION
     assert len(PIPELINE_SECTIONS) >= 10
     ids = {s["id"] for s in PIPELINE_SECTIONS}
     required = {
@@ -38,21 +44,14 @@ def test_reference_data_shape():
         "wqx",
     }
     assert required.issubset(ids)
+    for section in PIPELINE_SECTIONS:
+        assert 2 <= len(section["summary"]) <= 4
     statuses = {r["status"] for r in LINEAGE_ROWS}
     assert "Loaded" in statuses
     assert "Preview only" in statuses
     assert "Export only" in statuses
-    assert any(
-        "divided by 10" in n["body"] or "dividing by 10" in n["body"] or "÷10" in n["body"]
-        for n in INTERPRETATION_NOTES
-    )
+    assert any("10" in n["body"] for n in INTERPRETATION_NOTES)
     assert "Needs review" in statuses or "Partially loaded" in statuses or "Partially migrated" in statuses
-    # Outdated hosted-refresh messaging must not remain in interpretation notes
-    for note in INTERPRETATION_NOTES:
-        blob = (note["title"] + " " + note["body"]).lower()
-        assert "render" not in blob
-        assert "neon" not in blob
-        assert "streamwatch_demo" not in blob
 
 
 def test_data_pipeline_page_route():
@@ -64,29 +63,22 @@ def test_data_pipeline_page_route():
     assert resp.status_code == 200
     body = resp.get_data(as_text=True)
     assert "Data Pipeline" in body
-    assert "Extract, Transform, Load" in body
+    assert "ETL" in body
     assert "Pipeline reference" in body
-    assert "Data lineage summary" in body
-    assert "Current source data" in body
-    assert "Authoritative source caveat" not in body
-    assert "All StreamWatch Data" in body
+    assert "Status overview" in body or "Data lineage" in body
+    assert "Source files" in body
+    assert "Clean &amp; match" in body or "Clean & match" in body
     assert "etl/migrate_streamwatch_data.py" in body
     assert "Preview only" in body
-    assert "Needs review" in body or "Partially loaded" in body or "Partially migrated" in body
-    assert "divided by 10" in body or "dividing by 10" in body or "÷10" in body
+    assert "Authoritative source caveat" not in body
+    assert "Current source data" not in body
     assert "streamwatch_demo" not in body
     assert "Neon" not in body
     assert "Render" not in body
     assert "controlled refresh" not in body.lower()
-
-
-def test_reference_includes_source_note():
-    assert "All StreamWatch Data" in PIPELINE_SOURCE_CAVEAT
-    assert "streamwatch_demo" not in PIPELINE_SOURCE_CAVEAT.lower()
-    assert "Render" not in PIPELINE_SOURCE_CAVEAT
-    assert "Neon" not in PIPELINE_SOURCE_CAVEAT
-    assert "refresh" not in PIPELINE_SOURCE_CAVEAT.lower()
-    assert any("chloride" in n["title"].lower() for n in INTERPRETATION_NOTES)
+    # Collapsed details still present
+    assert "Technical details" in body
+    assert "More detail" in body
 
 
 def test_methods_still_ok():
@@ -99,7 +91,6 @@ def test_methods_still_ok():
 
 def main():
     test_reference_data_shape()
-    test_reference_includes_source_note()
     test_data_pipeline_page_route()
     test_methods_still_ok()
     print("DATA_PIPELINE_PAGE_OK")

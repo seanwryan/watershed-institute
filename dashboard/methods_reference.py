@@ -8,24 +8,54 @@ Does not invent missing method details. Ambiguous source wording is preserved.
 """
 
 METHODS_SUBTITLE = (
-    "Reference information for StreamWatch monitoring methods, instruments, "
-    "detection ranges, and historical program changes from the Sep 9, 2026 "
-    "Watershed Data Summary and Data Dictionary."
+    "How StreamWatch parameters were measured, and important method changes over time."
 )
 
-CHLORIDE_NOTE = (
-    "In 2026, Watershed identified a historical chloride standard-preparation "
-    "error. Affected discrete-analyzer chloride measurements were corrected by "
-    "dividing them by 10 (2026 report cards were adjusted as well). The "
-    "chloride values shown in StreamWatch already reflect that correction."
+PROGRAM_SUMMARIES = [
+    {
+        "name": "CAT",
+        "text": (
+            "Physical/chemical monitoring: CAT: Hanna, CAT: LaMotte, and "
+            "historical CAT: Early LaMotte."
+        ),
+    },
+    {
+        "name": "BACT",
+        "text": (
+            "Sunday-season bacteria and nutrients (May–September). "
+            "Timeline notes IDEXX/Colilert; Methods table lists Colisure."
+        ),
+    },
+    {
+        "name": "BAT",
+        "text": (
+            "Macroinvertebrate counts and habitat assessment. "
+            "Frequency and ID workflow changes are in the timeline."
+        ),
+    },
+]
+
+ANALYSIS_EXCLUSION_BULLETS = [
+    "Exclude Flagged records",
+    "Exclude values marked ?",
+    "Exclude CAT: Early LaMotte turbidity",
+]
+
+ANALYSIS_EXCLUSION_NOTE = "; ".join(ANALYSIS_EXCLUSION_BULLETS) + "."
+
+CHLORIDE_BULLETS = [
+    "A historical preparation error was identified in 2026.",
+    "Affected discrete-analyzer chloride values were corrected by dividing by 10.",
+]
+
+CHLORIDE_NOTE = " ".join(CHLORIDE_BULLETS)
+
+SOURCE_LINE = (
+    "Sources: StreamWatch Data Summary & Description and Data Dictionary "
+    "(last updated September 9, 2026)."
 )
 
-ANALYSIS_EXCLUSION_NOTE = (
-    "When analyzing StreamWatch data, Watershed practice is to exclude: "
-    "records marked Flagged; individual values marked with \"?\"; and "
-    "turbidity collected using CAT: Early LaMotte. See the StreamWatch Data "
-    "Dictionary for additional cell-level conventions."
-)
+SOURCE_NOTES = [SOURCE_LINE]
 
 METHOD_GROUPS = [
     {
@@ -49,40 +79,33 @@ METHOD_GROUPS = [
     {
         "name": "CAT: Early LaMotte",
         "summary": (
-            "Predecessor protocol to CAT: LaMotte, used from 1992 into the "
-            "early 2010s (the two overlapped for several years). Same "
-            "parameter set as CAT: LaMotte; Turbidity used a separate, "
-            "discontinued proprietary method that is not comparable to later "
-            "JTU/NTU methods and should be excluded from analysis."
+            "Predecessor to CAT: LaMotte (1992–early 2010s). Same parameter set; "
+            "turbidity used a discontinued method—exclude from analysis."
         ),
     },
     {
         "name": "BAT",
         "summary": (
-            "Macroinvertebrate counts/identification (family and/or genus) "
-            "and USEPA Rapid Bio-Assessment Protocol habitat assessment scores."
+            "Macroinvertebrate counts/identification and USEPA Rapid "
+            "Bio-Assessment Protocol habitat assessment scores."
         ),
     },
     {
         "name": "BACT",
         "summary": (
-            "Sunday-season monitoring (May–September, typically 8AM–12PM): "
-            "water temperature, nitrate, phosphate, turbidity, chloride, "
-            "E. coli. No pH, DO, or conductivity in the Sep 9 Methods table."
+            "Sunday-season monitoring (May–September): water temperature, "
+            "nitrate, phosphate, turbidity, chloride, E. coli."
         ),
     },
     {
         "name": "Salt Watch",
         "summary": (
-            "Despite the label, this is not community Salt Watch program data. "
-            "Per the Data Dictionary, these are in-house Hach Low-Range "
-            "Chloride test-strip checks on CAT samples (within 48 hours) used "
-            "as a check against Gallery Discrete Analyzer chloride. Only "
-            "chloride, date, time, and location are recorded. Not listed in "
-            "the Data Summary Methods table."
+            "In-house Hach low-range chloride strip checks on CAT samples "
+            "(not community Salt Watch). Chloride, date, time, and location only."
         ),
     },
 ]
+
 
 # Parameter / instrument / detection-limit rows from Sep 9 Data Summary Methods table.
 # activity_type is not provided in that table; left unresolved on purpose.
@@ -324,12 +347,3 @@ TIMELINE_EVENTS = [
     {"year": "Discontinued", "event": "River Action Team / StreamWalking conducted quarterly visual stream-corridor and habitat assessments; program discontinued and its data is not included in the current dataset."},
 ]
 
-SOURCE_NOTES = [
-    "Primary sources: StreamWatch Data Summary & Description and StreamWatch Data Dictionary, last updated September 9, 2026.",
-    "The Method field identifies a named protocol group, not an individual instrument.",
-    "Instrument-specific detection ranges replace older ambiguous dual placeholders where the Sep 9 Methods table provides clearer values.",
-    "CAT: Early LaMotte was added to the Sep 9 Methods group table so documentation matches Method values used in the raw dataset.",
-    "Colilert (timeline) vs Colisure (Methods table) naming is preserved as source ambiguity.",
-    "WQX activity-type labels are not part of the Sep 9 Methods table and are not invented here.",
-    "This page documents Watershed source materials; it does not independently define scientific policy or change stored data.",
-]

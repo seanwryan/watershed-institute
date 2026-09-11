@@ -3,47 +3,29 @@
 from __future__ import annotations
 
 PIPELINE_SUBTITLE = (
-    "Where StreamWatch data comes from, and what happens to it before you "
-    "see it in this website."
-)
-
-PIPELINE_OVERVIEW = (
-    "Historical StreamWatch data came from multiple spreadsheets, databases, "
-    "forms, and program-specific files. Loading scripts (often called ETL) "
-    "read those sources, organize and check the records, match related "
-    "information such as sites and visits, and add the supported data to "
-    "StreamWatch so staff can work with it here."
+    "How StreamWatch source files are cleaned, matched, and organized for use "
+    "in the application."
 )
 
 ETL_DEFINITION = (
-    "ETL stands for Extract, Transform, Load: "
-    "Extract — read the source files; "
-    "Transform — clean, check, and organize the records; "
-    "Load — save supported data into StreamWatch. "
-    "Some tools only preview or export and do not add data."
+    "ETL means Extract, Transform, Load: read the source files, clean and "
+    "organize the records, then load supported data into StreamWatch."
 )
 
+# Kept for tests / older callers; not shown on the compact page by default.
+PIPELINE_OVERVIEW = ETL_DEFINITION
 PIPELINE_RAW_DATA_NOTE = (
-    "StreamWatch is not a cell-by-cell copy of every spreadsheet. "
-    "It holds cleaned and structured records derived from the source files. "
-    "Exact duplicates may be skipped, related rows are linked to sites and "
-    "visits, some values are calculated after loading, and unresolved or "
-    "unsupported cases are skipped or left for review rather than forced "
-    "into a match."
+    "StreamWatch holds cleaned records derived from source files—not a "
+    "cell-by-cell spreadsheet copy."
 )
-
 PIPELINE_SOURCE_CAVEAT = (
-    "The chemistry and related monitoring results you see here are based "
-    "primarily on the final All StreamWatch Data workbook (ALL DATA sheet), "
-    "together with supporting Watershed files for sites, volunteers, "
-    "equipment, bacteria (IDEXX), and macroinvertebrates. Chloride values "
-    "already reflect Watershed’s 2026 discrete-analyzer correction."
+    "Primary chemistry source: All StreamWatch Data.xlsx (ALL DATA), plus "
+    "supporting files for sites, volunteers, equipment, bacteria, and macros."
 )
 
 FLOW_STEPS = [
     "Source files",
-    "Data processing",
-    "Cleaning & matching",
+    "Clean & match",
     "StreamWatch database",
     "Website",
 ]
@@ -52,12 +34,12 @@ LINEAGE_ROWS = [
     {
         "area": "Sites",
         "source": "2025 StreamWatch Locations.xlsx (SWSites_2024)",
-        "processing": "Normalize columns; update existing sites by site code",
-        "destination": "Sites and related lookups",
+        "processing": "Normalize columns; update by site code",
+        "destination": "Sites",
         "status": "Loaded",
     },
     {
-        "area": "Visits (from chemistry / BAT / BACT)",
+        "area": "Visits",
         "source": "Created when results load",
         "processing": "Match or create by site, date, sample code",
         "destination": "Visits",
@@ -66,147 +48,103 @@ LINEAGE_ROWS = [
     {
         "area": "Chemistry (historical)",
         "source": "All StreamWatch Data.xlsx → ALL DATA",
-        "processing": "Map headers; skip exact package clones; keep differing same-day packages",
-        "destination": "Chemistry results",
+        "processing": "Map headers; skip exact duplicates",
+        "destination": "Chemistry",
         "status": "Loaded",
     },
     {
         "area": "Chemistry (Survey123 fill)",
         "source": "BACT and HAB 2025 Data.xlsx → Survey123",
-        "processing": "Fill empty fields only on matched visits",
-        "destination": "Chemistry results (updates)",
+        "processing": "Fill empty fields on matched visits",
+        "destination": "Chemistry",
         "status": "Loaded",
     },
     {
         "area": "Bacteria (IDEXX)",
         "source": "BACT and HAB 2025 Data.xlsx → IDEXX",
-        "processing": "Attach by sample code; skip duplicates and censored values",
-        "destination": "Bacteria results",
+        "processing": "Match by sample code; skip censored values",
+        "destination": "Bacteria",
         "status": "Loaded",
     },
     {
         "area": "Volunteers / training / assignments",
         "source": "Volunteer_Tracking.xlsm",
         "processing": "Detect headers; link sites by code",
-        "destination": "Volunteers, training, assignments",
+        "destination": "Volunteers & training",
         "status": "Loaded",
     },
     {
         "area": "Equipment / meter testing",
         "source": "CAT Meter Tracking v.1.xlsx",
-        "processing": "Accept TWI### meters; parse quarterly test matrices",
-        "destination": "Equipment and meter tests",
+        "processing": "TWI### meters; quarterly test matrices",
+        "destination": "Equipment",
         "status": "Loaded",
     },
     {
         "area": "Macroinvertebrates",
         "source": "tblSampleDates.xlsx (preferred)",
-        "processing": "Taxonomy + counts + RBP100; skip existing observations",
-        "destination": "Bug list, counts, and RBP100",
+        "processing": "Taxonomy, counts, RBP100",
+        "destination": "Bug data",
         "status": "Loaded",
     },
     {
         "area": "Biology scores",
         "source": "Derived from bug tables",
-        "processing": "HGMI / NJIS / CPMI formulas",
-        "destination": "Macro analysis scores",
+        "processing": "HGMI / NJIS / CPMI",
+        "destination": "Scores",
         "status": "Derived",
     },
     {
         "area": "QA flags",
         "source": "Derived after load",
-        "processing": "Temperature / nitrate thresholds; meter-fail windows",
-        "destination": "Result flags / Data Conditions",
+        "processing": "Thresholds; meter-fail windows",
+        "destination": "Flags",
         "status": "Derived",
     },
     {
         "area": "Habitat assessments (historical)",
-        "source": "RBP columns on ALL DATA (and related forms)",
-        "processing": "Not bulk-loaded historically",
-        "destination": "Habitat assessments",
+        "source": "RBP columns on ALL DATA",
+        "processing": "Not bulk-loaded",
+        "destination": "Habitat",
         "status": "Partially loaded",
     },
     {
-        "area": "BACT import reconciliation",
-        "source": "Uploaded BACT workbook",
-        "processing": "Same matching rules as load; no automatic write from the page",
-        "destination": "—",
-        "status": "Preview only",
-    },
-    {
-        "area": "HAB status",
-        "source": "BACT and HAB workbook (Phycocyanin / Survey123)",
-        "processing": "Workbook formulas mirrored for review",
-        "destination": "— (phycocyanin not stored in StreamWatch)",
-        "status": "Preview only",
-    },
-    {
-        "area": "BACT Analysis scores",
-        "source": "2025 BACT Analysis.xlsx upload",
-        "processing": "Seasonal rating preview",
+        "area": "BACT / HAB import tools",
+        "source": "Uploaded workbooks",
+        "processing": "Preview / reconcile only",
         "destination": "—",
         "status": "Preview only",
     },
     {
         "area": "WQX",
         "source": "StreamWatch monitoring data",
-        "processing": "Build preparation CSV (all chemistry packages)",
-        "destination": "Download file",
+        "processing": "Preparation CSV",
+        "destination": "Download",
         "status": "Export only",
     },
 ]
 
+# Short bullets for an optional collapsed notes block (not shown as a long top section).
 INTERPRETATION_NOTES = [
     {
-        "title": "Multiple chemistry packages on one day can be legitimate",
-        "body": (
-            "StreamWatch keeps chemistry packages that differ in method or "
-            "measured values on the same site and date. Only exact duplicates "
-            "are skipped."
-        ),
+        "title": "Same-day chemistry packages",
+        "body": "Differing packages on the same site/date are kept; only exact duplicates are skipped.",
     },
     {
-        "title": "Unresolved rows are not forced into matches",
-        "body": (
-            "Unknown site codes, missing dates, IDEXX rows without a matching "
-            "sample code visit, and censored bacteria values are skipped or "
-            "logged for review."
-        ),
+        "title": "Unresolved rows",
+        "body": "Unknown sites, missing dates, unmatched IDEXX sample codes, and censored bacteria values are skipped for review.",
     },
     {
-        "title": "Some BACT and HAB tools are review previews only",
-        "body": (
-            "The Imports BACT and HAB pages help staff compare a workbook to "
-            "current StreamWatch records. They do not automatically change "
-            "stored data. Larger bulk loads are handled separately by staff "
-            "data-loading procedures."
-        ),
+        "title": "Import previews",
+        "body": "BACT and HAB import pages compare workbooks to StreamWatch and do not write data automatically.",
     },
     {
-        "title": "Historical habitat assessments are not fully loaded",
-        "body": (
-            "Sites may carry a habitat type (for example High Gradient or "
-            "Low Gradient). Full historical Rapid Bioassessment Protocol "
-            "habitat score sheets are not bulk-loaded; staff can enter "
-            "assessments in the application."
-        ),
+        "title": "Habitat",
+        "body": "Historical RBP habitat score sheets are not fully bulk-loaded; staff can enter assessments in the app.",
     },
     {
-        "title": "Chloride already reflects the 2026 correction",
-        "body": (
-            "Watershed identified a chloride standard-preparation error in "
-            "2026. Affected discrete-analyzer measurements were corrected by "
-            "dividing by 10 in the source data. StreamWatch shows those "
-            "corrected values—do not divide chloride by 10 again when using "
-            "or analyzing this data."
-        ),
-    },
-    {
-        "title": "Ambiguous Watershed rules stay as review points",
-        "body": (
-            "Where source authority or matching is unclear, StreamWatch "
-            "documents skips and conflicts instead of inventing cleanup rules."
-        ),
+        "title": "Chloride",
+        "body": "2026 discrete-analyzer chloride values were corrected by dividing by 10 in the source; do not divide again.",
     },
 ]
 
@@ -215,6 +153,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "sites",
         "title": "Sites",
+        "summary": [
+            'Source: 2025 StreamWatch Locations.xlsx (SWSites_2024)',
+            'Loads monitoring sites and related lookups by site code',
+            'Rows without a usable site code are skipped',
+        ],
         "source": (
             "Workbook: 2025 StreamWatch Locations.xlsx. "
             "Sheet: SWSites_2024."
@@ -244,6 +187,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "visits",
         "title": "Visits",
+        "summary": [
+            'Created when chemistry, bacteria, or macro results load',
+            'Matched by site, sample date, and sample code when present',
+            'One visit can hold multiple chemistry packages',
+        ],
         "source": (
             "Visits are created while loading chemistry, bacteria, and "
             "macroinvertebrate sample events—not from a single standalone "
@@ -272,6 +220,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "chemistry",
         "title": "Chemistry",
+        "summary": [
+            'Source: All StreamWatch Data.xlsx → ALL DATA',
+            'Keeps differing same-day packages; skips exact duplicates',
+            'Chloride already includes the 2026 ÷10 correction',
+        ],
         "source": (
             "Primary historical source: All StreamWatch Data.xlsx, sheet "
             "ALL DATA (the workbook also has START HERE / SITES / SITE FINDER "
@@ -308,6 +261,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "bacteria",
         "title": "Bacteria / IDEXX",
+        "summary": [
+            'Recent: BACT and HAB workbook → IDEXX (by sample code)',
+            'Historical E. coli from ALL DATA when present',
+            'Censored / non-integer MPN values are skipped',
+        ],
         "source": (
             "BACT and HAB 2025 Data.xlsx → IDEXX for recent bacteria. "
             "Historical ALL DATA E. coli Result values are loaded with "
@@ -338,6 +296,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "volunteers",
         "title": "Volunteers",
+        "summary": [
+            'Source: Volunteer_Tracking.xlsm → Volunteers',
+            'Loads names, contact fields, status, and program flags',
+            'Rows without a first or last name are skipped',
+        ],
         "source": "Volunteer_Tracking.xlsm → Volunteers sheet.",
         "what_happens": (
             "Header rows are detected automatically when title rows sit above "
@@ -361,6 +324,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "training",
         "title": "Training & Assignments",
+        "summary": [
+            'Source: Trainings, TrainingLog, Assignments sheets',
+            'Links volunteers to trainings and sites',
+            'Unresolved volunteer or site rows are skipped',
+        ],
         "source": (
             "Volunteer_Tracking.xlsm → Trainings, TrainingLog, Assignments."
         ),
@@ -385,6 +353,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "equipment",
         "title": "Equipment",
+        "summary": [
+            'Source: CAT Meter Tracking → Assignments / Sensors',
+            'Only TWI### meter IDs become equipment',
+            'Non-TWI Meter ID rows are skipped',
+        ],
         "source": "CAT Meter Tracking v.1.xlsx → Assignments (and Sensors).",
         "what_happens": (
             "Only meter IDs matching TWI plus three digits are treated as "
@@ -409,6 +382,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "meter-testing",
         "title": "Meter Testing",
+        "summary": [
+            'Source: 2024 / 2025 / 2026 Testing sheets',
+            'Parses quarterly rounds into meter test records',
+            'Non-numeric or undated blocks are skipped',
+        ],
         "source": "CAT Meter Tracking sheets 2024 Testing, 2025 Testing, 2026 Testing.",
         "what_happens": (
             "Wide quarterly matrices are parsed into dated Round blocks. "
@@ -434,6 +412,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "macro",
         "title": "Macroinvertebrates",
+        "summary": [
+            'Source: tblSampleDates.xlsx (preferred)',
+            'Loads taxonomy, counts, and RBP100 subsample counts',
+            'Existing visit + taxon observations are skipped on reload',
+        ],
         "source": (
             "Preferred: tblSampleDates.xlsx (BugList, tblSampleDates, "
             "tblBugResults, tblRBP100Bugs)."
@@ -459,6 +442,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "habitat",
         "title": "Habitat",
+        "summary": [
+            'Site habitat type may load from Locations',
+            'Historical RBP habitat score sheets are not bulk-loaded',
+            'HAB status tools are preview only',
+        ],
         "source": (
             "Site habitat type from the locations workbook. Historical RBP "
             "habitat score columns appear on ALL DATA but are not bulk-loaded. "
@@ -486,6 +474,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "bact-recon",
         "title": "BACT reconciliation",
+        "summary": [
+            'Upload preview for Survey123 and IDEXX rows',
+            'Same matching ideas as the bulk bacteria load',
+            'Does not change stored StreamWatch data',
+        ],
         "source": "Workbook uploaded on Imports → BACT (same structure as BACT and HAB 2025 Data.xlsx).",
         "what_happens": (
             "The app classifies Survey123 and IDEXX rows (ready to enrich, "
@@ -505,6 +498,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "hab-recon",
         "title": "HAB reconciliation",
+        "summary": [
+            'Preview HAB status from Phycocyanin / Survey123',
+            'Compares calculated status to workbook values',
+            'Does not store phycocyanin in StreamWatch',
+        ],
         "source": "BACT and HAB workbook Phycocyanin and Survey123 sheets.",
         "what_happens": (
             "Derives HAB status strings from METADATA formulas (for example "
@@ -524,6 +522,11 @@ PIPELINE_SECTIONS = [
     {
         "id": "wqx",
         "title": "WQX export",
+        "summary": [
+            'Builds a WQX-style preparation CSV for download',
+            'Includes every chemistry package on a visit',
+            'Export only — not an import',
+        ],
         "source": "Monitoring data already stored in StreamWatch.",
         "what_happens": (
             "Builds a WQX-style preparation CSV: one result row per non-null "

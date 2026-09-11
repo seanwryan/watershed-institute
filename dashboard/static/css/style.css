@@ -1157,9 +1157,56 @@ tr:hover {
 .methods-alert {
   border-left: 4px solid var(--warning);
 }
+.methods-callout-row {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+@media (min-width: 800px) {
+  .methods-callout-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.methods-callout {
+  margin: 0;
+}
+.methods-callout .home-panel-title {
+  margin-bottom: 0.35rem;
+}
+.methods-callout-list {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+.methods-callout-list li {
+  margin: 0.2rem 0;
+  font-size: 0.92rem;
+}
+.methods-source-line {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+}
+.methods-more {
+  margin: 0.85rem 0;
+  padding: 0.75rem 1rem;
+}
+.methods-more > summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.pipeline-summary-list {
+  margin: 0.65rem 0 0;
+  padding-left: 1.15rem;
+}
+.pipeline-summary-list li {
+  margin: 0.25rem 0;
+  font-size: 0.92rem;
+}
 .methods-table-help {
   max-width: 56rem;
   margin: 0.25rem 0 0;
+}
+.pipeline-status-partially-loaded {
+  color: var(--warning, #9a6700);
 }
 .methods-table th {
   vertical-align: bottom;

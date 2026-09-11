@@ -26,11 +26,15 @@ from etl.chem_recon import CHEM_VALUE_FIELDS, round_chem
 from etl.biological_indices import calculate_visit_indices
 from dashboard.explore_helpers import fetch_time_series_date_bounds, normalize_explore_parameter
 from dashboard.methods_reference import (
+    ANALYSIS_EXCLUSION_BULLETS,
     ANALYSIS_EXCLUSION_NOTE,
+    CHLORIDE_BULLETS,
     CHLORIDE_NOTE,
     METHOD_GROUPS,
     METHOD_ROWS,
     METHODS_SUBTITLE,
+    PROGRAM_SUMMARIES,
+    SOURCE_LINE,
     SOURCE_NOTES,
     TIMELINE_EVENTS,
 )
@@ -3734,8 +3738,12 @@ def methods_page():
         method_groups=METHOD_GROUPS,
         timeline=TIMELINE_EVENTS,
         source_notes=SOURCE_NOTES,
+        source_line=SOURCE_LINE,
+        program_summaries=PROGRAM_SUMMARIES,
         chloride_note=CHLORIDE_NOTE,
+        chloride_bullets=CHLORIDE_BULLETS,
         analysis_exclusion_note=ANALYSIS_EXCLUSION_NOTE,
+        analysis_exclusion_bullets=ANALYSIS_EXCLUSION_BULLETS,
     )
 
 

@@ -9,46 +9,39 @@
 
   <section class="panel site-snapshot" aria-label="Program summary">
     <div class="snapshot-grid methods-summary-grid">
+      {% for program in program_summaries %}
       <div>
-        <span class="metric-label">CAT</span>
-        <p class="muted methods-summary-text">Physical and chemical monitoring under named protocols CAT: Hanna, CAT: LaMotte, and historical CAT: Early LaMotte. Hanna meters and discrete-analyzer workflow introduced in 2023.</p>
+        <span class="metric-label">{{ program.name }}</span>
+        <p class="muted methods-summary-text">{{ program.text }}</p>
       </div>
-      <div>
-        <span class="metric-label">BACT</span>
-        <p class="muted methods-summary-text">Sunday-season bacteria and nutrient monitoring (May–September). Timeline notes a 2015 switch to IDEXX/Colilert; the Sep 9 Methods table lists Idexx Colisure — both wordings are preserved below.</p>
-      </div>
-      <div>
-        <span class="metric-label">BAT</span>
-        <p class="muted methods-summary-text">Macroinvertebrate and habitat assessment program. Sampling frequency and identification workflow changes are listed in the timeline.</p>
-      </div>
+      {% endfor %}
     </div>
   </section>
 
-  <section class="panel methods-alert" aria-label="Analysis exclusions">
-    <h2 class="home-panel-title">What to exclude from analysis</h2>
-    <p class="muted">{{ analysis_exclusion_note }}</p>
-  </section>
+  <div class="methods-callout-row">
+    <section class="panel methods-alert methods-callout" aria-label="Analysis notes">
+      <h2 class="home-panel-title">Analysis notes</h2>
+      <ul class="methods-callout-list">
+        {% for item in analysis_exclusion_bullets %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </section>
 
-  <section class="panel methods-alert" aria-label="Chloride note">
-    <h2 class="home-panel-title">2026 Chloride Correction Note</h2>
-    <p class="muted">{{ chloride_note }}</p>
-  </section>
-
-  <section class="panel" aria-labelledby="method-groups-title">
-    <h2 class="home-panel-title" id="method-groups-title">Method groups</h2>
-    <p class="muted methods-table-help">The Method field in the raw dataset names a protocol group. Parameter lists below follow the Sep 9 Data Summary.</p>
-    <ul class="methods-source-list">
-      {% for group in method_groups %}
-      <li><strong>{{ group.name }}</strong> — {{ group.summary }}</li>
-      {% endfor %}
-    </ul>
-  </section>
+    <section class="panel methods-alert methods-callout" aria-label="Chloride correction">
+      <h2 class="home-panel-title">Chloride correction</h2>
+      <ul class="methods-callout-list">
+        {% for item in chloride_bullets %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
 
   <section class="panel table-panel" aria-labelledby="methods-table-title">
     <div class="home-panel-head table-header-row">
       <div>
         <h2 class="home-panel-title" id="methods-table-title">Instrument &amp; detection ranges</h2>
-        <p class="muted methods-table-help">Search, filter, or sort the Sep 9 source-backed rows below. Blank or uncertain source details are left unresolved on purpose.</p>
       </div>
       <p class="muted toolbar-count" id="methods-count" aria-live="polite"></p>
     </div>
@@ -100,24 +93,25 @@
     </div>
   </section>
 
+  <details class="panel methods-more">
+    <summary>Method groups</summary>
+    <ul class="methods-source-list">
+      {% for group in method_groups %}
+      <li><strong>{{ group.name }}</strong> — {{ group.summary }}</li>
+      {% endfor %}
+    </ul>
+  </details>
+
   <section class="panel methods-timeline" aria-labelledby="methods-timeline-title">
-    <h2 class="home-panel-title" id="methods-timeline-title">Historical Method &amp; Program Changes</h2>
+    <h2 class="home-panel-title" id="methods-timeline-title">Historical method &amp; program changes</h2>
     <ul class="methods-timeline-list">
       {% for event in timeline %}
       <li><strong>{{ event.year }}</strong> — {{ event.event }}</li>
       {% endfor %}
     </ul>
-    <p class="muted methods-small-note">If source sections use different wording for the same method era, this timeline preserves the source wording rather than resolving it silently.</p>
   </section>
 
-  <section class="panel definitions-panel" aria-labelledby="methods-source-title">
-    <h2 class="home-panel-title" id="methods-source-title">Source &amp; Interpretation Notes</h2>
-    <ul class="methods-source-list">
-      {% for note in source_notes %}
-      <li>{{ note }}</li>
-      {% endfor %}
-    </ul>
-  </section>
+  <p class="muted methods-source-line">{{ source_line }}</p>
 </div>
 {% endblock %}
 {% block scripts %}

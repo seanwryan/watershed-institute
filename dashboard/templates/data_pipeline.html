@@ -7,20 +7,8 @@
     <p class="page-subtitle">{{ subtitle }}</p>
   </header>
 
-  <section class="panel" aria-labelledby="pipeline-overview-title">
-    <h2 class="home-panel-title" id="pipeline-overview-title">Overview</h2>
-    <p>{{ overview }}</p>
-    <p class="muted">{{ etl_definition }}</p>
-    <p>{{ raw_data_note }}</p>
-  </section>
-
-  <section class="panel methods-alert" aria-labelledby="pipeline-source-caveat-title">
-    <h2 class="home-panel-title" id="pipeline-source-caveat-title">Current source data</h2>
-    <p class="muted">{{ source_caveat }}</p>
-  </section>
-
   <section class="panel" aria-labelledby="pipeline-flow-title">
-    <h2 class="home-panel-title" id="pipeline-flow-title">High-level flow</h2>
+    <h2 class="home-panel-title" id="pipeline-flow-title">Flow</h2>
     <ol class="pipeline-flow" aria-label="Data pipeline stages">
       {% for step in flow_steps %}
       <li>
@@ -29,11 +17,11 @@
       </li>
       {% endfor %}
     </ol>
+    <p class="muted methods-small-note">{{ etl_definition }}</p>
   </section>
 
   <section class="panel" aria-labelledby="pipeline-reference-title">
     <h2 class="home-panel-title" id="pipeline-reference-title">Pipeline reference</h2>
-    <p class="muted methods-table-help">Expand a topic for plain-language source → process → destination details. Technical script names are optional and folded under each section.</p>
     <div class="pipeline-sections">
       {% for section in sections %}
       <details class="pipeline-card" id="{{ section.id }}">
@@ -41,11 +29,21 @@
           <span class="pipeline-card-title">{{ section.title }}</span>
         </summary>
         <div class="pipeline-card-body">
-          <p><strong>Source.</strong> {{ section.source }}</p>
-          <p><strong>What happens.</strong> {{ section.what_happens }}</p>
-          <p><strong>Where it goes.</strong> {{ section.where_it_goes }}</p>
-          <p><strong>Skipped or reviewed.</strong> {{ section.skipped }}</p>
-          <p><strong>Important caveats.</strong> {{ section.caveats }}</p>
+          <ul class="pipeline-summary-list">
+            {% for line in section.summary %}
+            <li>{{ line }}</li>
+            {% endfor %}
+          </ul>
+          <details class="pipeline-tech">
+            <summary>More detail</summary>
+            <ul class="pipeline-tech-list">
+              <li><span class="metric-label">Source</span> {{ section.source }}</li>
+              <li><span class="metric-label">What happens</span> {{ section.what_happens }}</li>
+              <li><span class="metric-label">Where it goes</span> {{ section.where_it_goes }}</li>
+              <li><span class="metric-label">Skipped / reviewed</span> {{ section.skipped }}</li>
+              <li><span class="metric-label">Caveats</span> {{ section.caveats }}</li>
+            </ul>
+          </details>
           {% if section.technical %}
           <details class="pipeline-tech">
             <summary>Technical details</summary>
@@ -66,14 +64,13 @@
   <section class="panel table-panel" aria-labelledby="pipeline-lineage-title">
     <div class="home-panel-head table-header-row">
       <div>
-        <h2 class="home-panel-title" id="pipeline-lineage-title">Data lineage summary</h2>
-        <p class="muted methods-table-help">Compact status of major areas. Status labels reflect current application behavior.</p>
+        <h2 class="home-panel-title" id="pipeline-lineage-title">Status overview</h2>
       </div>
+      <p class="muted toolbar-count" id="pipeline-lineage-count" aria-live="polite"></p>
     </div>
     <div class="table-tools">
-      <label for="pipeline-lineage-search">Search table</label>
-      <input type="search" id="pipeline-lineage-search" placeholder="Filter lineage rows…" autocomplete="off">
-      <p class="muted toolbar-count" id="pipeline-lineage-count" aria-live="polite"></p>
+      <label for="pipeline-lineage-search">Search</label>
+      <input type="search" id="pipeline-lineage-search" placeholder="Filter…" autocomplete="off">
     </div>
     <div class="table-wrap">
       <table class="data-table data-table-sticky" data-enhance="table" data-search="#pipeline-lineage-search" data-count="#pipeline-lineage-count">
@@ -102,23 +99,16 @@
     </div>
   </section>
 
-  <section class="panel methods-alert" aria-labelledby="pipeline-notes-title">
-    <h2 class="home-panel-title" id="pipeline-notes-title">Important interpretation notes</h2>
+  <details class="panel methods-more">
+    <summary>Additional notes</summary>
     <ul class="pipeline-notes-list">
       {% for note in notes %}
-      <li>
-        <strong>{{ note.title }}</strong>
-        <p class="muted methods-summary-text">{{ note.body }}</p>
-      </li>
+      <li><strong>{{ note.title }}.</strong> {{ note.body }}</li>
       {% endfor %}
     </ul>
     <p class="muted methods-small-note">
-      Related pages:
-      <a href="/methods">Methods</a>
-      · <a href="/imports">Imports</a>
-      · <a href="/export">Export</a>
-      · <a href="/about">About &amp; data use</a>
+      Related: <a href="/methods">Methods</a> · <a href="/imports">Imports</a> · <a href="/export">Export</a>
     </p>
-  </section>
+  </details>
 </div>
 {% endblock %}
