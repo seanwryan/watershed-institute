@@ -12,3 +12,4 @@
 \ir 08_data_governance_seed.sql
 \ir 09_qa_views.sql
 \ir 10_reporting_views.sql
+\ir 11_method_reference.sql

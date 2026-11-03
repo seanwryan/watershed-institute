@@ -72,8 +72,8 @@ def test_config_parsers():
 def test_route_classification_complete():
     app = _load_app()
     routes = verify_route_classification(app)
-    assert len(routes) == len(PREVIEW_POST_ENDPOINTS) + len(WRITE_ENDPOINTS)
-    assert len(WRITE_ENDPOINTS) == 20
+    assert {endpoint for endpoint, _, _ in routes} == PREVIEW_POST_ENDPOINTS | WRITE_ENDPOINTS
+    assert len(WRITE_ENDPOINTS) == 21
     assert len(PREVIEW_POST_ENDPOINTS) == 4
     assert not (WRITE_ENDPOINTS & PREVIEW_POST_ENDPOINTS)
 

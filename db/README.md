@@ -19,3 +19,10 @@ Or run files individually in numeric order if you need to skip or re-run parts.
 - **Junctions**: `junc_assignments`, `junc_attendance`, `junc_site_subwatershed`, `junc_site_municipality`
 
 Site/volunteer status and last sample dates are intended to be computed via views (not stored).
+
+## Method reference updates
+
+`11_method_reference.sql` adds reference-only revision storage for the Methods
+page. It does not change measurement methods attached to results. Existing
+installations apply this file separately; the page retains its original reference
+until setup is available. See [method reference setup](../docs/METHOD_REFERENCE.md).

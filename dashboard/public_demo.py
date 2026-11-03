@@ -15,6 +15,7 @@ from flask import jsonify, render_template, request
 # Volunteer write routes remain in WRITE_ENDPOINTS (read_only.py) for write blocking.
 STAFF_ONLY_ENDPOINTS = frozenset(
     {
+        "method_reference_edit",
         # Volunteers
         "volunteers_page",
         "volunteer_detail_page",

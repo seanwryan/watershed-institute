@@ -5,6 +5,12 @@
   <header class="page-header">
     <h1>Methods</h1>
     <p class="page-subtitle">{{ subtitle }}</p>
+    {% if methods_editable and not read_only_mode and not public_demo_mode %}
+    <a class="btn" href="{{ url_for('method_reference_edit') }}">Add reference</a>
+    {% endif %}
+    {% if not methods_editable and not public_demo_mode %}
+    <p class="muted">Showing the original source reference. Staff updates are temporarily unavailable.</p>
+    {% endif %}
   </header>
 
   <section class="panel site-snapshot" aria-label="Program summary">
@@ -85,7 +91,12 @@
             <td>{{ row.limit }}</td>
             <td>{{ row.equipment }}</td>
             <td>{{ row.effective_period }}</td>
-            <td>{{ row.notes }}</td>
+            <td>{{ row.notes }}
+              <details><summary>Source{% if row.revision %} · Staff-updated{% endif %}</summary>{{ row.source_reference }}</details>
+              {% if methods_editable and not read_only_mode and not public_demo_mode %}
+              <a href="{{ url_for('method_reference_edit', reference_id=row.reference_id) }}">Edit reference</a>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -118,6 +129,7 @@
 <script>
 (function() {
   var rows = {{ rows|tojson }};
+  var editable = {{ (methods_editable and not read_only_mode and not public_demo_mode)|tojson }};
   var tbody = document.getElementById('methods-tbody');
   var searchInput = document.getElementById('methods-search');
   var programSelect = document.getElementById('methods-program');
@@ -179,7 +191,9 @@
         '<td>' + esc(row.limit) + '</td>' +
         '<td>' + esc(row.equipment) + '</td>' +
         '<td>' + esc(row.effective_period) + '</td>' +
-        '<td>' + esc(row.notes) + '</td>' +
+        '<td>' + esc(row.notes) +
+        '<details><summary>Source' + (row.revision ? ' · Staff-updated' : '') + '</summary>' + esc(row.source_reference) + '</details>' +
+        (editable ? '<a href="/methods/' + encodeURIComponent(row.reference_id) + '/edit">Edit reference</a>' : '') + '</td>' +
       '</tr>';
     }).join('') || '<tr><td colspan="9" class="muted">No method rows match these filters.</td></tr>';
     countEl.textContent = filtered.length + ' row' + (filtered.length === 1 ? '' : 's');

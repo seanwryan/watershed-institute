@@ -10,6 +10,8 @@ import json
 import tempfile
 import time
 import uuid
+import secrets
+from itsdangerous import URLSafeTimedSerializer, BadSignature
 from pathlib import Path
 from datetime import date, datetime
 
@@ -37,6 +39,13 @@ from dashboard.methods_reference import (
     SOURCE_LINE,
     SOURCE_NOTES,
     TIMELINE_EVENTS,
+)
+from dashboard.methods_store import (
+    FIELDS as METHOD_FIELDS,
+    baseline_rows,
+    read_rows as read_method_rows,
+    save_revision,
+    validate_form as validate_method_form,
 )
 from dashboard.data_pipeline_reference import (
     ETL_DEFINITION,
@@ -68,6 +77,8 @@ DATABASE_URL = _raw.strip().strip("'\"").strip()
 app = Flask(__name__, static_folder="static", template_folder="templates")
 register_read_only(app)
 register_public_demo(app)
+# Restarting without a configured SECRET_KEY invalidates open editing forms safely.
+_method_signer = URLSafeTimedSerializer(os.getenv("SECRET_KEY") or secrets.token_hex(32), salt="method-reference-edit")
 
 
 def get_db():
@@ -3732,10 +3743,26 @@ def explore_page():
 
 @app.route("/methods")
 def methods_page():
+    rows = baseline_rows()
+    editable = False
+    conn = None
+    try:
+        # Unreviewed staff annotations are internal; public demos retain source content.
+        if not is_public_demo_mode():
+            conn = get_db()
+            rows = read_method_rows(conn)
+            editable = True
+    except psycopg2.Error:
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
     return render_template(
         "methods.html",
         subtitle=METHODS_SUBTITLE,
-        rows=METHOD_ROWS,
+        rows=rows,
+        methods_editable=editable,
         method_groups=METHOD_GROUPS,
         timeline=TIMELINE_EVENTS,
         source_notes=SOURCE_NOTES,
@@ -3746,6 +3773,59 @@ def methods_page():
         analysis_exclusion_note=ANALYSIS_EXCLUSION_NOTE,
         analysis_exclusion_bullets=ANALYSIS_EXCLUSION_BULLETS,
     )
+
+
+@app.route("/methods/new", methods=["GET", "POST"])
+@app.route("/methods/<reference_id>/edit", methods=["GET", "POST"])
+def method_reference_edit(reference_id=None):
+    is_new = reference_id is None
+    conn, err = get_db_or_503()
+    if err:
+        return err
+    try:
+        try:
+            rows = read_method_rows(conn)
+            key = reference_id or "staff-" + uuid.uuid4().hex
+            row = next((r for r in rows if r["reference_id"] == key), None)
+            if not is_new and row is None:
+                abort(404)
+            row = row or dict.fromkeys(METHOD_FIELDS, "")
+            form, error, status = row, None, 200
+            token = _method_signer.dumps([key, row.get("revision", 0)])
+            if request.method == "POST":
+                form = request.form
+                try:
+                    signed_key, expected = _method_signer.loads(form.get("edit_token", ""), max_age=7200)
+                    if (not is_new and signed_key != key) or (is_new and not signed_key.startswith("staff-")):
+                        abort(400)
+                    key = signed_key
+                except (BadSignature, ValueError, TypeError):
+                    abort(400, description="This form has expired. Open it again before saving.")
+                fields, source, note, error = validate_method_form(form)
+                if not error:
+                    if save_revision(conn, key, expected, fields, source, note):
+                        conn.commit()
+                        return redirect(url_for("methods_page"))
+                    conn.rollback()
+                    error = "This reference changed while you were editing. Open a fresh form and review the latest version before saving."
+                    status = 409
+                else:
+                    status = 400
+                token = form.get("edit_token", "")
+            with conn.cursor() as cur:
+                cur.execute("""SELECT created_at, change_note, fields, source_reference
+                               FROM method_reference_revision WHERE reference_id = %s
+                               ORDER BY revision DESC""", (key,))
+                history = cur.fetchall()
+            return render_template("method_reference_form.html", fields=METHOD_FIELDS,
+                                   form=form, error=error, edit_token=token,
+                                   is_new=is_new, history=history), status
+        except psycopg2.Error:
+            conn.rollback()
+            return render_template("read_only_blocked.html", blocked_form=True,
+                                   message="Method editing is temporarily unavailable. Please contact your project administrator."), 503
+    finally:
+        conn.close()
 
 
 @app.route("/data-pipeline")

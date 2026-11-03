@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {{ 'Add' if is_new else 'Edit' }} method reference{% endblock %}
+{% block content %}
+<div class="page-monitoring form-page">
+  <nav class="breadcrumb"><a href="{{ url_for('methods_page') }}">Methods</a> / {{ 'Add' if is_new else 'Edit' }}</nav>
+  <header class="page-header"><h1>{{ 'Add' if is_new else 'Edit' }} method reference</h1>
+    <p class="page-subtitle">Reference information only. Changes do not alter results, scoring, or quality checks.</p></header>
+  {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" class="form-shell panel">
+    <input type="hidden" name="edit_token" value="{{ edit_token }}">
+    <div class="form-grid">
+      {% for name, label in fields.items() %}
+      <div class="form-field"><label for="{{ name }}">{{ label }}</label>
+        <textarea id="{{ name }}" name="{{ name }}" rows="2" maxlength="4000" {% if name in ('parameter', 'program') %}required{% endif %}>{{ form.get(name, '') }}</textarea>
+      </div>
+      {% endfor %}
+      <div class="form-field"><label for="source_reference">Source reference (required)</label>
+        <textarea id="source_reference" name="source_reference" rows="2" maxlength="4000" required>{{ form.get('source_reference', '') }}</textarea></div>
+      <div class="form-field"><label for="change_note">What changed and why? (required)</label>
+        <textarea id="change_note" name="change_note" rows="2" maxlength="4000" required>{{ form.get('change_note', '') }}</textarea></div>
+    </div>
+    <p class="form-help">Keep historical periods explicit. Leave unknown details blank rather than guessing. Adding a reference does not add a new measurement field.</p>
+    <button type="submit" class="btn btn-primary">Save reference</button> <a href="{{ url_for('methods_page') }}">Cancel</a>
+  </form>
+  {% if history %}<details class="panel"><summary>Previous updates</summary><ul>
+    {% for entry in history %}<li>{{ entry[0] }} — {{ entry[1] }} <details><summary>Reference at this revision</summary><dl>
+      {% for name, label in fields.items() %}<dt>{{ label }}</dt><dd>{{ entry[2].get(name, '') }}</dd>{% endfor %}
+      <dt>Source</dt><dd>{{ entry[3] }}</dd></dl></details></li>{% endfor %}
+  </ul></details>{% endif %}
+</div>
+{% endblock %}

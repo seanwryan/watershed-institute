@@ -10,9 +10,10 @@ from functools import wraps
 from flask import jsonify, render_template, request
 
 
-# Flask endpoint names for routes that mutate PostgreSQL via the web app (20 total).
+# Flask endpoint names for routes that mutate PostgreSQL via the web app (21 total).
 WRITE_ENDPOINTS = frozenset(
     {
+        "method_reference_edit",
         "site_new",
         "site_edit",
         "visit_new",
