@@ -74,7 +74,7 @@ def test_route_classification_complete():
     routes = verify_route_classification(app)
     assert len(routes) == len(PREVIEW_POST_ENDPOINTS) + len(WRITE_ENDPOINTS)
     assert len(WRITE_ENDPOINTS) == 20
-    assert len(PREVIEW_POST_ENDPOINTS) == 3
+    assert len(PREVIEW_POST_ENDPOINTS) == 4
     assert not (WRITE_ENDPOINTS & PREVIEW_POST_ENDPOINTS)
 
 
@@ -88,7 +88,7 @@ def test_read_only_blocks_writes():
 
     test_all_write_routes_block_before_database()
 
-    for path in ("/imports/bact/preview", "/imports/hab/preview", "/reports/bact/preview"):
+    for path in ("/imports/bact/preview", "/imports/bat/preview", "/imports/hab/preview", "/reports/bact/preview"):
         assert client.post(path, data={}).status_code != 403
 
     with get_conn() as conn:

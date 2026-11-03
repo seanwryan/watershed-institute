@@ -40,6 +40,7 @@ WRITE_ENDPOINTS = frozenset(
 PREVIEW_POST_ENDPOINTS = frozenset(
     {
         "imports_hab_preview_post",
+        "imports_bat_preview_post",
         "imports_bact_preview_post",
         "report_bact_preview_post",
     }

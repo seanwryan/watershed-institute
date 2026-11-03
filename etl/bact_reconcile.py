@@ -69,6 +69,14 @@ def survey123_values(row) -> dict:
     return values
 
 
+def source_annotations(row):
+    """Keep source wording visible; do not interpret or map conditions/notes."""
+    return {
+        "source_data_conditions": _str(col(row, "Data Conditions", "Data Condition")),
+        "source_notes": _str(col(row, "Notes", "Note", "Additional Comments (optional)")),
+    }
+
+
 def find_visits_for_site_date(cur, site_id, sample_date):
     cur.execute(
         """
@@ -384,6 +392,7 @@ def preview_bact_workbook(path, conn) -> Dict[str, Any]:
 
             base = {
                 "source": "Survey123",
+                **source_annotations(row),
                 "source_row": source_row,
                 "site_code": site_code,
                 "sample_date": str(sample_date) if sample_date else None,
@@ -602,6 +611,7 @@ def preview_bact_workbook(path, conn) -> Dict[str, Any]:
 
             base = {
                 "source": "IDEXX",
+                **source_annotations(row),
                 "source_row": source_row,
                 "site_code": site_guess,
                 "sample_date": date_guess,

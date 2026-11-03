@@ -65,3 +65,26 @@ env/verification/bin/python -m dashboard.test_access_modes
 ```
 
 Run database integration checks only against a local or verification database.
+
+## Seasonal file previews
+
+- `/imports/bact` reviews the 2025/2026 Survey123 and IDEXX layouts. Source
+  Data Conditions and Notes remain visible as supplied, including compound tags;
+  they do not change reconciliation classifications. The preview CSV includes them.
+- `/imports/bat` reviews the seasonal lab CSV and/or the `Form Responses 1` habitat
+  workbook. Blank rows are counted separately; populated rows, exact repeats,
+  original/replicate distinctions, lab indices, and habitat fields are retained.
+  The preview shows exact site/date overlaps and exact `bug_list.genus_species`
+  name occurrences. It never selects a visit or taxon, guesses aliases, merges
+  volunteer records, chooses a replicate destination, or calculates scores.
+
+These tools do not import data. BAT uploads use a read-only database session;
+temporary source files are removed after processing and preview results expire
+after two hours. Both preview workflows remain available in read-only/demo modes.
+No changes to the historical rebuild scripts or schema are needed.
+
+Synthetic preview tests require no private source files or running PostgreSQL:
+
+```bash
+env/verification/bin/python -m unittest etl.test_bat_reconcile dashboard.test_seasonal_previews
+```

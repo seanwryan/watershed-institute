@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – BAT file preview{% endblock %}
+{% block content %}
+{% set summary = result.summary %}
+{% macro visit_facts(record) -%}
+  {% if record.site_exists %}<a href="/site/{{ record.site_code|urlencode }}">{{ record.site_code }}</a>{% else %}{{ record.site_code or '—' }} <span class="muted">(site not found)</span>{% endif %}
+  <br>{{ record.visits|length }} exact-date visit{{ '' if record.visits|length == 1 else 's' }}
+  {% for visit in record.visits %}<br><a href="/visits/{{ visit.visit_id }}">Visit {{ visit.visit_id }}</a>{% if visit.sample_code %} · {{ visit.sample_code }}{% endif %}{% endfor %}
+{%- endmacro %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/imports">Data imports</a><span class="breadcrumb-sep" aria-hidden="true">/</span><a href="/imports/bat">BAT</a><span class="breadcrumb-sep" aria-hidden="true">/</span><span aria-current="page">Preview</span></nav>
+  <header class="page-header">
+    <h1>BAT file preview</h1>
+    <p class="page-subtitle">{% for name in filenames.values() %}{{ name }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+    <div class="import-preview-banner" role="status"><strong>No StreamWatch data has been changed.</strong> Site/date overlaps are investigation facts, not confirmed matches.</div>
+  </header>
+  <div class="report-stack">
+    <section class="panel site-snapshot">
+      <div class="snapshot-grid">
+        <div><span class="metric-label">Lab rows</span><span class="snapshot-value">{{ summary.bug_rows }}</span></div>
+        <div><span class="metric-label">Lab activities</span><span class="snapshot-value">{{ summary.samples }}</span></div>
+        <div><span class="metric-label">Habitat rows</span><span class="snapshot-value">{{ summary.habitat_rows }}</span></div>
+        <div><span class="metric-label">Activities with same-date habitat</span><span class="snapshot-value">{{ summary.samples_with_habitat }}</span></div>
+        <div><span class="metric-label">Lab rows needing source review</span><span class="snapshot-value">{{ summary.invalid_bug_rows }}</span></div>
+        <div><span class="metric-label">Habitat rows needing source review</span><span class="snapshot-value">{{ summary.invalid_habitat_rows }}</span></div>
+      </div>
+      <p class="muted">Dates: {{ summary.date_start or 'not available' }} – {{ summary.date_end or 'not available' }}. Blank rows ignored: {{ summary.blank_bug_rows }} lab, {{ summary.blank_habitat_rows }} habitat.</p>
+      <details>
+        <summary>Review counts &amp; limitations</summary>
+        <ul>
+          <li>Sites not found: {{ summary.missing_sites|join(', ') or 'none' }}.</li>
+          <li>Lab activities with no exact-date visit: {{ summary.samples_without_visit }}; with multiple visits: {{ summary.samples_with_multiple_visits }}.</li>
+          <li>Exact repeated source rows retained: {{ summary.exact_duplicate_bug_rows }} lab, {{ summary.exact_duplicate_habitat_rows }} habitat.</li>
+          <li>Activity IDs used for more than one site/date/type: {{ summary.activity_id_conflicts }}.</li>
+          <li>Taxon names with no exact reference name: {{ summary.unmatched_taxon_names|length }}; multiple exact reference names: {{ summary.ambiguous_taxon_names|length }}. No spelling or taxonomic aliases are guessed.</li>
+          <li>Activities with multiple same-date habitat rows: {{ summary.samples_with_multiple_habitat_rows }}. No row is chosen automatically.</li>
+          <li>The lab CSV has no volunteer field, so volunteer agreement cannot be checked. Orig and Rep remain separate; neither is assigned to a result table.</li>
+          <li>Habitat values and lab indices are shown as supplied. No habitat scores or biological indices are recalculated.</li>
+        </ul>
+      </details>
+    </section>
+
+    {% if result.samples %}
+    <section class="panel table-panel">
+      <div class="home-panel-head"><h2 class="home-panel-title">Lab activities</h2><p class="muted toolbar-count" id="bat-lab-count" aria-live="polite"></p></div>
+      <div class="table-tools"><label for="bat-lab-search">Search activities</label><input type="search" id="bat-lab-search" placeholder="Activity, site, taxon…"></div>
+      <div class="table-wrap"><table class="data-table" data-enhance="table" data-search="#bat-lab-search" data-count="#bat-lab-count">
+        <thead><tr><th>Activity / type</th><th data-type="date">Sample date</th><th>Site / existing visits</th><th data-type="number">Same-date habitat rows</th><th data-sortable="false">Lab rows &amp; source details</th></tr></thead>
+        <tbody>{% for sample in result.samples %}<tr>
+          <td>{{ sample.activity_id or 'Missing activity ID' }}<br>{{ sample.sample_type or 'Type not recorded' }}{% if sample.activity_conflict %}<p class="form-error">Activity ID has conflicting site/date/type values.</p>{% endif %}</td>
+          <td data-sort-value="{{ sample.sample_date or '' }}">{{ sample.sample_date or 'Unreadable date' }}</td>
+          <td>{{ visit_facts(sample) }}</td>
+          <td>{{ sample.habitat_rows|length }}{% for row_number in sample.habitat_rows %}<br><a href="#bat-habitat-{{ row_number }}">Habitat row {{ row_number }}</a>{% endfor %}</td>
+          <td><details><summary>{{ sample.rows|length }} lab rows{% if sample.taxon_review_rows %} · {{ sample.taxon_review_rows }} need taxon-name review{% endif %}</summary>
+            {% for row in sample.rows %}<details><summary>Row {{ row.source_row }} · {{ row.taxon_name or 'Missing taxon' }} · count {{ row.raw['Count'] or 'missing' }}{% if row.issues %} · source review needed{% endif %}</summary>
+              <p>{{ row.taxon_ids|length }} exact name entr{{ 'y' if row.taxon_ids|length == 1 else 'ies' }} in the StreamWatch taxon reference list.</p>
+              {% for issue in row.issues %}<p class="form-error">{{ issue }}</p>{% endfor %}
+              {% if row.exact_repeat %}<p class="muted">Exact repeat of an earlier source row; retained for review.</p>{% endif %}
+              <dl>{% for field, value in row.raw.items() %}{% if value %}<dt>{{ field }}</dt><dd>{{ value }}</dd>{% endif %}{% endfor %}</dl>
+            </details>{% endfor %}
+          </details></td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+    </section>
+    {% endif %}
+
+    {% if result.habitats %}
+    <section class="panel table-panel">
+      <div class="home-panel-head"><h2 class="home-panel-title">Habitat records</h2><p class="muted toolbar-count" id="bat-habitat-count" aria-live="polite"></p></div>
+      <div class="table-tools"><label for="bat-habitat-search">Search habitat records</label><input type="search" id="bat-habitat-search" placeholder="Site, date, source observation…"></div>
+      <div class="table-wrap"><table class="data-table" data-enhance="table" data-search="#bat-habitat-search" data-count="#bat-habitat-count">
+        <thead><tr><th data-type="number">Source row</th><th data-type="date">Sample date</th><th>Site / existing visits</th><th>Same-date lab activities</th><th data-sortable="false">Source details</th></tr></thead>
+        <tbody>{% for row in result.habitats %}<tr id="bat-habitat-{{ row.source_row }}">
+          <td>{{ row.source_row }}</td><td data-sort-value="{{ row.sample_date or '' }}">{{ row.sample_date or 'Unreadable date' }}</td><td>{{ visit_facts(row) }}</td>
+          <td>{% for sample in row.lab_activities %}{{ sample.activity_id }} · {{ sample.sample_type }}{% if not loop.last %}<br>{% endif %}{% else %}None in uploaded lab file{% endfor %}</td>
+          <td><details><summary>View source fields</summary>
+            {% for issue in row.issues %}<p class="form-error">{{ issue }}</p>{% endfor %}
+            {% if row.exact_repeat %}<p class="muted">Exact repeat of an earlier source row; retained for review.</p>{% endif %}
+            <dl>{% for field, value in row.raw.items() %}{% if value %}<dt>{{ field }}</dt><dd>{{ value }}</dd>{% endif %}{% endfor %}</dl>
+          </details></td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+    </section>
+    {% endif %}
+    {% if not result.samples and not result.habitats %}<p class="empty-state">The files have the expected headings but no populated data rows.</p>{% endif %}
+    <div class="filter-actions"><a class="btn-primary" href="/imports/bat">Review more files</a><a class="btn-secondary" href="/imports">Back to Data imports</a></div>
+  </div>
+</div>
+{% endblock %}

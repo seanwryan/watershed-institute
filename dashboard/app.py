@@ -50,6 +50,7 @@ from dashboard.data_pipeline_reference import (
     PIPELINE_SUBTITLE,
 )
 from etl.bact_reconcile import preview_bact_workbook, validate_bact_workbook
+from etl.bat_reconcile import preview_bat_files
 from etl.bact_scoring import (
     SOURCE_NOTE as BACT_SCORE_SOURCE_NOTE,
     dashboard_values_row,
@@ -4339,6 +4340,65 @@ def imports_hab():
     return render_template("imports_hab.html", error=None)
 
 
+@app.route("/imports/bat", methods=["GET"])
+def imports_bat():
+    return render_template("imports_bat.html", error=None)
+
+
+@app.route("/imports/bat/preview", methods=["POST"])
+def imports_bat_preview_post():
+    _bact_preview_cleanup()
+    if request.content_length and request.content_length > 16 * 1024 * 1024:
+        return render_template("imports_bat.html", error="Choose files totaling 16 MB or less."), 400
+    paths, filenames = {}, {}
+    try:
+        for field, suffix in (("bugs", ".csv"), ("habitat", ".xlsx")):
+            upload = request.files.get(field)
+            if upload is None or not (upload.filename or "").strip():
+                continue
+            filename = secure_filename(upload.filename)
+            if not filename.lower().endswith(suffix):
+                return render_template("imports_bat.html", error=f"Choose a {suffix} file for {field}."), 400
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                paths[field] = Path(tmp.name)
+            upload.save(paths[field])
+            filenames[field] = filename
+        if not paths:
+            return render_template("imports_bat.html", error="Choose a BAT bug CSV, a habitat workbook, or both."), 400
+        conn, err = get_db_or_503()
+        if err:
+            return render_template("imports_bat.html", error="StreamWatch data is unavailable. Please try again later."), 503
+        try:
+            # Fail closed if a read-only database session cannot be established.
+            conn.set_session(readonly=True, autocommit=True)
+            result = preview_bat_files(paths.get("bugs"), paths.get("habitat"), conn)
+        except ValueError as exc:
+            return render_template("imports_bat.html", error=str(exc)), 400
+        except psycopg2.Error:
+            return render_template("imports_bat.html", error="StreamWatch data could not be checked. Please try again later."), 503
+        except Exception:
+            return render_template("imports_bat.html", error="The files could not be reviewed. Check the CSV and Excel file formats."), 400
+        finally:
+            conn.close()
+        token = str(uuid.uuid4())
+        payload = {"kind": "bat", "filenames": filenames, "created_at": time.time(), "result": result}
+        with open(_bact_preview_path(token), "w", encoding="utf-8") as output:
+            json.dump(payload, output)
+        return redirect(url_for("imports_bat_preview", token=token))
+    finally:
+        for path in paths.values():
+            path.unlink(missing_ok=True)
+
+
+@app.route("/imports/bat/preview/<token>")
+def imports_bat_preview(token):
+    _bact_preview_cleanup()
+    payload = _load_bact_preview(token)
+    if not payload or payload.get("kind") != "bat":
+        return render_template("imports_bat.html", error="That preview has expired or was not found. Upload the files again."), 404
+    return render_template("imports_bat_preview.html", result=payload["result"], filenames=payload["filenames"])
+
+
 @app.route("/imports/hab/preview", methods=["POST"])
 def imports_hab_preview_post():
     _bact_preview_cleanup()
@@ -4489,7 +4549,7 @@ def imports_bact_preview_post():
 def imports_bact_preview(token):
     _bact_preview_cleanup()
     payload = _load_bact_preview(token)
-    if not payload:
+    if not payload or payload.get("kind", "bact") != "bact":
         return render_template(
             "imports_bact.html",
             error="That preview has expired or was not found. Upload the workbook again.",
@@ -4527,9 +4587,15 @@ def imports_bact_preview(token):
 @app.route("/imports/bact/preview/<token>.csv")
 def imports_bact_preview_csv(token):
     payload = _load_bact_preview(token)
-    if not payload:
+    if not payload or payload.get("kind", "bact") != "bact":
         abort(404)
     result = payload["result"]
+
+    def source_text(value):
+        # Keep uploaded free-text annotations literal when opened in a spreadsheet.
+        value = value or ""
+        return "'" + value if value.lstrip().startswith(("=", "+", "-", "@")) else value
+
     rows = []
     for r in result["survey123"]["rows"]:
         proposed = ""
@@ -4555,6 +4621,8 @@ def imports_bact_preview_csv(token):
                 "",
                 "",
                 "",
+                source_text(r.get("source_data_conditions")),
+                source_text(r.get("source_notes")),
             ]
         )
     for r in result["idexx"]["rows"]:
@@ -4580,6 +4648,8 @@ def imports_bact_preview_csv(token):
                 ""
                 if r.get("nearby_visit_count") is None
                 else r.get("nearby_visit_count"),
+                source_text(r.get("source_data_conditions")),
+                source_text(r.get("source_notes")),
             ]
         )
     return _csv_download(
@@ -4599,6 +4669,8 @@ def imports_bact_preview_csv(token):
             "site_exists",
             "exact_visit_count",
             "nearby_visit_count",
+            "source_data_conditions",
+            "source_notes",
         ],
         rows,
     )

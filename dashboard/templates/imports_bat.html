@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Review BAT files{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/imports">Data imports</a><span class="breadcrumb-sep" aria-hidden="true">/</span><span aria-current="page">BAT</span></nav>
+  <header class="page-header">
+    <h1>Review BAT files</h1>
+    <p class="page-subtitle">Inspect lab bug counts and volunteer habitat records together.</p>
+  </header>
+  <section class="panel form-panel">
+    {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+    <div class="import-preview-banner" role="note"><strong>Preview only.</strong> No visits, results, taxa, or scores will be added or changed.</div>
+    <form method="post" action="/imports/bat/preview" enctype="multipart/form-data" class="stack-form">
+      <div class="filter-field">
+        <label for="bugs">Lab bug results (.csv)</label>
+        <input type="file" id="bugs" name="bugs" accept=".csv,text/csv">
+        <p class="form-help">Use the seasonal lab format, such as 2026 BAT Bug Data to be entered.csv.</p>
+      </div>
+      <div class="filter-field">
+        <label for="habitat">Volunteer habitat records (.xlsx)</label>
+        <input type="file" id="habitat" name="habitat" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <p class="form-help">Use BAT Habitat Data to be entered.xlsx, with its Form Responses 1 sheet.</p>
+      </div>
+      <p class="muted">Choose one or both files, totaling up to 16 MB. Each file may contain up to 20,000 data rows. All years in the files are reviewed.</p>
+      <div class="filter-actions"><button type="submit" class="btn-primary">Upload and review</button><a href="/imports" class="btn-secondary">Cancel</a></div>
+    </form>
+  </section>
+</div>
+{% endblock %}
