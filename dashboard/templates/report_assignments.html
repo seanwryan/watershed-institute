@@ -64,8 +64,11 @@
         <p class="muted toolbar-count" id="assignments-report-count" aria-live="polite">{{ rows|length }} assignment{{ '' if rows|length == 1 else 's' }}</p>
       </div>
       <div class="table-tools">
-        <label for="assignments-report-search">Search table</label>
-        <input type="search" id="assignments-report-search" placeholder="Volunteer, site, role…" autocomplete="off">
+        <label for="assignments-report-search">Search displayed rows</label>
+        <input type="search" id="assignments-report-search" placeholder="Volunteer, site, role…" autocomplete="off" aria-describedby="assignments-report-search-help">
+      </div>
+      <div class="table-tools">
+        <p class="muted export-hint" id="assignments-report-search-help">Table search and sorting apply to displayed rows only. CSV downloads use the report filters above, not the table search or sort order.</p>
       </div>
       <div class="table-wrap">
         <table class="data-table" data-enhance="table" data-search="#assignments-report-search" data-count="#assignments-report-count">

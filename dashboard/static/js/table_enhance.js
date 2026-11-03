@@ -98,16 +98,18 @@
     btn.type = 'button';
     btn.className = 'table-sort';
     btn.textContent = label;
-    btn.setAttribute('aria-sort', 'none');
+    th.setAttribute('aria-sort', 'none');
     th.appendChild(btn);
     return btn;
   }
 
   function updateSortIndicators(table, activeIndex, desc) {
-    Array.prototype.forEach.call(table.querySelectorAll('thead .table-sort'), function (btn, idx) {
+    Array.prototype.forEach.call(table.querySelectorAll('thead th'), function (th, idx) {
+      var btn = th.querySelector('.table-sort');
+      if (!btn) return;
       var active = idx === activeIndex;
       btn.classList.toggle('active', active);
-      btn.setAttribute('aria-sort', active ? (desc ? 'descending' : 'ascending') : 'none');
+      th.setAttribute('aria-sort', active ? (desc ? 'descending' : 'ascending') : 'none');
       var marker = active ? (desc ? ' ↓' : ' ↑') : '';
       var base = btn.getAttribute('data-label') || btn.textContent.replace(/\s*[↑↓]$/, '');
       btn.setAttribute('data-label', base);

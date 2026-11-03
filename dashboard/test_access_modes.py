@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -20,21 +21,17 @@ from dashboard.read_only import PREVIEW_POST_ENDPOINTS, WRITE_ENDPOINTS, is_read
 from dashboard.route_classification import mutating_routes, verify_route_classification
 from etl.db import get_conn
 
-BASELINE_COUNTS = {
-    "site": 168,
-    "visit": 17221,
-    "chemical": 17313,
-    "bacteria": 544,
-    "volunteer": 428,
-    "equipment": 25,
-    "bug_count": 1301,
-    "result_flag": 40,
-}
+# Safety checks compare the current dataset before/after; they must also work
+# after a legitimate refresh or staff entry, without requiring a frozen fixture.
+MONITORED_TABLES = (
+    "site", "visit", "chemical", "bacteria", "volunteer", "equipment",
+    "bug_count", "result_flag",
+)
 
 
 def _table_counts(cur):
     out = {}
-    for table in BASELINE_COUNTS:
+    for table in MONITORED_TABLES:
         cur.execute(f"SELECT COUNT(*) FROM {table}")
         out[table] = cur.fetchone()[0]
     return out
@@ -79,7 +76,6 @@ def test_route_classification_complete():
     assert len(WRITE_ENDPOINTS) == 20
     assert len(PREVIEW_POST_ENDPOINTS) == 3
     assert not (WRITE_ENDPOINTS & PREVIEW_POST_ENDPOINTS)
-    return routes
 
 
 def test_read_only_blocks_writes():
@@ -90,23 +86,35 @@ def test_read_only_blocks_writes():
     with get_conn() as conn:
         before = _table_counts(conn.cursor())
 
-    posts = [
-        ("/sites/new", {"site_code": "ZZZ_RO"}),
-        ("/volunteers/new", {"first_name": "X", "last_name": "Y"}),
-        ("/visits/1/edit", {"sample_date": "2020-01-01"}),
-    ]
-    for path, data in posts:
-        assert client.post(path, data=data).status_code == 403
-
-    for path in ("/sites/new", "/volunteers/new"):
-        assert client.get(path).status_code == 403
+    test_all_write_routes_block_before_database()
 
     for path in ("/imports/bact/preview", "/imports/hab/preview", "/reports/bact/preview"):
         assert client.post(path, data={}).status_code != 403
 
     with get_conn() as conn:
         after = _table_counts(conn.cursor())
-    assert before == after == BASELINE_COUNTS
+    assert before == after
+
+
+@patch.dict(os.environ, {"READ_ONLY_MODE": "true", "PUBLIC_DEMO_MODE": "false"})
+def test_all_write_routes_block_before_database():
+    app = _load_app()
+    client = app.test_client()
+    # Fail before any database connection if enforcement is bypassed. Exercise
+    # every registered write route, not only a few representative families.
+    with patch("dashboard.app.get_db", side_effect=AssertionError("Write route reached database")) as connect:
+        for rule in app.url_map.iter_rules():
+            if rule.endpoint not in WRITE_ENDPOINTS:
+                continue
+            values = {
+                name: (1 if converter.__class__.__name__ == "IntegerConverter" else "TEST")
+                for name, converter in rule._converters.items()
+            }
+            path = app.url_map.bind("localhost").build(rule.endpoint, values)
+            assert client.post(path, data={}).status_code == 403, path
+            if "GET" in rule.methods:
+                assert client.get(path).status_code == 403, path
+        connect.assert_not_called()
 
 
 def test_public_demo_blocks_staff_routes():
@@ -150,7 +158,7 @@ def test_public_demo_plus_read_only():
 
     with get_conn() as conn:
         after = _table_counts(conn.cursor())
-    assert before == after == BASELINE_COUNTS
+    assert before == after
 
 
 def test_private_read_only_allows_staff_browse():
@@ -182,7 +190,8 @@ def test_staff_only_registry_subset_of_app():
 
 def main():
     os.environ.setdefault("DATABASE_URL", "postgresql://localhost/streamwatch_demo")
-    routes = test_route_classification_complete()
+    test_route_classification_complete()
+    routes = mutating_routes(_load_app())
     print("MUTATING_ROUTES", len(routes))
     for ep, methods, rule in routes:
         kind = "WRITE" if ep in WRITE_ENDPOINTS else "PREVIEW"
@@ -194,7 +203,7 @@ def main():
     test_private_read_only_allows_staff_browse()
     test_normal_mode()
     test_staff_only_registry_subset_of_app()
-    print("ACCESS_MODES_OK", BASELINE_COUNTS)
+    print("ACCESS_MODES_OK (database counts unchanged)")
 
 
 if __name__ == "__main__":

@@ -61,8 +61,11 @@
         <p class="muted toolbar-count" id="results-report-count" aria-live="polite">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }}</p>
       </div>
       <div class="table-tools">
-        <label for="results-report-search">Search table</label>
-        <input type="search" id="results-report-search" placeholder="Parameter, site, package…" autocomplete="off">
+        <label for="results-report-search">Search displayed rows</label>
+        <input type="search" id="results-report-search" placeholder="Parameter, site, package…" autocomplete="off" aria-describedby="results-report-search-help">
+      </div>
+      <div class="table-tools">
+        <p class="muted export-hint" id="results-report-search-help">Table search and sorting apply to displayed rows only. CSV downloads use the report filters above, not the table search or sort order.</p>
       </div>
       <div class="table-wrap">
         <table class="data-table" data-enhance="table" data-search="#results-report-search" data-count="#results-report-count">
@@ -80,7 +83,7 @@
           </thead>
           <tbody>
             {% if not rows %}
-            <tr data-empty-row="true"><td colspan="8" class="muted">No results match these filters. Try narrowing by site and date.</td></tr>
+            <tr data-empty-row="true"><td colspan="8" class="muted">No results match these filters. Try a wider date range or choose all sites.</td></tr>
             {% else %}
             {% for r in rows %}
             <tr>

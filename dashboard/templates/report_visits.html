@@ -47,8 +47,11 @@
         <p class="muted toolbar-count" id="visits-report-count" aria-live="polite">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }}</p>
       </div>
       <div class="table-tools">
-        <label for="visits-report-search">Search table</label>
-        <input type="search" id="visits-report-search" placeholder="Filter loaded rows…" autocomplete="off">
+        <label for="visits-report-search">Search displayed rows</label>
+        <input type="search" id="visits-report-search" placeholder="Search these rows…" autocomplete="off" aria-describedby="visits-report-search-help">
+      </div>
+      <div class="table-tools">
+        <p class="muted export-hint" id="visits-report-search-help">Table search and sorting apply to displayed rows only. CSV downloads use the report filters above, not the table search or sort order.</p>
       </div>
       <div class="table-wrap">
         <table class="data-table data-table-clickable" id="visits-report-table" data-enhance="table" data-search="#visits-report-search" data-count="#visits-report-count">

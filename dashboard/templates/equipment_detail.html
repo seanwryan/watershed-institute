@@ -86,8 +86,8 @@
     var s = String(status);
     var cls = 'badge';
     var lower = s.toLowerCase();
-    if (lower.indexOf('active') !== -1) cls += ' badge-success';
-    else if (lower.indexOf('inactive') !== -1 || lower.indexOf('retired') !== -1) cls += ' badge-warning';
+    if (lower.indexOf('inactive') !== -1 || lower.indexOf('retired') !== -1) cls += ' badge-warning';
+    else if (lower.indexOf('active') !== -1) cls += ' badge-success';
     return '<span class="' + cls + '">' + esc(s) + '</span>';
   }
   function passFailBadge(v) {

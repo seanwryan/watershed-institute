@@ -61,8 +61,11 @@
         <p class="muted toolbar-count" id="training-report-count" aria-live="polite">{{ rows|length }} record{{ '' if rows|length == 1 else 's' }}</p>
       </div>
       <div class="table-tools">
-        <label for="training-report-search">Search table</label>
-        <input type="search" id="training-report-search" placeholder="Volunteer, training type…" autocomplete="off">
+        <label for="training-report-search">Search displayed rows</label>
+        <input type="search" id="training-report-search" placeholder="Volunteer, training type…" autocomplete="off" aria-describedby="training-report-search-help">
+      </div>
+      <div class="table-tools">
+        <p class="muted export-hint" id="training-report-search-help">Table search and sorting apply to displayed rows only. CSV downloads use the report filters above, not the table search or sort order.</p>
       </div>
       <div class="table-wrap">
         <table class="data-table" data-enhance="table" data-search="#training-report-search" data-count="#training-report-count">

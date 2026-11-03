@@ -38,3 +38,30 @@ Summary: Render — connect repo, set Build/Start commands, add `DATABASE_URL` (
 - `GET /export/wqx?date_start=...&date_end=...&site_code=...` – download WQX CSV
 
 Connect Power BI / Excel to these JSON endpoints or to the database using the reporting views in `db/10_reporting_views.sql`.
+
+## Focused UI checks
+
+Use a Python 3.12 virtual environment with the project requirements installed.
+If an older environment stalls at startup, create a separate ignored environment
+instead of reusing it:
+
+```bash
+python3.12 -m venv env/verification
+env/verification/bin/python -m pip install -r requirements.txt
+env/verification/bin/python -m unittest dashboard.test_staff_usability
+node --test dashboard/test_table_usability.js
+```
+
+These checks use synthetic fixtures and require no running database. They cover
+report-search wording, CSV filter links, equipment badges, table sorting/search,
+and normal/private/public access modes. The access-mode integration checks below
+also compare real table counts before and after; they do not require a fixed
+historical dataset:
+
+```bash
+DATABASE_URL=postgresql://localhost/streamwatch_demo \
+PGOPTIONS='-c default_transaction_read_only=on' \
+env/verification/bin/python -m dashboard.test_access_modes
+```
+
+Run database integration checks only against a local or verification database.

@@ -72,8 +72,11 @@
           <p class="muted toolbar-count" id="completeness-count" aria-live="polite">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }} (max {{ limit }})</p>
         </div>
         <div class="table-tools">
-          <label for="completeness-search">Search table</label>
-          <input type="search" id="completeness-search" placeholder="Filter loaded rows…" autocomplete="off">
+          <label for="completeness-search">Search displayed rows</label>
+          <input type="search" id="completeness-search" placeholder="Search these rows…" autocomplete="off" aria-describedby="completeness-search-help">
+        </div>
+        <div class="table-tools">
+          <p class="muted export-hint" id="completeness-search-help">Search and sorting apply to the displayed rows only (up to {{ limit }} visits). Use the report filters above to change which visits are included. Summary counts do not change with the table search.</p>
         </div>
         <div class="table-wrap">
           <table class="data-table" data-enhance="table" data-search="#completeness-search" data-count="#completeness-count">
