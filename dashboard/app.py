@@ -47,6 +47,7 @@ from dashboard.methods_store import (
     save_revision,
     validate_form as validate_method_form,
 )
+from dashboard import qa_review as qr
 from dashboard.data_pipeline_reference import (
     ETL_DEFINITION,
     FLOW_STEPS,
@@ -3877,6 +3878,56 @@ def api_bio_scores():
 @app.route("/qa")
 def qa_page():
     return render_template("qa.html")
+
+
+@app.route("/qa/review")
+def qa_review_page():
+    return _qa_review_response()
+
+
+@app.route("/qa/review.csv")
+def qa_review_csv():
+    return _qa_review_response(export=True)
+
+
+def _qa_review_response(export=False):
+    empty = dict(filters={}, rows=[], total=0, page=1, sites=[], flag_types=[],
+                 conditions=[], parameters=qr.PARAMETERS, previous_url=None,
+                 next_url=None, csv_url=None, nitrate_note=False)
+    try:
+        filters, page = qr.parse_filters(request.args)
+    except ValueError as exc:
+        return render_template("qa_review.html", error=str(exc), **empty), 400
+    conn = None
+    try:
+        conn = get_db()
+        # This entire workflow fails closed if a read-only session cannot be set.
+        conn.set_session(readonly=True, isolation_level="REPEATABLE READ")
+        cur = conn.cursor()
+        rows, total = qr.review_rows(cur, filters, page=page, export=export)
+        if export:
+            return _csv_download("streamwatch_qa_review.csv", [
+                "site_code", "sample_date", "sample_code", "visit_id", "result_type", "record_id",
+                "method", "parameter", "value", "unit", "data_condition", "flags", "flag_notes",
+                "result_detection_note", "visit_note", "holding_time_flag", "holding_temp_flag",
+            ], qr.csv_cells(rows))
+        sites = rq.load_site_options(cur)
+        cur.execute("SELECT code FROM flag_type ORDER BY code")
+        flag_types = [r[0] for r in cur.fetchall()]
+        cur.execute("SELECT code FROM data_condition ORDER BY code")
+        conditions = [r[0] for r in cur.fetchall()]
+        return render_template("qa_review.html", error=None, filters=filters, rows=rows,
+                               total=total, page=page, sites=sites, flag_types=flag_types,
+                               conditions=conditions, parameters=qr.PARAMETERS,
+                               previous_url=url_for("qa_review_page", **filters, page=page-1) if page > 1 else None,
+                               next_url=url_for("qa_review_page", **filters, page=page+1) if page*qr.PAGE_SIZE < total else None,
+                               csv_url=url_for("qa_review_csv", **filters),
+                               nitrate_note=any(r["parameter"] == "nitrate_ug_l" for r in rows))
+    except psycopg2.Error:
+        return render_template("qa_review.html", error="Results could not be loaded. Please try again later.", **empty), 503
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route("/scores")

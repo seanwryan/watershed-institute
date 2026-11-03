@@ -16,6 +16,8 @@ from flask import jsonify, render_template, request
 STAFF_ONLY_ENDPOINTS = frozenset(
     {
         "method_reference_edit",
+        "qa_review_page",
+        "qa_review_csv",
         # Volunteers
         "volunteers_page",
         "volunteer_detail_page",

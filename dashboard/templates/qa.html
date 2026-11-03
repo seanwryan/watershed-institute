@@ -5,6 +5,7 @@
   <header class="page-header">
     <h1>Data quality</h1>
     <p class="page-subtitle">Review flagged StreamWatch observations already stored in the database.</p>
+    {% if not public_demo_mode %}<a class="btn-primary" href="{{ url_for('qa_review_page') }}">Review results &amp; notes</a>{% endif %}
   </header>
 
   <section class="panel site-snapshot" aria-label="QA summary">

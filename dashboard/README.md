@@ -88,3 +88,21 @@ Synthetic preview tests require no private source files or running PostgreSQL:
 ```bash
 env/verification/bin/python -m unittest etl.test_bat_reconcile dashboard.test_seasonal_previews
 ```
+
+### QA investigation
+
+`/qa` links to `/qa/review`, a read-only chemistry/bacteria workspace. Filter by
+site, dates, parameter, result flag, or Data Condition. Each package remains
+separate; flags and conditions describe the whole record, not an inferred
+parameter-specific issue. Results without measurements remain visible when no
+parameter filter is set. All stored result/visit notes are shown, not reconstructed
+source text. Missing conditions do not mean acceptance.
+
+The table paginates 100 value rows. Its search/sort affects only the displayed
+page; `/qa/review.csv` exports all matching rows using the same server filters.
+CSV free text is protected against spreadsheet-formula interpretation. Nitrate is
+shown as stored with unresolved units; no conversion or threshold is applied.
+
+Both workspace and CSV are blocked in public-demo mode because notes may contain
+internal information. Private read-only mode permits both. All queries run in a
+read-only transaction; there are no review/save/resolve actions or new QA rules.

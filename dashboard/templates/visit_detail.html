@@ -115,7 +115,7 @@
     {% else %}
     <div class="result-package-list">
       {% for c in chemistry %}
-      <article class="result-package">
+      <article class="result-package" id="chemical-{{ c.chemical_id }}">
         <div class="result-package-head">
           <div>
             <strong>Package {{ loop.index }}</strong>
@@ -156,7 +156,7 @@
     {% else %}
     <div class="result-package-list">
       {% for b in bacteria %}
-      <article class="result-package">
+      <article class="result-package" id="bacteria-{{ b.bacteria_id }}">
         <div class="result-package-head">
           <div>
             <strong>Bacteria result</strong>

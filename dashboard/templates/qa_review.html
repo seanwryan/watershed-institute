@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Review results{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/qa">Data quality</a> / Review results</nav>
+  <header class="page-header"><h1>Review results</h1>
+    <p class="page-subtitle">Inspect stored values, conditions, flags, and notes. This workspace does not change records.</p></header>
+  {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+  <div class="reporting-layout">
+    <aside class="explore-filters panel" aria-label="Review filters">
+      <form method="get" action="{{ url_for('qa_review_page') }}">
+        <div class="filter-field"><label for="review-site">Site</label><select id="review-site" name="site_code"><option value="">All sites</option>
+          {% for s in sites %}<option value="{{ s.site_code }}" {% if filters.site_code == s.site_code %}selected{% endif %}>{{ s.site_code }}</option>{% endfor %}
+        </select></div>
+        {% for name, label in [('date_start', 'From'), ('date_end', 'To')] %}
+        <div class="filter-field"><label for="review-{{ name }}">{{ label }}</label><input type="date" id="review-{{ name }}" name="{{ name }}" value="{{ filters.get(name, '') }}"></div>
+        {% endfor %}
+        <div class="filter-field"><label for="review-parameter">Parameter</label><select id="review-parameter" name="parameter"><option value="">All parameters</option>
+          {% for key, label, unit in parameters %}<option value="{{ key }}" {% if filters.parameter == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+        <div class="filter-field"><label for="review-flag">Flag</label><select id="review-flag" name="flag_type"><option value="">All records</option>
+          <option value="__any__" {% if filters.flag_type == '__any__' %}selected{% endif %}>Any result flag</option>
+          <option value="__none__" {% if filters.flag_type == '__none__' %}selected{% endif %}>No result flags</option>
+          {% for f in flag_types %}<option value="{{ f }}" {% if filters.flag_type == f %}selected{% endif %}>{{ f|replace('_', ' ') }}</option>{% endfor %}
+        </select></div>
+        <div class="filter-field"><label for="review-condition">Data Condition</label><select id="review-condition" name="condition"><option value="">All conditions</option>
+          <option value="__none__" {% if filters.condition == '__none__' %}selected{% endif %}>Not recorded</option>
+          {% for c in conditions %}<option value="{{ c }}" {% if filters.condition == c %}selected{% endif %}>{{ c|replace('_', ' ') }}</option>{% endfor %}
+        </select></div>
+        <div class="filter-actions"><button type="submit" class="btn-primary">Update results</button><a href="{{ url_for('qa_review_page') }}">Reset filters</a></div>
+      </form>
+      {% if not error %}<p><a class="btn-secondary" href="{{ csv_url }}">Download CSV</a></p>{% endif %}
+    </aside>
+    <section class="panel table-panel">
+      <div class="home-panel-head"><h2 class="home-panel-title">Result values</h2>
+        <p class="muted">{{ total }} matching row{{ '' if total == 1 else 's' }} · Page {{ page }}</p></div>
+      <p class="muted export-hint">Each row shows one stored value, or a record without measurements. Flags and Data Conditions apply to the whole record; they may not identify a particular parameter. Each chemistry package is kept separate. “Not recorded” does not mean accepted. Only stored notes are available; unresolved source wording may be missing.</p>
+      {% if nitrate_note %}<p class="muted export-hint">Nitrate is shown as stored. The source labels it mg/L while existing application labels use µg/L; confirm units before interpretation. No conversion is applied here.</p>{% endif %}
+      <div class="table-tools"><label for="review-search">Search displayed rows</label><input id="review-search" type="search" placeholder="Value, condition, note…" aria-describedby="review-search-help"><span id="review-count" class="muted" aria-live="polite"></span></div>
+      <p id="review-search-help" class="muted export-hint">Search and sorting apply to this page only. CSV includes all matching rows using the filters on the left.</p>
+      <div class="table-wrap"><table class="data-table" data-enhance="table" data-search="#review-search" data-count="#review-count">
+        <thead><tr><th scope="col">Site</th><th scope="col" data-type="date">Date</th><th scope="col">Record / method</th><th scope="col">Parameter</th><th scope="col" data-type="number">Value</th><th scope="col">Data Condition</th><th scope="col">Flags</th><th scope="col" data-sortable="false">Notes / visit</th></tr></thead>
+        <tbody>{% for r in rows %}<tr>
+          <td><a href="/site/{{ r.site_code|urlencode }}">{{ r.site_code }}</a></td><td>{{ r.sample_date }}</td>
+          <td><a href="{{ r.detail_url }}">{{ r.record_label }}</a>{% if r.method %}<br>{{ r.method }}{% endif %}{% if r.sample_code %}<br><span class="muted">{{ r.sample_code }}</span>{% endif %}</td>
+          <td>{{ r.parameter_label }}</td><td data-sort-value="{{ r.value if r.value is not none else '' }}">{{ r.value_display }}{% if r.unit %} {{ r.unit }}{% endif %}</td>
+          <td>{{ (r.condition or 'Not recorded')|replace('_', ' ') }}</td>
+          <td>{% for f in r.flags %}<div><span class="badge">{{ f.code|replace('_', ' ') }}</span>{% if f.notes %}<p>{{ f.notes }}</p>{% endif %}</div>{% else %}<span class="muted">No result flags</span>{% endfor %}</td>
+          <td><details><summary>Notes &amp; context</summary>
+            <p><strong>Result / detection note:</strong> {{ r.detection_limit_note or 'Not recorded' }}</p>
+            <p><strong>Visit note:</strong> {{ r.visit_notes or 'Not recorded' }}</p>
+            {% if r.holding_time_flag %}<p>Holding time flagged on bacteria record.</p>{% endif %}
+            {% if r.holding_temp_flag %}<p>Holding temperature flagged on bacteria record.</p>{% endif %}
+            <p><a href="/visits/{{ r.visit_id }}">Open visit</a></p>
+          </details></td>
+        </tr>{% else %}<tr data-empty-row="true"><td colspan="8" class="muted">No stored results match these filters.</td></tr>{% endfor %}</tbody>
+      </table></div>
+      <nav class="table-tools" aria-label="Results pages">{% if previous_url %}<a href="{{ previous_url }}">Previous</a>{% endif %}{% if next_url %}<a href="{{ next_url }}">Next</a>{% endif %}</nav>
+    </section>
+  </div>
+</div>
+{% endblock %}
