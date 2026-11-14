@@ -18,7 +18,7 @@
   <header class="site-header-block">
     <h1>Macroinvertebrate observations</h1>
     <p class="page-subtitle">{{ visit.site_code }} · {{ visit.sample_date }}</p>
-    <p class="site-kicker">Organism counts for this visit. Biology scores are calculated automatically.</p>
+    <p class="site-kicker">Organism counts for this visit. Biology scores come from the reviewed StreamWatch dataset and are not recalculated when counts change.</p>
   </header>
 
   <div class="site-detail-grid">
@@ -43,7 +43,7 @@
     </section>
 
     <section class="panel" aria-labelledby="macro-scores-title">
-      <h2 class="home-panel-title" id="macro-scores-title">Derived biology scores</h2>
+      <h2 class="home-panel-title" id="macro-scores-title">Biology scores</h2>
       {% if summary.scores %}
       <ul class="result-measure-list">
         {% if summary.scores.hgmi_genus is not none %}
