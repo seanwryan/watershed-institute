@@ -2323,3 +2323,43 @@ main > div > header > h1::after {
 .ask-sql pre { white-space: pre-wrap; word-break: break-word; background: #f6f8f4; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 0.8rem; }
 .ask-start { margin: 0.5rem 0 1.5rem; }
 .alert-success { background: var(--success-soft); border-color: #bfe0c1; color: var(--success); }
+
+/* =====================================================================
+   Data audit (/qa/audit)
+   ===================================================================== */
+.audit-toc { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: -0.25rem 0 1rem; }
+.audit-toc a { padding: 0.3rem 0.75rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; }
+.audit-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem; }
+.audit-summary .metric { background: var(--surface); padding: 0.9rem 1rem; }
+.audit-summary .metric-value { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; display: block; }
+.metric-attention { box-shadow: inset 4px 0 0 var(--rating-fair), var(--shadow-card) !important; }
+.audit-section { margin-bottom: 1.25rem; }
+.audit-source { font-size: 0.95rem; margin: 1.1rem 0 0.4rem; color: var(--accent); }
+.audit-table { white-space: normal; font-size: 0.85rem; }
+.audit-table td { vertical-align: top; }
+.audit-explain { min-width: 22rem; color: var(--text); }
+.audit-status { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-family: var(--font-display); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.audit-match { background: var(--success-soft); color: var(--success); }
+.audit-explained { background: #e7f2fb; color: #0e68a8; }
+.audit-gap { background: #fdf0e3; color: #9a4a00; }
+.audit-info { background: #f0f2ef; color: var(--muted); }
+.audit-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.audit-check { display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.65rem 0.75rem; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+.audit-check-icon { flex: 0 0 1.6rem; height: 1.6rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; }
+.audit-check-pass .audit-check-icon { background: var(--success); }
+.audit-check-attention .audit-check-icon { background: #c47f00; }
+.audit-check-fail .audit-check-icon { background: var(--danger); }
+.audit-check-fail { border-color: #efc4c0; background: var(--danger-soft); }
+.audit-check-body { display: flex; flex-direction: column; gap: 0.1rem; }
+.audit-check-count { font-size: 0.85rem; font-weight: 600; }
+.audit-changes { margin: 0.5rem 0 0; padding-left: 1.4rem; display: grid; gap: 0.75rem; }
+.audit-changes p { margin: 0.2rem 0; }
+.audit-change-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
+.audit-change-meta { font-size: 0.8rem; }
+.audit-area { font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.audit-area-fix { background: #fdf0e3; color: #9a4a00; }
+.audit-area-derive { background: #e7f2fb; color: #0e68a8; }
+.audit-area-storage { background: #f0f2ef; color: var(--muted); }
+.audit-values { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; font-size: 0.8rem; }
+.audit-visits { margin: 0; padding-left: 1.2rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

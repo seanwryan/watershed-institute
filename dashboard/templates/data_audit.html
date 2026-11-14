@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Data audit{% endblock %}
+{% block content %}
+<div class="page-monitoring audit-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/qa">Quality</a> <span aria-hidden="true">/</span> Data audit</nav>
+  <header class="page-header">
+    <h1>Data audit</h1>
+    <p class="page-subtitle">Evidence that the database is a faithful, fully accounted-for version of Watershed's source files: every source row is loaded or skipped for a stated reason, every change follows a written rule, and the database is re-checked live each time this page loads.</p>
+  </header>
+
+  <nav class="audit-toc" aria-label="On this page">
+    <a href="#reconciliation">Source files vs database</a>
+    <a href="#live-checks">Live checks</a>
+    <a href="#changes">Changes applied</a>
+    <a href="#trace">Trace a record</a>
+  </nav>
+
+  {% if not ready %}
+  <div class="alert" role="status">No audit run has been saved yet. Run <code>python -m etl.audit_sources --apply</code> where the source files are.</div>
+  {% else %}
+  <section class="audit-summary" aria-label="Summary">
+    <div class="metric"><span class="metric-label">Workbook rows traced</span><span class="metric-value">{{ '{:,}'.format(run[2].get('master_rows', 0)) }}</span><span class="muted">All StreamWatch Data</span></div>
+    <div class="metric"><span class="metric-label">Rows loaded</span><span class="metric-value">{{ '{:,}'.format(run[2].get('master_rows_loaded', 0)) }}</span><span class="muted">the rest have no values or no site/date</span></div>
+    <div class="metric"><span class="metric-label">Checks that reconcile</span><span class="metric-value">{{ counts.match + counts.explained }} / {{ counts.match + counts.explained + counts.gap }}</span><span class="muted">{{ counts.match }} exact, {{ counts.explained }} explained</span></div>
+    <div class="metric{% if counts.gap %} metric-attention{% endif %}"><span class="metric-label">Open gaps</span><span class="metric-value">{{ counts.gap }}</span><span class="muted">listed below with their cause</span></div>
+  </section>
+  {% endif %}
+
+  {% if ready %}
+  <section class="panel audit-section" id="reconciliation" aria-labelledby="recon-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="recon-title">1 · Source files vs database</h2>
+      <span class="muted">Audit run {{ run[0] }} · {{ run[1].strftime('%Y-%m-%d %H:%M') }} UTC</span>
+    </div>
+    <p class="muted">Each line compares what a source sheet contains with what the database holds. <span class="audit-status audit-match">Match</span> counts agree · <span class="audit-status audit-explained">Explained</span> they differ for the stated reason · <span class="audit-status audit-gap">Gap</span> something needs action · <span class="audit-status audit-info">Info</span> context.</p>
+    {% for g in groups %}
+    <h3 class="audit-source">{{ g.source }}</h3>
+    <div class="db-table-scroll">
+      <table class="data-table audit-table">
+        <thead><tr><th scope="col">Sheet</th><th scope="col">What</th><th scope="col" class="num">In source</th><th scope="col" class="num">In database</th><th scope="col">Status</th><th scope="col">Explanation</th></tr></thead>
+        <tbody>
+          {% for c in g.checks %}
+          <tr>
+            <td>{{ c.sheet or '—' }}</td>
+            <td class="cell-strong">{{ c.item }}</td>
+            <td class="num">{{ '{:,}'.format(c.source_count) if c.source_count is not none else '—' }}</td>
+            <td class="num">{{ '{:,}'.format(c.db_count) if c.db_count is not none else '—' }}</td>
+            <td><span class="audit-status audit-{{ c.status }}">{{ c.status|capitalize }}</span></td>
+            <td class="audit-explain">{{ c.explanation }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <section class="panel audit-section" id="live-checks" aria-labelledby="live-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="live-title">2 · Live checks</h2>
+      <span class="muted">Re-run against the database just now · {{ live_counts.pass if live_counts else '' }} pass{% if live_counts and live_counts.attention %} · {{ live_counts.attention }} attention{% endif %}{% if live_counts and live_counts.fail %} · {{ live_counts.fail }} fail{% endif %}</span>
+    </div>
+    <ul class="audit-checks">
+      {% for l in live %}
+      <li class="audit-check audit-check-{{ l.status }}">
+        <span class="audit-check-icon" aria-hidden="true">{{ '✓' if l.status == 'pass' else ('!' if l.status == 'attention' else '✗') }}</span>
+        <span class="audit-check-body">
+          <strong>{{ l.title }}</strong>
+          <span class="muted">{{ l.why }}</span>
+          {% if l.status != 'pass' %}<span class="audit-check-count">{{ '{:,}'.format(l.count) }} {{ 'known — ' if l.note else 'found' }}{{ l.note or '' }}</span>{% endif %}
+        </span>
+        <span class="sr-only">{{ l.status }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {% if ready %}
+  <section class="panel audit-section" id="changes" aria-labelledby="changes-title">
+    <h2 class="home-panel-title" id="changes-title">3 · Changes applied</h2>
+    <p class="muted">Every transformation between Watershed's files and what you see in StreamWatch. Each script can be re-run safely and runs as a dry run unless told to apply.</p>
+    <ol class="audit-changes">
+      {% for ch in changes %}
+      <li>
+        <div class="audit-change-head">
+          <span class="audit-area audit-area-{{ ch.area|lower }}">{{ ch.area }}</span>
+          <strong>{{ ch.title }}</strong>
+          {% if ch.rows %}<span class="muted">{{ '{:,}'.format(ch.rows) }} rows</span>{% endif %}
+        </div>
+        <p>{{ ch.rule }}</p>
+        <p class="muted audit-change-meta">{{ ch.applied_on }}{% if ch.script %} · <code>{{ ch.script }}</code>{% endif %}</p>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section class="panel audit-section" id="trace" aria-labelledby="trace-title">
+    <h2 class="home-panel-title" id="trace-title">4 · Trace a record</h2>
+    <p class="muted">Pick a site and date to see each row of All StreamWatch Data for that day and what it became in the database.</p>
+    <form class="db-toolbar audit-trace-form" method="get" action="{{ url_for('data_audit_page') }}#trace">
+      <div class="filter-field"><label for="trace-site">Site code</label><input id="trace-site" name="site" value="{{ site }}" placeholder="e.g. CL2" maxlength="20" required></div>
+      <div class="filter-field"><label for="trace-date">Date</label><input id="trace-date" name="date" type="date" value="{{ day }}" required></div>
+      <div class="db-toolbar-actions"><button class="btn-primary" type="submit">Trace</button></div>
+    </form>
+    {% if trace_error %}<div class="alert alert-error" role="alert">{{ trace_error }}</div>{% endif %}
+    {% if traced %}
+    <h3 class="audit-source">In the workbook</h3>
+    {% if not trace_rows %}<p class="muted">No All StreamWatch Data rows for {{ site }} on {{ day }}.</p>{% else %}
+    <div class="db-table-scroll">
+      <table class="data-table audit-table">
+        <thead><tr><th scope="col">Workbook row</th><th scope="col">Method</th><th scope="col">Data Condition</th><th scope="col">Values in the workbook</th><th scope="col">What happened</th></tr></thead>
+        <tbody>
+          {% for r in trace_rows %}
+          <tr>
+            <td class="num">{{ r.row }}</td>
+            <td>{{ r.method or '—' }}</td>
+            <td>{{ r.detail.get('condition', '—') }}</td>
+            <td class="audit-values">
+              {% for k, v in (r.detail.get('values') or {}).items() %}<span>{{ k|replace('_ug_l', ' (mg/L)')|replace('_mg_l', ' (mg/L)')|replace('_c', ' °C')|replace('_', ' ') }} {{ v }}</span>{% endfor %}
+              {% if r.detail.get('e_coli') is not none %}<span>E. coli {{ r.detail.get('e_coli_modifier', '') }}{{ r.detail.e_coli }}</span>{% endif %}
+              {% for k, v in (r.detail.get('bug_scores') or {}).items() %}<span>{{ k|replace('_', ' ') }} {{ v }}</span>{% endfor %}
+              {% if r.detail.get('note') %}<span>note “{{ r.detail.note }}”</span>{% endif %}
+            </td>
+            <td>{{ r.outcome }}{% if r.chemical_id %} · <a href="{{ url_for('data_table_page', table='chemical', chemical_id=r.chemical_id) }}">chemistry #{{ r.chemical_id }}</a>{% endif %}{% if r.bacteria_id %} · <a href="{{ url_for('data_table_page', table='bacteria', bacteria_id=r.bacteria_id) }}">E. coli #{{ r.bacteria_id }}</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    <h3 class="audit-source">In the database</h3>
+    {% if not trace_visits %}<p class="muted">No visits for {{ site }} on {{ day }}.</p>{% else %}
+    <ul class="audit-visits">
+      {% for v in trace_visits %}
+      <li><a href="/visits/{{ v.visit_id }}">Visit {{ v.visit_id }}</a> · {{ v.method or 'no method' }} · {{ v.chem }} chemistry, {{ v.bact }} E. coli{% if v.scores %}, bug scores{% endif %}{% if v.habitat %}, habitat{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

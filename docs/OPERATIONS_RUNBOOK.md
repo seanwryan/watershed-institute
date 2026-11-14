@@ -108,8 +108,12 @@ python -m etl.load_bat_habitat --apply                           # RBP habitat f
 python -m etl.fill_site_details --apply                          # towns, drainage (sq mi -> km2), habitat type
 python -m etl.backfill_source_conditions --apply                 # combined Data Conditions as text
 python -m etl.rate_bio_scores --apply                            # 2026 framework rating bands
-python -m etl.apply_qa_rules
+python -m etl.load_meter_sensors --apply                         # DO/pH/EC sensors per meter
+python -m etl.apply_qa_rules --apply                             # adds flags only
+python -m etl.audit_sources --apply                              # reconcile every source; shown at /qa/audit
 ```
+
+**After any load or fix, re-run the audit** (`python -m etl.audit_sources`, add `--apply` to save it). It compares every source sheet with the database and traces every All StreamWatch Data row; `/qa/audit` shows the saved run, re-runs the live integrity checks, and lists every change in `audit_change_log` (add a row there for any new transformation).
 
 Order notes:
 

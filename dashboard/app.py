@@ -84,6 +84,8 @@ from dashboard.bact_workspace import register as register_bact_workspace
 register_bact_workspace(app, lambda: get_db())
 from dashboard.data_browser import register as register_data_browser, format_value as _format_value
 register_data_browser(app, lambda: get_db())
+from dashboard.data_audit import register as register_data_audit
+register_data_audit(app, lambda: get_db())
 from dashboard.ask_data import register as register_ask_data
 register_ask_data(app, lambda: get_db(), _format_value)
 # Restarting without a configured SECRET_KEY invalidates open editing forms safely.

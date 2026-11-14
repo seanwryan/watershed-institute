@@ -27,7 +27,9 @@ Centralized PostgreSQL database, ETL, QA, reporting, and dashboard for the Strea
    python -m etl.fill_site_details --apply
    python -m etl.backfill_source_conditions --apply
    python -m etl.rate_bio_scores --apply
-   python -m etl.apply_qa_rules
+   python -m etl.load_meter_sensors --apply
+   python -m etl.apply_qa_rules --apply
+   python -m etl.audit_sources --apply
    ```
    See `docs/OPERATIONS_RUNBOOK.md` section 2 for why each step is there. Tests: `pip install -r requirements-dev.txt && python -m pytest etl dashboard`.
 

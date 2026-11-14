@@ -15,7 +15,7 @@
   {% set ep = request.endpoint or '' %}
   {% set monitoring_active = ep in ('map_page', 'sites_page', 'site_detail_page', 'site_edit', 'site_new', 'explore_page', 'scores_page') %}
   {% set data_active = ep in ('data_browser_page', 'data_table_page', 'data_ask_page', 'export_page') %}
-  {% set quality_active = ep in ('qa_page', 'qa_review_page', 'report_completeness') %}
+  {% set quality_active = ep in ('qa_page', 'qa_review_page', 'report_completeness', 'data_audit_page') %}
   {% set operations_active = (ep.startswith('volunteer') or ep.startswith('equipment') or ep.startswith('training') or ep in ('meter_test_new', 'report_training', 'report_assignments')) and not public_demo_mode %}
   {% set season_active = ep.startswith('imports') or ep.startswith('report_bact') %}
   <header class="site-header">

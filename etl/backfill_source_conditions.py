@@ -46,8 +46,10 @@ def same_values(stored: Dict[str, Optional[float]], source: Dict[str, Optional[f
         a, b = stored.get(f), source.get(f)
         if a is None and b is None:
             continue
-        # Columns are NUMERIC with up to 4 decimals, so compare at that precision.
-        if a is None or b is None or abs(float(a) - float(b)) > 0.0005:
+        # Columns are NUMERIC with up to 4 decimals (temperatures 2), so compare at
+        # stored precision; temperatures like 12.002 are stored as 12.00.
+        tol = 0.006 if f in ("air_temp_c", "water_temp_c") else 0.0005
+        if a is None or b is None or abs(float(a) - float(b)) > tol:
             return False
     return True
 
