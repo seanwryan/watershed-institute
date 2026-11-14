@@ -18,7 +18,7 @@
 <script>
 (function() {
   var map = L.map('map').setView([40.2, -74.7], 9);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19 }).addTo(map);
   var legend = document.getElementById('map-legend');
   fetch('/api/sites')
     .then(function(r) { return r.json(); })

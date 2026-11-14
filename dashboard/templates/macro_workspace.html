@@ -47,16 +47,16 @@
       {% if summary.scores %}
       <ul class="result-measure-list">
         {% if summary.scores.hgmi_genus is not none %}
-        <li><span class="metric-label">HGMI (genus)</span> <span class="num">{{ summary.scores.hgmi_genus }}{% if summary.scores.hgmi_rating %} · {{ summary.scores.hgmi_rating }}{% endif %}</span></li>
+        <li><span class="metric-label">HGMI (genus)</span> <span class="num">{{ summary.scores.hgmi_genus }}{% if summary.scores.hgmi_rating %} <span class="rating rating-{{ summary.scores.hgmi_rating|lower }}">{{ summary.scores.hgmi_rating }}</span>{% endif %}</span></li>
         {% endif %}
         {% if summary.scores.hgmi_family is not none %}
         <li><span class="metric-label">HGMI (family)</span> <span class="num">{{ summary.scores.hgmi_family }}</span></li>
         {% endif %}
         {% if summary.scores.njis_score is not none %}
-        <li><span class="metric-label">NJIS</span> <span class="num">{{ summary.scores.njis_score }}{% if summary.scores.njis_rating %} · {{ summary.scores.njis_rating }}{% endif %}</span></li>
+        <li><span class="metric-label">NJIS</span> <span class="num">{{ summary.scores.njis_score }}{% if summary.scores.njis_rating %} <span class="rating rating-{{ summary.scores.njis_rating|lower }}">{{ summary.scores.njis_rating }}</span>{% endif %}</span></li>
         {% endif %}
         {% if summary.scores.cpmi_score is not none %}
-        <li><span class="metric-label">CPMI</span> <span class="num">{{ summary.scores.cpmi_score }}{% if summary.scores.cpmi_rating %} · {{ summary.scores.cpmi_rating }}{% endif %}</span></li>
+        <li><span class="metric-label">CPMI</span> <span class="num">{{ summary.scores.cpmi_score }}{% if summary.scores.cpmi_rating %} <span class="rating rating-{{ summary.scores.cpmi_rating|lower }}">{{ summary.scores.cpmi_rating }}</span>{% endif %}</span></li>
         {% endif %}
         {% if summary.scores.hbi is not none %}
         <li><span class="metric-label">HBI</span> <span class="num">{{ summary.scores.hbi }}</span></li>

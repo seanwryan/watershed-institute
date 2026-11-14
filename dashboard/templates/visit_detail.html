@@ -253,28 +253,28 @@
       <div>
         <span class="metric-label">HGMI (genus)</span>
         <span class="snapshot-value">{{ '%.1f'|format(sc.hgmi_genus) }}</span>
-        {% if sc.hgmi_rating %}<span class="muted">{{ sc.hgmi_rating }}</span>{% endif %}
+        {% if sc.hgmi_rating %}<span class="rating rating-{{ sc.hgmi_rating|lower }}">{{ sc.hgmi_rating }}</span>{% endif %}
       </div>
       {% endif %}
       {% if sc.hgmi_family is not none %}
       <div>
         <span class="metric-label">HGMI (family)</span>
         <span class="snapshot-value">{{ '%.1f'|format(sc.hgmi_family) }}</span>
-        {% if sc.hgmi_genus is none and sc.hgmi_rating %}<span class="muted">{{ sc.hgmi_rating }}</span>{% endif %}
+        {% if sc.hgmi_genus is none and sc.hgmi_rating %}<span class="rating rating-{{ sc.hgmi_rating|lower }}">{{ sc.hgmi_rating }}</span>{% endif %}
       </div>
       {% endif %}
       {% if sc.njis_score is not none %}
       <div>
         <span class="metric-label">NJIS</span>
         <span class="snapshot-value">{{ '%.1f'|format(sc.njis_score) }}</span>
-        {% if sc.njis_rating %}<span class="muted">{{ sc.njis_rating }}</span>{% endif %}
+        {% if sc.njis_rating %}<span class="rating rating-{{ sc.njis_rating|lower }}">{{ sc.njis_rating }}</span>{% endif %}
       </div>
       {% endif %}
       {% if sc.cpmi_score is not none %}
       <div>
         <span class="metric-label">CPMI</span>
         <span class="snapshot-value">{{ '%.1f'|format(sc.cpmi_score) }}</span>
-        {% if sc.cpmi_rating %}<span class="muted">{{ sc.cpmi_rating }}</span>{% endif %}
+        {% if sc.cpmi_rating %}<span class="rating rating-{{ sc.cpmi_rating|lower }}">{{ sc.cpmi_rating }}</span>{% endif %}
       </div>
       {% endif %}
       {% if sc.fbi is not none %}
