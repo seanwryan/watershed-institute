@@ -1,0 +1,4 @@
+# Development and test tools (not installed on Render).
+#   pip install -r requirements.txt -r requirements-dev.txt
+#   python -m pytest etl dashboard
+pytest==8.3.3

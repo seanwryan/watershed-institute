@@ -106,3 +106,30 @@ shown as stored with unresolved units; no conversion or threshold is applied.
 Both workspace and CSV are blocked in public-demo mode because notes may contain
 internal information. Private read-only mode permits both. All queries run in a
 read-only transaction; there are no review/save/resolve actions or new QA rules.
+
+### Seasonal source workspace
+
+Private staff entry point: `/imports/bact/workspace`. Unlike the older comparison
+preview, this inspects all five BACT seasonal data sheets and can preserve the
+original workbook plus source records in the additive source ledger. Reviews are
+append-only with reasons and optimistic concurrency. Source review does not
+promote data into monitoring tables or approve scientific calculations.
+
+Apply `db/12_source_intake.sql` to an existing verification database before testing
+saving. Fresh schema setups include it automatically. Configure `SECRET_KEY` for
+stable browser sessions, and keep the workspace private; reviewer names are
+self-reported until staff authentication is implemented. See
+[the workflow refresh plan](../docs/WATERSHED_WORKFLOW_REBUILD.md) for design,
+limitations, source rules, and subsequent stages.
+
+```bash
+env/verification/bin/python -m pytest -q etl/test_seasonal_bact.py dashboard/test_bact_workspace.py
+```
+
+Optional integration checks require `SOURCE_INTAKE_TEST_DSN` pointing to a
+**separate** PostgreSQL instance and database named `streamwatch_source_test`.
+They truncate only that dedicated instance's source ledger tables:
+
+```bash
+env/verification/bin/python -m pytest -q dashboard/test_source_intake_store.py
+```

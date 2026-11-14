@@ -16,6 +16,13 @@ from flask import jsonify, render_template, request
 STAFF_ONLY_ENDPOINTS = frozenset(
     {
         "method_reference_edit",
+        "imports_bact_workspace",
+        "imports_bact_source_preview",
+        "imports_bact_source_preview_page",
+        "imports_bact_source_save",
+        "imports_bact_source_batch",
+        "imports_bact_source_decision",
+        "imports_bact_source_original",
         "qa_review_page",
         "qa_review_csv",
         # Volunteers

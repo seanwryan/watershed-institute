@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Seasonal source review{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb"><a href="/imports">Data imports</a> / Seasonal source review</nav>
+  <header class="page-header"><h1>Bring a BACT season into review</h1>
+    <p class="page-subtitle">Start with the workbook Jian uses during the season. Inspect field submissions, bacteria tests, analyzer results, turbidity, and bloom follow-up together.</p></header>
+  {% if error %}<p class="alert-error" role="alert">{{ error }}</p>{% endif %}
+  <section class="panel"><h2>1. Choose the source workbook</h2>
+    <p>Use <strong>BACT and HAB 2026 Data.xlsx</strong> or the corresponding earlier season. The separate BACT Analysis workbook contains dashboard calculations.</p>
+    <form method="post" action="{{ url_for('imports_bact_source_preview') }}" enctype="multipart/form-data" class="stack-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label for="season-workbook">Seasonal workbook (.xlsx, up to 16 MB)</label>
+      <input id="season-workbook" name="workbook" type="file" accept=".xlsx" required>
+      <button class="btn-primary" type="submit">Inspect source workbook</button>
+    </form>
+    <p class="muted">Inspection shows source values and formulas without recalculating them. Your private preview expires after 30 minutes. Saving preserves the original file and its source records for review.</p>
+  </section>
+  <section class="panel"><h2>2. Review saved seasons</h2>
+    <p>Source review is separate from accepting measurements into monitoring records. A reviewed source record is not automatically suitable for analysis.</p>
+    {% if not available %}<p>Saved-source storage is not available yet. You can inspect files now; saving will become available when storage is set up.</p>{% endif %}
+    {% for item in history %}<article><h3><a href="{{ url_for('imports_bact_source_batch',batch_id=item.id) }}">{{ item.filename }}</a></h3><p>{{ item.summary.row_count }} source records · saved {{ item.created_at }}</p></article>
+    {% else %}<p class="muted">No saved seasons to display.</p>{% endfor %}
+  </section>
+</div>
+{% endblock %}

@@ -80,6 +80,8 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 register_staff_auth(app)  # first, so sign-in is checked before anything else
 register_read_only(app)
 register_public_demo(app)
+from dashboard.bact_workspace import register as register_bact_workspace
+register_bact_workspace(app, lambda: get_db())
 # Restarting without a configured SECRET_KEY invalidates open editing forms safely.
 _method_signer = URLSafeTimedSerializer(os.getenv("SECRET_KEY") or secrets.token_hex(32), salt="method-reference-edit")
 
@@ -736,7 +738,7 @@ def export_csv():
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT s.site_code, v.sample_date::text, dc.code,
+            SELECT s.site_code, v.sample_date::text, COALESCE(dc.code, c.source_data_condition),
                    c.air_temp_c, c.water_temp_c, c.nitrate_ug_l, c.nitrate_dilution_adj, c.phosphate_mg_l,
                    c.ph, c.turbidity_ntu, c.dissolved_oxygen_ppm, c.dissolved_oxygen_pct, c.conductivity_us_cm, c.chloride_mg_l,
                    COALESCE(m.name, '')
@@ -757,7 +759,7 @@ def export_csv():
                 if val is not None:
                     writer.writerow([site_code_val, sample_date, param, val, dc_code, method])
         cur.execute("""
-            SELECT s.site_code, v.sample_date::text, dc.code, b.e_coli_mpn_100ml
+            SELECT s.site_code, v.sample_date::text, COALESCE(dc.code, b.source_data_condition), b.e_coli_mpn_100ml
             FROM bacteria b
             JOIN visit v ON v.visit_id = b.visit_id
             JOIN site s ON s.site_id = v.site_id
@@ -1558,7 +1560,7 @@ def _fmt_chem_display(val):
 def _load_visit_chemistry(cur, visit_id):
     cur.execute(
         """
-        SELECT c.chemical_id, m.name AS method_name, dc.code AS data_condition,
+        SELECT c.chemical_id, m.name AS method_name, COALESCE(dc.code, c.source_data_condition) AS data_condition,
                c.air_temp_c, c.water_temp_c, c.dissolved_oxygen_ppm, c.dissolved_oxygen_pct,
                c.nitrate_ug_l, c.phosphate_mg_l, c.ph, c.turbidity_ntu,
                c.conductivity_us_cm, c.chloride_mg_l, c.detection_limit_note, c.created_at
@@ -1608,7 +1610,7 @@ def _load_visit_chemistry(cur, visit_id):
 def _load_visit_bacteria(cur, visit_id):
     cur.execute(
         """
-        SELECT b.bacteria_id, dc.code AS data_condition,
+        SELECT b.bacteria_id, COALESCE(dc.code, b.source_data_condition) AS data_condition,
                b.e_coli_mpn_100ml, b.total_coliform_mpn, b.detection_limit_note,
                b.holding_time_flag, b.holding_temp_flag, b.created_at
         FROM bacteria b
@@ -2905,7 +2907,7 @@ def _load_visit_habitats(cur, visit_id, habitat_type):
     cols = [f[0] for f in fields]
     cur.execute(
         """
-        SELECT h.habitat_id, dc.code AS data_condition,
+        SELECT h.habitat_id, COALESCE(dc.code, h.source_data_condition) AS data_condition,
                h.epifaunal_substrate, h.sediment_deposition, h.channel_flow_status,
                h.channel_alteration, h.bank_stability_left, h.bank_stability_right,
                h.bank_veg_protection_left, h.bank_veg_protection_right,

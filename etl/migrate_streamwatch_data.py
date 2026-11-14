@@ -11,6 +11,11 @@ Phase 1 Data Trust reconstruction:
 
 Does not invent UNIQUE(visit_id). Run migrate_sites first.
 
+Visits are per site + date + method (ensure_method_visit). This loader covers
+chemistry and E. coli only; for a full rebuild follow the order in
+docs/OPERATIONS_RUNBOOK.md ("Full rebuild order"), which adds bug scores,
+habitat, Notes, site details, ratings and combined Data Conditions.
+
 Dry-run (no DB writes):
   python -m etl.migrate_streamwatch_data --dry-run [/path/to/All StreamWatch Data.xlsx]
 """
@@ -51,7 +56,7 @@ from etl.db import ensure_lookup, get_conn
 from etl.visit_helpers import (
     _date,
     _str,
-    ensure_visit,
+    ensure_method_visit,
     get_data_condition_id_map,
     get_method_id_map,
     get_site_id_map,
@@ -188,9 +193,7 @@ def run(data_file: Path | None = None):
                     all_data["exact_duplicates_skipped"] += 1
                 else:
                     seen_fingerprints.add(fp)
-                    visit_id = ensure_visit(
-                        cur, site_id, sample_date, None, None, method_id, None
-                    )
+                    visit_id = ensure_method_visit(cur, site_id, sample_date, method_id)
                     insert_chemical(
                         cur,
                         visit_id,
@@ -214,9 +217,7 @@ def run(data_file: Path | None = None):
             if skip == "unparsable_e_coli_result":
                 e_coli_stats["unparsable"] += 1
             elif e_coli is not None:
-                visit_id = ensure_visit(
-                    cur, site_id, sample_date, None, None, method_id, None
-                )
+                visit_id = ensure_method_visit(cur, site_id, sample_date, method_id)
                 note = f"E. coli Mod.: {mod}" if mod else None
                 if mod:
                     e_coli_stats["with_modifier_note"] += 1

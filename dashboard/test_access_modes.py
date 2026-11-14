@@ -73,8 +73,8 @@ def test_route_classification_complete():
     app = _load_app()
     routes = verify_route_classification(app)
     assert {endpoint for endpoint, _, _ in routes} == PREVIEW_POST_ENDPOINTS | WRITE_ENDPOINTS
-    assert len(WRITE_ENDPOINTS) == 21
-    assert len(PREVIEW_POST_ENDPOINTS) == 4
+    assert len(WRITE_ENDPOINTS) == 23
+    assert len(PREVIEW_POST_ENDPOINTS) == 5
     assert not (WRITE_ENDPOINTS & PREVIEW_POST_ENDPOINTS)
 
 
@@ -107,7 +107,8 @@ def test_all_write_routes_block_before_database():
             if rule.endpoint not in WRITE_ENDPOINTS:
                 continue
             values = {
-                name: (1 if converter.__class__.__name__ == "IntegerConverter" else "TEST")
+                name: (1 if converter.__class__.__name__ == "IntegerConverter" else
+                       "00000000-0000-0000-0000-000000000000" if converter.__class__.__name__ == "UUIDConverter" else "TEST")
                 for name, converter in rule._converters.items()
             }
             path = app.url_map.bind("localhost").build(rule.endpoint, values)
