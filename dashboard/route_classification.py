@@ -4,14 +4,15 @@ Mechanical classification of Flask mutating HTTP routes.
 Every endpoint supporting POST, PUT, PATCH, or DELETE must belong to exactly one of:
   - WRITE_ENDPOINTS (PostgreSQL mutators; blocked when READ_ONLY_MODE)
   - PREVIEW_POST_ENDPOINTS (workbook preview uploads; no DB writes)
-  - FRAMEWORK_ENDPOINTS (non-application; none currently)
+  - FRAMEWORK_ENDPOINTS (no database writes: static files, staff sign-in/out)
 """
 from __future__ import annotations
 
 MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
-# Flask/Werkzeug built-ins that are not application write routes.
-FRAMEWORK_ENDPOINTS = frozenset({"static"})
+# Not application write routes. staff_login/staff_logout (dashboard/staff_auth.py)
+# only set or clear the signed session cookie; they never touch PostgreSQL.
+FRAMEWORK_ENDPOINTS = frozenset({"static", "staff_login", "staff_logout"})
 
 
 def mutating_routes(app):

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Sign in – StreamWatch</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .login-wrap { max-width: 24rem; margin: 12vh auto 2rem; padding: 0 16px; }
+    .login-wrap h1 { margin: 0 0 .25rem; }
+    .login-wrap .page-intro { margin-bottom: 1.25rem; }
+    .login-field { display: block; margin-bottom: .9rem; }
+    .login-field span { display: block; font-weight: 600; margin-bottom: .3rem; }
+    .login-field input { width: 100%; box-sizing: border-box; padding: .55rem .65rem; font: inherit;
+                         border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+    .login-wrap .btn-primary { width: 100%; justify-content: center; margin-top: .25rem; cursor: pointer; border: 0; font: inherit; }
+  </style>
+</head>
+<body>
+  <main class="login-wrap">
+    <h1>StreamWatch</h1>
+    <p class="page-intro">Staff sign-in for The Watershed Institute's monitoring data.</p>
+    <section class="panel">
+      {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+      <form method="post" action="/login">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <label class="login-field">
+          <span>Username</span>
+          <input type="text" name="username" value="{{ username or 'staff' }}" autocomplete="username" autocapitalize="none" required>
+        </label>
+        <label class="login-field">
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="current-password" required autofocus>
+        </label>
+        <button type="submit" class="btn-primary">Sign in</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
