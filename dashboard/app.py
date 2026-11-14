@@ -82,8 +82,10 @@ register_read_only(app)
 register_public_demo(app)
 from dashboard.bact_workspace import register as register_bact_workspace
 register_bact_workspace(app, lambda: get_db())
-from dashboard.data_browser import register as register_data_browser
+from dashboard.data_browser import register as register_data_browser, format_value as _format_value
 register_data_browser(app, lambda: get_db())
+from dashboard.ask_data import register as register_ask_data
+register_ask_data(app, lambda: get_db(), _format_value)
 # Restarting without a configured SECRET_KEY invalidates open editing forms safely.
 _method_signer = URLSafeTimedSerializer(os.getenv("SECRET_KEY") or secrets.token_hex(32), salt="method-reference-edit")
 
@@ -114,19 +116,25 @@ def health():
 
 @app.route("/api/sites")
 def api_sites():
-    """List active sites with last sample date and visit count (for maps and site pages)."""
+    """List sites with last sample date and visit count (for maps and site pages).
+
+    ?status=active (default, used by the maps), inactive, or all.
+    """
+    status = (request.args.get("status") or "active").strip().lower()
+    where = {"active": "WHERE s.is_active = true", "inactive": "WHERE s.is_active = false", "all": ""}.get(status, "WHERE s.is_active = true")
     conn, err = get_db_or_503()
     if err:
         return err
     try:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(f"""
             SELECT s.site_id, s.site_code, w.name AS waterbody_name, s.latitude, s.longitude, s.description,
                    (SELECT MAX(v.sample_date)::text FROM visit v WHERE v.site_id = s.site_id),
-                   (SELECT COUNT(*) FROM visit v WHERE v.site_id = s.site_id)
+                   (SELECT COUNT(*) FROM visit v WHERE v.site_id = s.site_id),
+                   s.is_active, s.habitat_type::text
             FROM site s
             LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id
-            WHERE s.is_active = true
+            {where}
             ORDER BY s.site_code
             """)
         rows = cur.fetchall()
@@ -150,6 +158,8 @@ def api_sites():
                 "description": r[5],
                 "last_sample_date": r[6],
                 "visit_count": r[7],
+                "is_active": r[8],
+                "habitat_type": r[9],
             }
             for r in rows
         ])
@@ -3996,25 +4006,13 @@ def _report_db():
 
 @app.route("/reports")
 def reports_hub():
-    return render_template("reports.html")
-
+    """Retired 2026-11: reports now live with what they describe (Data, Quality, Operations, Season files)."""
+    return redirect(url_for("data_browser_page"), code=301)
 
 @app.route("/reports/sites")
 def report_sites():
-    filters = {
-        "q": (request.args.get("q") or "").strip(),
-        "status": (request.args.get("status") or "").strip().lower(),
-    }
-    conn, err = _report_db()
-    if err:
-        return render_template("report_sites.html", rows=[], filters=filters, error="Database unavailable."), 503
-    try:
-        cur = conn.cursor()
-        rows = rq.site_summary_rows(cur, q=filters["q"], status=filters["status"])
-        return render_template("report_sites.html", rows=rows, filters=filters)
-    finally:
-        conn.close()
-
+    """Retired: the Sites page has the same list with status filter and CSV."""
+    return redirect(url_for("sites_page", status=request.args.get("status") or None, q=request.args.get("q") or None), code=301)
 
 @app.route("/reports/sites.csv")
 def report_sites_csv():
@@ -4047,80 +4045,12 @@ def report_sites_csv():
 
 @app.route("/reports/visits")
 def report_visits():
-    filters = {
-        "site_code": (request.args.get("site_code") or "").strip(),
-        "date_start": (request.args.get("date_start") or "").strip(),
-        "date_end": (request.args.get("date_end") or "").strip(),
-    }
-    limit = 500
-    conn, err = _report_db()
-    if err:
-        return render_template(
-            "report_visits.html",
-            rows=[],
-            sites=[],
-            filters=filters,
-            limit=limit,
-        ), 503
-    try:
-        cur = conn.cursor()
-        sites = rq.load_site_options(cur)
-        rows = rq.visit_history_rows(
-            cur,
-            site_code=filters["site_code"],
-            date_start=rq.parse_optional_date(filters["date_start"]),
-            date_end=rq.parse_optional_date(filters["date_end"]),
-            limit=limit,
-        )
-        return render_template(
-            "report_visits.html", rows=rows, sites=sites, filters=filters, limit=limit
-        )
-    finally:
-        conn.close()
-
+    """Retired: Data browser > Visits lists visits with links to their results."""
+    return redirect(url_for("data_table_page", table="visit", site=request.args.get("site_code") or None), code=301)
 
 @app.route("/reports/visits.csv")
 def report_visits_csv():
-    site_code = (request.args.get("site_code") or "").strip()
-    date_start = rq.parse_optional_date(request.args.get("date_start"))
-    date_end = rq.parse_optional_date(request.args.get("date_end"))
-    conn, err = _report_db()
-    if err:
-        return err
-    try:
-        cur = conn.cursor()
-        rows = rq.visit_history_rows(
-            cur, site_code=site_code, date_start=date_start, date_end=date_end, limit=20000
-        )
-        return _csv_download(
-            "visit_history.csv",
-            [
-                "visit_id",
-                "site_code",
-                "sample_date",
-                "method",
-                "has_chemistry",
-                "has_bacteria",
-                "has_habitat",
-                "has_macro",
-            ],
-            [
-                [
-                    r["visit_id"],
-                    r["site_code"],
-                    r["sample_date"],
-                    r["method_name"] or "",
-                    "yes" if r["has_chemistry"] else "no",
-                    "yes" if r["has_bacteria"] else "no",
-                    "yes" if r["has_habitat"] else "no",
-                    "yes" if r["has_macro"] else "no",
-                ]
-                for r in rows
-            ],
-        )
-    finally:
-        conn.close()
-
+    return redirect(url_for("data_table_csv", table="visit", site=request.args.get("site_code") or None), code=301)
 
 @app.route("/reports/completeness")
 def report_completeness():
@@ -4370,88 +4300,14 @@ def report_assignments_csv():
 
 @app.route("/reports/results")
 def report_results():
-    filters = {
-        "site_code": (request.args.get("site_code") or "").strip(),
-        "date_start": (request.args.get("date_start") or "").strip(),
-        "date_end": (request.args.get("date_end") or "").strip(),
-        "family": (request.args.get("family") or "both").strip().lower(),
-    }
-    if filters["family"] not in ("both", "chemistry", "bacteria"):
-        filters["family"] = "both"
-    limit = 400
-    conn, err = _report_db()
-    if err:
-        return render_template(
-            "report_results.html", rows=[], sites=[], filters=filters, limit=limit
-        ), 503
-    try:
-        cur = conn.cursor()
-        sites = rq.load_site_options(cur)
-        rows = rq.results_rows(
-            cur,
-            site_code=filters["site_code"],
-            date_start=rq.parse_optional_date(filters["date_start"]),
-            date_end=rq.parse_optional_date(filters["date_end"]),
-            family=filters["family"],
-            limit=limit,
-        )
-        return render_template(
-            "report_results.html", rows=rows, sites=sites, filters=filters, limit=limit
-        )
-    finally:
-        conn.close()
-
+    """Retired: Data browser > Chemistry / E. coli (and Ask the data) cover this."""
+    table = "bacteria" if (request.args.get("family") or "").lower() == "bacteria" else "chemical"
+    return redirect(url_for("data_table_page", table=table, site=request.args.get("site_code") or None), code=301)
 
 @app.route("/reports/results.csv")
 def report_results_csv():
-    site_code = (request.args.get("site_code") or "").strip()
-    date_start = rq.parse_optional_date(request.args.get("date_start"))
-    date_end = rq.parse_optional_date(request.args.get("date_end"))
-    family = (request.args.get("family") or "both").strip().lower()
-    conn, err = _report_db()
-    if err:
-        return err
-    try:
-        cur = conn.cursor()
-        rows = rq.results_rows(
-            cur,
-            site_code=site_code,
-            date_start=date_start,
-            date_end=date_end,
-            family=family,
-            limit=None,
-        )
-        return _csv_download(
-            "results_extract.csv",
-            [
-                "site_code",
-                "sample_date",
-                "family",
-                "package_or_record",
-                "parameter",
-                "value",
-                "unit",
-                "visit_id",
-            ],
-            [
-                [
-                    r["site_code"],
-                    r["sample_date"],
-                    r["family"],
-                    r["package_label"],
-                    r["parameter_label"],
-                    r["value_display"],
-                    r["unit"] or "",
-                    r["visit_id"],
-                ]
-                for r in rows
-            ],
-        )
-    finally:
-        conn.close()
-
-
-# --- Data imports (preview-only) ---
+    table = "bacteria" if (request.args.get("family") or "").lower() == "bacteria" else "chemical"
+    return redirect(url_for("data_table_csv", table=table, site=request.args.get("site_code") or None), code=301)
 
 _BACT_PREVIEW_DIR = Path(tempfile.gettempdir()) / "streamwatch_bact_previews"
 _BACT_PREVIEW_TTL_SEC = 2 * 60 * 60
@@ -4487,6 +4343,7 @@ def _load_bact_preview(token):
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return None
+
 
 
 @app.route("/imports")

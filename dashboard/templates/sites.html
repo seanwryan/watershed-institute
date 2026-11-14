@@ -12,6 +12,13 @@
       <label for="site-search">Search</label>
       <input type="search" id="site-search" placeholder="Site code or waterbody…" autocomplete="off">
       <button type="button" class="btn-secondary" id="site-search-clear">Clear</button>
+      <label for="site-status">Status</label>
+      <select id="site-status">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="all">All sites</option>
+      </select>
+      <a class="btn-secondary" id="sites-csv" href="/reports/sites.csv?status=active">Download CSV</a>
       {% if not read_only_mode %}
       <a class="btn-primary" href="/sites/new">Add site</a>
       {% endif %}
@@ -26,12 +33,13 @@
           <tr>
             <th scope="col">Site</th>
             <th scope="col">Waterbody</th>
+            <th scope="col">Habitat type</th>
             <th scope="col" data-type="date">Latest sample</th>
             <th scope="col" class="num th-num" data-type="number">Sampling visits</th>
           </tr>
         </thead>
         <tbody id="sites-tbody">
-          <tr><td colspan="4" class="muted">Loading…</td></tr>
+          <tr><td colspan="5" class="muted">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -46,6 +54,13 @@
   var clearBtn = document.getElementById('site-search-clear');
   var countEl = document.getElementById('sites-count');
   var allSites = [];
+  var statusSel = document.getElementById('site-status');
+  var csvLink = document.getElementById('sites-csv');
+  var STATUS_WORDS = { active: 'active sites', inactive: 'inactive sites', all: 'sites' };
+  var initialStatus = new URLSearchParams(window.location.search).get('status');
+  if (initialStatus && STATUS_WORDS[initialStatus]) statusSel.value = initialStatus;
+  var initialQ = new URLSearchParams(window.location.search).get('q');
+  if (initialQ) search.value = initialQ;
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -76,20 +91,22 @@
 
   function render() {
     var list = filtered();
+    var word = STATUS_WORDS[statusSel.value] || 'sites';
     countEl.textContent = list.length === allSites.length
-      ? (allSites.length + ' active sites')
-      : (list.length + ' of ' + allSites.length + ' active sites');
+      ? (allSites.length + ' ' + word)
+      : (list.length + ' of ' + allSites.length + ' ' + word);
 
     if (!list.length) {
-      tbody.innerHTML = '<tr data-empty-row="true"><td colspan="4" class="muted">No sites match your search.</td></tr>';
+      tbody.innerHTML = '<tr data-empty-row="true"><td colspan="5" class="muted">No sites match your search.</td></tr>';
       return;
     }
 
     tbody.innerHTML = list.map(function(s) {
       var href = '/site/' + encodeURIComponent(s.site_code);
       return '<tr class="row-link" tabindex="0" data-href="' + href + '" role="link" aria-label="Open site ' + esc(s.site_code) + '">' +
-        '<td><span class="cell-strong">' + esc(s.site_code) + '</span></td>' +
+        '<td><span class="cell-strong">' + esc(s.site_code) + '</span>' + (s.is_active === false ? ' <span class="muted">(inactive)</span>' : '') + '</td>' +
         '<td>' + esc(s.waterbody_name || '—') + '</td>' +
+        '<td>' + esc(s.habitat_type || '—') + '</td>' +
         '<td data-sort-value="' + esc(s.last_sample_date || '') + '">' + esc(fmtDate(s.last_sample_date)) + '</td>' +
         '<td class="num">' + esc(fmtNum(s.visit_count)) + '</td>' +
         '</tr>';
@@ -120,12 +137,20 @@
     render();
   });
 
-  fetch('/api/sites')
-    .then(function(r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-    .then(function(sites) {
-      allSites = Array.isArray(sites) ? sites : [];
-      render();
-    })
+  function load() {
+    var status = statusSel.value;
+    csvLink.href = '/reports/sites.csv?status=' + encodeURIComponent(status === 'all' ? '' : status);
+    countEl.textContent = 'Loading sites…';
+    return fetch('/api/sites?status=' + encodeURIComponent(status))
+      .then(function(r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then(function(sites) {
+        allSites = Array.isArray(sites) ? sites : [];
+        render();
+      });
+  }
+  statusSel.addEventListener('change', function() { load().catch(function() { countEl.textContent = 'Unable to load sites'; }); });
+
+  load()
     .catch(function() {
       countEl.textContent = 'Unable to load sites';
       tbody.innerHTML = '<tr><td colspan="4" class="error">We couldn\'t load sites right now. Please try again in a moment.</td></tr>';

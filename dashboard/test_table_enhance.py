@@ -27,10 +27,7 @@ def test_key_pages_include_enhance():
         "/sites",
         "/qa",
         "/scores",
-        "/reports/sites",
-        "/reports/visits",
         "/reports/completeness",
-        "/reports/results",
         "/reports/training",
         "/reports/assignments",
     ]

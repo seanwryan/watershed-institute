@@ -41,7 +41,7 @@ LINEAGE_ROWS = [
     {
         "area": "Visits",
         "source": "Created when results load",
-        "processing": "Match or create by site, date, sample code",
+        "processing": "One visit per site, date and method (CAT, BACT, BAT, Salt Watch)",
         "destination": "Visits",
         "status": "Loaded",
     },
@@ -89,24 +89,45 @@ LINEAGE_ROWS = [
     },
     {
         "area": "Biology scores",
-        "source": "Derived from bug tables",
-        "processing": "HGMI / NJIS / CPMI",
+        "source": "All StreamWatch Data.xlsx → ALL DATA (1996–2025)",
+        "processing": "NJIS / HGMI / CPMI as reviewed by Watershed; rated with the 2026 framework bands",
         "destination": "Scores",
-        "status": "Derived",
+        "status": "Loaded",
+    },
+    {
+        "area": "Notes & combined conditions",
+        "source": "All StreamWatch Data.xlsx → ALL DATA",
+        "processing": "Notes kept on visits; combined Data Conditions (e.g. “Outlier; Incomplete”) kept as written",
+        "destination": "Visits, results",
+        "status": "Loaded",
+    },
+    {
+        "area": "Site details",
+        "source": "All StreamWatch Data.xlsx → SITES",
+        "processing": "Towns, drainage area (sq mi → km²), habitat type; blanks filled only",
+        "destination": "Sites",
+        "status": "Loaded",
     },
     {
         "area": "QA flags",
         "source": "Derived after load",
-        "processing": "Thresholds; meter-fail windows",
+        "processing": "Adds flags for water temp > 31 °C, nitrate > 10 mg/L, meter failures; never changes Data Conditions",
         "destination": "Flags",
         "status": "Derived",
     },
     {
-        "area": "Habitat assessments (historical)",
-        "source": "RBP columns on ALL DATA",
-        "processing": "Not bulk-loaded",
+        "area": "Habitat assessments",
+        "source": "BAT habitat form export + RBP columns on ALL DATA",
+        "processing": "Attached to the matching BAT visit (2021–2025)",
         "destination": "Habitat",
-        "status": "Partially loaded",
+        "status": "Loaded",
+    },
+    {
+        "area": "2026 season (BACT, BAT, habitat)",
+        "source": "BACT and HAB 2026 Data.xlsx; 2026 BAT lab CSV; habitat forms",
+        "processing": "Waiting on Watershed's 2026 update to All StreamWatch Data and two new site codes",
+        "destination": "Visits, results",
+        "status": "Needs review",
     },
     {
         "area": "BACT / HAB import tools",
@@ -140,7 +161,11 @@ INTERPRETATION_NOTES = [
     },
     {
         "title": "Habitat",
-        "body": "Historical RBP habitat score sheets are not fully bulk-loaded; staff can enter assessments in the app.",
+        "body": "RBP habitat assessments for 2021–2025 BAT visits are loaded from the habitat form export; staff can add more in the app.",
+    },
+    {
+        "title": "Nitrate",
+        "body": "Nitrate is stored in mg/L as nitrogen (the column is historically named nitrate_ug_l).",
     },
     {
         "title": "Chloride",
@@ -189,7 +214,7 @@ PIPELINE_SECTIONS = [
         "title": "Visits",
         "summary": [
             'Created when chemistry, bacteria, or macro results load',
-            'Matched by site, sample date, and sample code when present',
+            'One visit per site, sample date and method (team)',
             'One visit can hold multiple chemistry packages',
         ],
         "source": (
@@ -199,7 +224,8 @@ PIPELINE_SECTIONS = [
         ),
         "what_happens": (
             "StreamWatch looks for an existing visit for the same site, sample "
-            "date, and sample code (when present). If none exists, it creates one."
+            "date and method, so CAT, BACT, BAT and Salt Watch sampling on the "
+            "same day stay separate. If none exists, it creates one."
         ),
         "where_it_goes": "Visits in StreamWatch.",
         "skipped": (
@@ -211,10 +237,10 @@ PIPELINE_SECTIONS = [
             "bacteria or bug observations."
         ),
         "technical": {
-            "script": "etl/visit_helpers.py (ensure_visit)",
+            "script": "etl/visit_helpers.py (ensure_method_visit)",
             "sheet": "— (shared helper)",
             "destination": "visit",
-            "matching": "(site_id, sample_date, sample_code IS NOT DISTINCT FROM …)",
+            "matching": "(site_id, sample_date, method_id IS NOT DISTINCT FROM …)",
         },
     },
     {
@@ -429,8 +455,8 @@ PIPELINE_SECTIONS = [
         "where_it_goes": "bug_list, visit, bug_count, rbp100_bug.",
         "skipped": "Unresolved sites or unresolved bug identifiers; missing amounts.",
         "caveats": (
-            "Index scores are calculated afterward by a separate step, not "
-            "inside the BAT count loader."
+            "Index scores come from All StreamWatch Data (etl/fill_master_gaps.py), "
+            "not from these counts; the app does not recalculate them."
         ),
         "technical": {
             "script": "etl/migrate_bat.py",
@@ -443,8 +469,8 @@ PIPELINE_SECTIONS = [
         "id": "habitat",
         "title": "Habitat",
         "summary": [
-            'Site habitat type may load from Locations',
-            'Historical RBP habitat score sheets are not bulk-loaded',
+            'Site habitat type from Locations and the master SITES sheet',
+            'RBP habitat assessments loaded for 2021–2025 BAT visits',
             'HAB status tools are preview only',
         ],
         "source": (
@@ -462,7 +488,7 @@ PIPELINE_SECTIONS = [
             "staff enter them; HAB preview does not store phycocyanin in "
             "StreamWatch."
         ),
-        "skipped": "Bulk historical habitat score rows (not loaded).",
+        "skipped": "Habitat forms with no BAT visit on that site and date (listed by etl/load_bat_habitat.py).",
         "caveats": "Canal and Lake scoring rules remain review topics for future work.",
         "technical": {
             "script": "etl/migrate_sites.py (type only); etl/hab_status.py (preview)",

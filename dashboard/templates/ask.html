@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Ask the data{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>{% endblock %}
+{% block content %}
+<div class="page-monitoring ask-page">
+  <header class="page-header">
+    <h1>Ask the data</h1>
+    <p class="page-subtitle">Build a question with menus instead of SQL: pick what to look at, narrow it down, and see matching rows or a summary. Questions are read-only and can be saved or shared as a link.</p>
+  </header>
+
+  {% if request.args.get('saved') %}<div class="alert alert-success" role="status">Question saved.</div>{% endif %}
+  {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+
+  <div class="ask-layout">
+    <form class="panel ask-builder" id="ask-form" method="get" action="{{ url_for('data_ask_page') }}">
+      <fieldset class="ask-step">
+        <legend><span class="ask-step-num">1</span> Look at</legend>
+        <div class="ask-datasets" role="radiogroup">
+          {% for key, ds in datasets.items() %}
+          <label class="ask-ds{% if q.ds == key %} is-selected{% endif %}">
+            <input type="radio" name="ds" value="{{ key }}" {% if q.ds == key %}checked{% endif %}>
+            <span class="ask-ds-name">{{ ds.label }}</span>
+            <span class="ask-ds-row">Each row is {{ ds.row }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset class="ask-step">
+        <legend><span class="ask-step-num">2</span> Only include rows where</legend>
+        <div id="ask-filters" class="ask-filters"></div>
+        <button type="button" class="btn-secondary ask-add" id="ask-add-filter">+ Add a condition</button>
+        <p class="muted ask-hint" id="ask-filter-hint">No conditions: every row is included.</p>
+      </fieldset>
+
+      <fieldset class="ask-step">
+        <legend><span class="ask-step-num">3</span> Show</legend>
+        <div class="ask-mode" role="radiogroup">
+          <label><input type="radio" name="mode" value="rows" {% if q.mode == 'rows' %}checked{% endif %}> The matching rows</label>
+          <label><input type="radio" name="mode" value="summary" {% if q.mode == 'summary' %}checked{% endif %}> A summary</label>
+        </div>
+        <div id="ask-rows-opts" class="ask-opts">
+          <p class="ask-opts-label">Columns</p>
+          <div id="ask-cols" class="ask-cols"></div>
+        </div>
+        <div id="ask-summary-opts" class="ask-opts">
+          <p class="ask-opts-label">Group by</p>
+          <div class="ask-groups">
+            <select name="group" id="ask-group-1" aria-label="Group by"></select>
+            <span class="muted">then</span>
+            <select name="group" id="ask-group-2" aria-label="Then group by"></select>
+          </div>
+          <p class="ask-opts-label">Calculate</p>
+          <div id="ask-measures" class="ask-measures"></div>
+          <button type="button" class="btn-secondary ask-add" id="ask-add-measure">+ Add a calculation</button>
+        </div>
+      </fieldset>
+
+      <div class="ask-run">
+        <button type="submit" class="btn-primary">Run question</button>
+        <a class="btn-secondary" href="{{ url_for('data_ask_page') }}">Start over</a>
+      </div>
+    </form>
+
+    <aside class="panel ask-saved" aria-labelledby="ask-saved-title">
+      <h2 class="home-panel-title" id="ask-saved-title">Saved questions</h2>
+      {% if not saved_ok %}
+      <p class="muted">Saved questions aren't set up on this database yet.</p>
+      {% elif not saved %}
+      <p class="muted">None yet.</p>
+      {% else %}
+      <ul class="ask-saved-list">
+        {% for s in saved %}
+        <li>
+          <a href="{{ url_for('data_ask_page') }}?{{ s.query }}">{{ s.name }}</a>
+          {% if s.description %}<span class="muted">{{ s.description }}</span>{% endif %}
+          {% if not s.starter and not read_only_mode %}
+          <form method="post" action="{{ url_for('data_ask_delete', question_id=s.id) }}" class="ask-delete" onsubmit="return confirm('Delete “{{ s.name|e }}”?');">
+            <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="link-button">Delete</button>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </aside>
+  </div>
+
+  {% if asked and not error %}
+  <section class="panel ask-results" aria-labelledby="ask-results-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="ask-results-title">
+        {% if q.mode == 'summary' %}{{ '{:,}'.format(total) }} group{{ '' if total == 1 else 's' }}{% else %}{{ '{:,}'.format(total) }} matching row{{ '' if total == 1 else 's' }}{% endif %}
+      </h2>
+      <div class="ask-actions">
+        <a class="btn-secondary" href="{{ csv_url }}">Download CSV</a>
+        {% if saved_ok and not read_only_mode %}
+        <details class="ask-save">
+          <summary class="btn-secondary">Save this question</summary>
+          <form method="post" action="{{ url_for('data_ask_save') }}" class="ask-save-form">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="query" value="{{ query_string }}">
+            <label>Name <input type="text" name="name" required maxlength="120" placeholder="e.g. High chloride at Stony Brook sites"></label>
+            <label>Note (optional) <input type="text" name="description" maxlength="500"></label>
+            <button type="submit" class="btn-primary">Save</button>
+          </form>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if chart %}
+    <div class="ask-chart"><canvas id="ask-chart" aria-label="Chart of {{ chart.measure }}" role="img"></canvas></div>
+    {% if chart.truncated %}<p class="muted">Chart shows the first 8 groups; the table has all of them.</p>{% endif %}
+    {% endif %}
+
+    {% if not rows %}
+    <p class="muted">Nothing matches. Try removing a condition.</p>
+    {% else %}
+    <div class="db-table-scroll">
+      <table class="data-table db-table">
+        <thead><tr>
+          {% for key, label, unit, kind in cols %}
+          {% set is_sorted = (q.sort == key) %}
+          <th scope="col" {% if is_sorted %}aria-sort="{{ 'descending' if q.desc else 'ascending' }}"{% endif %}>
+            <a class="db-sort{% if is_sorted %} is-sorted{% endif %}" href="{{ sort_url(key) }}">{{ label }}{% if unit %} <span class="th-unit">({{ unit }})</span>{% endif %}{% if is_sorted %} {{ '▼' if q.desc else '▲' }}{% endif %}</a>
+          </th>
+          {% endfor %}
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            {% for key, label, unit, kind in cols %}
+            {% set v = r[key] %}
+            <td{% if v is number and v is not boolean %} class="num"{% endif %}>
+              {%- if v is none -%}<span class="db-null">—</span>
+              {%- elif key.endswith('_rating') -%}<span class="rating rating-{{ v|lower }}">{{ v }}</span>
+              {%- elif key == 'site' -%}<a href="/site/{{ v }}">{{ v }}</a>
+              {%- else -%}{% set s = fmt(v) %}{% if s|length > 80 %}<span title="{{ s }}">{{ s[:80] }}…</span>{% else %}{{ s }}{% endif %}
+              {%- endif -%}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if q.mode == 'rows' and pages > 1 %}
+    <nav class="db-pager" aria-label="Pages">
+      {% if q.page > 1 %}<a class="btn-secondary" href="{{ page_url(q.page - 1) }}">← Previous</a>{% endif %}
+      <span class="muted">Page {{ q.page }} of {{ '{:,}'.format(pages) }}</span>
+      {% if q.page < pages %}<a class="btn-secondary" href="{{ page_url(q.page + 1) }}">Next →</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% if q.mode == 'summary' and total > rows|length %}<p class="muted">Showing the first {{ '{:,}'.format(rows|length) }} groups; the CSV has all of them.</p>{% endif %}
+    {% endif %}
+
+    {% if sql_text %}
+    <details class="ask-sql">
+      <summary>Show the SQL behind this question</summary>
+      <pre><code>{{ sql_text }}</code></pre>
+    </details>
+    {% endif %}
+  </section>
+  {% elif not asked %}
+  <p class="muted ask-start">Choose what to look at, add any conditions, then <strong>Run question</strong>. Or start from a saved question.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var FIELDS = {{ fields_json|tojson }};
+  var DEFAULTS = {{ defaults_json|tojson }};
+  var OPS = {{ ops|tojson }};
+  var AGGS = {{ aggs|tojson }};
+  var STATE = {{ {'ds': q.ds, 'filters': q.filters, 'mode': q.mode, 'cols': q.cols, 'groups': q.groups, 'measures': q.measures}|tojson }};
+  var CHART = {{ (chart or none)|tojson }};
+
+  var form = document.getElementById('ask-form');
+  var filtersEl = document.getElementById('ask-filters');
+  var colsEl = document.getElementById('ask-cols');
+  var measuresEl = document.getElementById('ask-measures');
+  var g1 = document.getElementById('ask-group-1'), g2 = document.getElementById('ask-group-2');
+  var choiceCache = {};
+
+  function el(tag, attrs, text) {
+    var e = document.createElement(tag);
+    for (var k in (attrs || {})) { if (attrs[k] !== null && attrs[k] !== undefined) e.setAttribute(k, attrs[k]); }
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function ds() { return form.querySelector('input[name=ds]:checked').value; }
+  function fields() { return FIELDS[ds()]; }
+  function fieldOptions(select, filterFn, selected, blankLabel) {
+    select.innerHTML = '';
+    if (blankLabel) select.appendChild(el('option', { value: '' }, blankLabel));
+    Object.keys(fields()).forEach(function (k) {
+      var f = fields()[k];
+      if (filterFn && !filterFn(f)) return;
+      var o = el('option', { value: k }, f.label + (f.unit ? ' (' + f.unit + ')' : ''));
+      if (k === selected) o.selected = true;
+      select.appendChild(o);
+    });
+  }
+
+  function loadChoices(fieldKey, listId) {
+    var key = ds() + ':' + fieldKey;
+    function fill(values) {
+      var dl = document.getElementById(listId); if (!dl) return;
+      dl.innerHTML = ''; values.forEach(function (v) { dl.appendChild(el('option', { value: v })); });
+    }
+    if (choiceCache[key]) return fill(choiceCache[key]);
+    fetch('/data/ask/choices?ds=' + encodeURIComponent(ds()) + '&field=' + encodeURIComponent(fieldKey))
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (vals) { choiceCache[key] = vals; fill(vals); }).catch(function () {});
+  }
+
+  var filterSeq = 0;
+  function addFilter(f) {
+    f = f || {};
+    var id = 'flt' + (filterSeq++);
+    var row = el('div', { class: 'ask-filter' });
+    var fieldSel = el('select', { name: 'f', 'aria-label': 'Field' });
+    var opSel = el('select', { name: 'o', 'aria-label': 'Comparison' });
+    var v1 = el('input', { name: 'v', 'aria-label': 'Value', autocomplete: 'off' });
+    var and = el('span', { class: 'muted ask-and' }, 'and');
+    var v2 = el('input', { name: 'v2', 'aria-label': 'Second value', autocomplete: 'off' });
+    var dl = el('datalist', { id: id + '-list' });
+    var rm = el('button', { type: 'button', class: 'ask-remove', 'aria-label': 'Remove condition' }, '×');
+    fieldOptions(fieldSel, null, f.field);
+    function syncOps(keepOp) {
+      var fd = fields()[fieldSel.value]; var prev = keepOp || opSel.value;
+      opSel.innerHTML = '';
+      OPS[fd.type].forEach(function (p) { var o = el('option', { value: p[0] }, p[1]); if (p[0] === prev) o.selected = true; opSel.appendChild(o); });
+      syncValues();
+      if (fd.choices) { v1.setAttribute('list', id + '-list'); loadChoices(fieldSel.value, id + '-list'); } else { v1.removeAttribute('list'); }
+    }
+    function syncValues() {
+      var fd = fields()[fieldSel.value]; var op = opSel.value;
+      var t = fd.type === 'number' ? 'number' : fd.type === 'date' ? 'date' : 'text';
+      v1.type = t; v2.type = t; if (t === 'number') { v1.step = 'any'; v2.step = 'any'; }
+      var needs = !(op === 'empty' || op === 'notempty' || fd.type === 'bool');
+      v1.hidden = !needs; v1.disabled = false;
+      var between = op === 'between';
+      v2.hidden = !between; and.hidden = !between;
+      v1.placeholder = op === 'in' ? 'Comma-separated, e.g. CL2, SB10' : (fd.unit ? fd.unit : '');
+    }
+    fieldSel.addEventListener('change', function () { v1.value = ''; v2.value = ''; syncOps(); });
+    opSel.addEventListener('change', syncValues);
+    rm.addEventListener('click', function () { row.remove(); updateHint(); });
+    v1.value = f.value || ''; v2.value = f.value2 || '';
+    [fieldSel, opSel, v1, and, v2, dl, rm].forEach(function (n) { row.appendChild(n); });
+    filtersEl.appendChild(row);
+    syncOps(f.op);
+    updateHint();
+  }
+  function updateHint() { document.getElementById('ask-filter-hint').hidden = filtersEl.children.length > 0; }
+
+  function renderCols(selected) {
+    colsEl.innerHTML = '';
+    var sel = selected && selected.length ? selected : DEFAULTS[ds()];
+    Object.keys(fields()).forEach(function (k) {
+      var f = fields()[k];
+      var lab = el('label', { class: 'ask-col' });
+      var cb = el('input', { type: 'checkbox', name: 'col', value: k });
+      if (sel.indexOf(k) !== -1) cb.checked = true;
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(' ' + f.label));
+      colsEl.appendChild(lab);
+    });
+  }
+
+  function addMeasure(m) {
+    m = m || ['count', '*'];
+    var row = el('div', { class: 'ask-measure' });
+    var agg = el('select', { 'aria-label': 'Calculation' });
+    AGGS.forEach(function (a) { var o = el('option', { value: a[0] }, a[1]); if (a[0] === m[0]) o.selected = true; agg.appendChild(o); });
+    var of = el('span', { class: 'muted' }, 'of');
+    var fieldSel = el('select', { 'aria-label': 'Field to calculate' });
+    var hidden = el('input', { type: 'hidden', name: 'm' });
+    var rm = el('button', { type: 'button', class: 'ask-remove', 'aria-label': 'Remove calculation' }, '×');
+    function syncFields() {
+      var prev = fieldSel.value || m[1];
+      fieldSel.innerHTML = '';
+      if (agg.value === 'count') fieldSel.appendChild(el('option', { value: '*' }, 'rows'));
+      Object.keys(fields()).forEach(function (k) {
+        if (fields()[k].type !== 'number') return;
+        var f = fields()[k];
+        var o = el('option', { value: k }, f.label + (f.unit ? ' (' + f.unit + ')' : ''));
+        fieldSel.appendChild(o);
+      });
+      if ([].some.call(fieldSel.options, function (o) { return o.value === prev; })) fieldSel.value = prev;
+      hidden.value = agg.value + ':' + fieldSel.value;
+    }
+    agg.addEventListener('change', syncFields);
+    fieldSel.addEventListener('change', function () { hidden.value = agg.value + ':' + fieldSel.value; });
+    rm.addEventListener('click', function () { row.remove(); });
+    [agg, of, fieldSel, hidden, rm].forEach(function (n) { row.appendChild(n); });
+    measuresEl.appendChild(row);
+    syncFields();
+  }
+
+  function renderSummary(groups, measures) {
+    var groupable = function (f) { return f.group; };
+    fieldOptions(g1, groupable, groups[0], 'Nothing (overall)');
+    fieldOptions(g2, groupable, groups[1], '—');
+    measuresEl.innerHTML = '';
+    (measures && measures.length ? measures : [['count', '*']]).forEach(addMeasure);
+  }
+
+  function syncMode() {
+    var mode = form.querySelector('input[name=mode]:checked').value;
+    document.getElementById('ask-rows-opts').hidden = mode !== 'rows';
+    document.getElementById('ask-summary-opts').hidden = mode !== 'summary';
+    // Only submit the inputs for the chosen mode
+    colsEl.querySelectorAll('input').forEach(function (i) { i.disabled = mode !== 'rows'; });
+    [g1, g2].forEach(function (s) { s.disabled = mode !== 'summary'; });
+    measuresEl.querySelectorAll('input,select').forEach(function (i) { i.disabled = mode !== 'summary'; });
+  }
+
+  function renderAll(state) {
+    form.querySelectorAll('.ask-ds').forEach(function (l) { l.classList.toggle('is-selected', l.querySelector('input').checked); });
+    filtersEl.innerHTML = '';
+    (state.filters || []).forEach(addFilter);
+    renderCols(state.cols);
+    renderSummary(state.groups || [], state.measures || []);
+    syncMode();
+    updateHint();
+  }
+
+  form.querySelectorAll('input[name=ds]').forEach(function (r) {
+    r.addEventListener('change', function () { renderAll({ filters: [], cols: null, groups: [], measures: [] }); });
+  });
+  form.querySelectorAll('input[name=mode]').forEach(function (r) { r.addEventListener('change', syncMode); });
+  document.getElementById('ask-add-filter').addEventListener('click', function () { addFilter(); filtersEl.lastChild.querySelector('select').focus(); });
+  document.getElementById('ask-add-measure').addEventListener('click', function () { addMeasure(['avg', '']); syncMode(); });
+  form.addEventListener('submit', function () {
+    // Empty optional selects shouldn't become empty URL parameters
+    [g1, g2].forEach(function (s) { if (!s.value) s.disabled = true; });
+    filtersEl.querySelectorAll('input[name=v2]').forEach(function (i) { if (i.hidden) i.value = ''; });
+  });
+
+  renderAll(STATE);
+
+  if (CHART && window.Chart) {
+    var palette = ['#117bc5', '#38731a', '#c47f00', '#6fc934', '#0e7c86', '#8a5a00', '#5b6560', '#b45309'];
+    new Chart(document.getElementById('ask-chart'), {
+      type: CHART.type,
+      data: { labels: CHART.labels, datasets: CHART.series.map(function (s, i) {
+        return { label: s.name, data: s.values, borderColor: palette[i % palette.length], backgroundColor: palette[i % palette.length] + (CHART.type === 'bar' ? 'cc' : '33'),
+                 borderWidth: 2, pointRadius: CHART.labels.length > 60 ? 0 : 3, spanGaps: true, tension: 0.2 };
+      }) },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: CHART.series.length > 1, position: 'bottom' }, title: { display: true, text: CHART.measure } },
+        scales: { y: { beginAtZero: CHART.type === 'bar', grid: { color: '#eef1ec' } }, x: { grid: { display: false } } } }
+    });
+  }
+})();
+</script>
+{% endblock %}
