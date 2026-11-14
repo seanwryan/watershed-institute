@@ -62,7 +62,7 @@ def test_data_pipeline_page_route():
     resp = client.get("/data-pipeline")
     assert resp.status_code == 200
     body = resp.get_data(as_text=True)
-    assert "Data Pipeline" in body
+    assert "How data is processed" in body
     assert "ETL" in body
     assert "Pipeline reference" in body
     assert "Status overview" in body or "Data lineage" in body

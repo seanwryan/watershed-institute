@@ -46,7 +46,7 @@ class StaffUsabilityTests(unittest.TestCase):
         self.client = module.app.test_client()
 
     def test_report_search_scope_and_empty_state(self):
-        for report in ("sites", "visits", "results", "training", "assignments", "completeness"):
+        for report in ("training", "assignments", "completeness"):
             with self.subTest(report=report):
                 response = self.client.get("/reports/" + report)
                 self.assertEqual(response.status_code, 200)
@@ -59,26 +59,21 @@ class StaffUsabilityTests(unittest.TestCase):
                 else:
                     self.assertIn("not the table search or sort order", html)
                     self.assertTrue(any(link.startswith("/reports/" + report + ".csv?") for link in Links(html).links))
-                if report == "results":
-                    self.assertIn("Try a wider date range or choose all sites", html)
-                    self.assertNotIn("Try narrowing", html)
 
-    def test_results_csv_retains_report_filters(self):
-        with patch.object(self.module.rq, "results_rows", return_value=[]) as rows:
-            response = self.client.get("/reports/results?site_code=AC1&date_start=2025-01-01&date_end=2025-12-31&family=bacteria")
-            self.assertEqual(response.status_code, 200)
-            page_args = rows.call_args.kwargs
-            link = next(link for link in Links(response.get_data(as_text=True)).links if link.startswith("/reports/results.csv?"))
-            self.assertEqual(parse_qs(urlsplit(link).query)["family"], ["bacteria"])
-            download = self.client.get(link)
-            self.assertEqual(download.status_code, 200)
-            self.assertIn("attachment", download.headers["Content-Disposition"])
-            csv_args = rows.call_args.kwargs
-            for key, value in {"site_code": "AC1", "date_start": date(2025, 1, 1), "date_end": date(2025, 12, 31), "family": "bacteria"}.items():
-                self.assertEqual(page_args[key], value)
-                self.assertEqual(csv_args[key], value)
-            self.assertEqual(page_args["limit"], 400)
-            self.assertIsNone(csv_args["limit"])
+    def test_retired_reports_redirect_with_filters(self):
+        cases = {
+            "/reports": "/data",
+            "/reports/sites?status=inactive": "/sites?status=inactive",
+            "/reports/visits?site_code=AC1": "/data/visit?site=AC1",
+            "/reports/visits.csv?site_code=AC1": "/data/visit.csv?site=AC1",
+            "/reports/results?site_code=AC1&family=bacteria": "/data/bacteria?site=AC1",
+            "/reports/results.csv?site_code=AC1&family=chemistry": "/data/chemical.csv?site=AC1",
+        }
+        for old, new in cases.items():
+            with self.subTest(old=old):
+                response = self.client.get(old)
+                self.assertEqual(response.status_code, 301)
+                self.assertTrue(response.headers["Location"].endswith(new), response.headers["Location"])
 
     def test_three_modes_preserve_staff_visibility_and_write_blocking(self):
         from dashboard.test_access_modes import test_all_write_routes_block_before_database
@@ -98,7 +93,7 @@ class StaffUsabilityTests(unittest.TestCase):
         os.environ["PUBLIC_DEMO_MODE"] = "true"
         for route in ("/volunteers", "/api/volunteers", "/equipment", "/api/equipment", "/reports/training", "/reports/training.csv", "/reports/assignments", "/reports/assignments.csv"):
             self.assertEqual(self.client.get(route).status_code, 404, route)
-        self.assertEqual(self.client.get("/reports/sites").status_code, 200)
+        self.assertEqual(self.client.get("/sites").status_code, 200)
 
     def test_access_count_checks_accept_refreshed_dataset(self):
         from dashboard import test_access_modes as access
@@ -115,7 +110,7 @@ class StaffUsabilityTests(unittest.TestCase):
         self.assertEqual(cursor.execute.call_count, len(counts) * 2)
 
     def test_reference_and_browse_routes_still_render(self):
-        for route in ("/", "/sites", "/site/AC1", "/explore", "/qa", "/reports", "/methods", "/data-pipeline", "/scores", "/imports", "/imports/bact", "/imports/hab", "/export", "/volunteers", "/equipment", "/equipment/TEST"):
+        for route in ("/", "/sites", "/site/AC1", "/explore", "/qa", "/methods", "/data-pipeline", "/scores", "/imports", "/imports/bact", "/imports/hab", "/export", "/volunteers", "/equipment", "/equipment/TEST"):
             self.assertEqual(self.client.get(route).status_code, 200, route)
         html = self.client.get("/methods").get_data(as_text=True)
         self.assertIn('href="/data-pipeline"', html)

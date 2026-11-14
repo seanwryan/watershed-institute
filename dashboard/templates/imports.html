@@ -1,52 +1,54 @@
 {% extends "base.html" %}
-{% block title %}StreamWatch – Data imports{% endblock %}
+{% block title %}StreamWatch – Season files{% endblock %}
 {% block content %}
 <div class="page-monitoring page-reporting">
-  <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="/reports">Reports</a>
-    <span class="breadcrumb-sep" aria-hidden="true">/</span>
-    <span aria-current="page">Data imports</span>
-  </nav>
-
   <header class="page-header">
-    <h1>Data imports</h1>
+    <h1>Season files</h1>
     <p class="page-subtitle">
-      Review incoming StreamWatch data before adding it to the database.
-      Inspect seasonal sources, preserve review history, or compare a workbook to current monitoring records.
+      Tools for the workbooks each monitoring season produces. Upload a file to review it against StreamWatch.
+      None of these tools change monitoring data; the source review only saves the file and your review notes.
     </p>
   </header>
 
+  <h2 class="season-section-title">BACT &amp; HAB season workbook</h2>
+  <p class="muted season-section-blurb">The <span class="mono">BACT and HAB &lt;year&gt; Data.xlsx</span> workbook used during the season.</p>
   <div class="reports-directory">
     {% if not public_demo_mode %}
-    <article class="panel report-card">
-      <h2 class="home-panel-title">Seasonal source workspace</h2>
-      <p>Start with the seasonal BACT and HAB source workbook. Inspect all five data sheets, preserve the original file, and record what staff checked or placed on hold.</p>
-      <a class="btn-primary" href="/imports/bact/workspace">Open seasonal source review</a>
+    <article class="panel report-card report-card-primary">
+      <h3 class="home-panel-title">Source review <span class="db-chip">Start here</span></h3>
+      <p>Inspect all five data sheets (Survey123, IDEXX, Gallery, Turbidity, Phycocyanin), keep the original file, and record what was checked or put on hold.</p>
+      <a class="btn-primary" href="/imports/bact/workspace">Open source review</a>
     </article>
     {% endif %}
     <article class="panel report-card">
-      <h2 class="home-panel-title">BACT season data</h2>
-      <p class="muted">
-        Survey123 field observations and IDEXX bacteria results from a BACT workbook
-        (including <span class="mono">BACT and HAB 2026 Data.xlsx</span>).
-        Gallery, turbidity, and phycocyanin sheets are not included in this review.
-      </p>
-      <a class="btn-primary" href="/imports/bact">Review BACT workbook</a>
+      <h3 class="home-panel-title">Compare to database</h3>
+      <p class="muted">See how Survey123 field rows and IDEXX bacteria results line up with visits already in StreamWatch, before anything is added.</p>
+      <a class="btn-secondary" href="/imports/bact">Compare workbook</a>
     </article>
-
     <article class="panel report-card">
-      <h2 class="home-panel-title">BAT lab &amp; habitat data</h2>
-      <p class="muted">Review lab bug counts and volunteer habitat records. Inspect site/date overlaps, existing visits, and exact taxon-name references before planning an import.</p>
-      <a class="btn-primary" href="/imports/bat">Review BAT files</a>
+      <h3 class="home-panel-title">HAB status</h3>
+      <p class="muted">Work out each bloom follow-up's HAB status from the Phycocyanin and Survey123 sheets, using the workbook's own formulas.</p>
+      <a class="btn-secondary" href="/imports/hab">Check HAB status</a>
     </article>
+  </div>
 
+  <h2 class="season-section-title">BACT Analysis workbook</h2>
+  <p class="muted season-section-blurb">The calculated <span class="mono">&lt;year&gt; BACT Analysis.xlsx</span> workbook.</p>
+  <div class="reports-directory">
     <article class="panel report-card">
-      <h2 class="home-panel-title">HAB status</h2>
-      <p class="muted">
-        Preview-only derivation of HAB Status from PHYCOCYANIN and SURVEY123 sheets
-        (METADATA formulas dated 2025-06-09). Does not store phycocyanin in the database.
-      </p>
-      <a class="btn-primary" href="/imports/hab">Review HAB status</a>
+      <h3 class="home-panel-title">Season scores</h3>
+      <p class="muted">Score each site's season with Watershed's BACT rating rules, using the workbook's weekly values. Program scores, not regulatory compliance.</p>
+      <a class="btn-secondary" href="/reports/bact">Score a workbook</a>
+    </article>
+  </div>
+
+  <h2 class="season-section-title">BAT lab results &amp; habitat forms</h2>
+  <p class="muted season-section-blurb">The lab's bug-count CSV and the volunteer habitat form export.</p>
+  <div class="reports-directory">
+    <article class="panel report-card">
+      <h3 class="home-panel-title">Review BAT files</h3>
+      <p class="muted">Check lab bug counts and habitat records together: matching visits, sites, and taxon names.</p>
+      <a class="btn-secondary" href="/imports/bat">Review BAT files</a>
     </article>
   </div>
 </div>

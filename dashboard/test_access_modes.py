@@ -73,7 +73,7 @@ def test_route_classification_complete():
     app = _load_app()
     routes = verify_route_classification(app)
     assert {endpoint for endpoint, _, _ in routes} == PREVIEW_POST_ENDPOINTS | WRITE_ENDPOINTS
-    assert len(WRITE_ENDPOINTS) == 23
+    assert len(WRITE_ENDPOINTS) == 25  # +2 (2026-11): save / delete Ask-the-data questions
     assert len(PREVIEW_POST_ENDPOINTS) == 5
     assert not (WRITE_ENDPOINTS & PREVIEW_POST_ENDPOINTS)
 
@@ -139,7 +139,7 @@ def test_public_demo_blocks_staff_routes():
         resp = client.get(path)
         assert resp.status_code == 404, f"{path} -> {resp.status_code}"
 
-    allowed = ["/", "/sites", "/reports", "/reports/sites", "/export", "/explore"]
+    allowed = ["/", "/sites", "/map", "/scores", "/export", "/explore"]
     for path in allowed:
         resp = client.get(path)
         assert resp.status_code in (200, 503), f"{path} -> {resp.status_code}"
