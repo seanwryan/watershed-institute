@@ -16,6 +16,10 @@ from flask import jsonify, render_template, request
 STAFF_ONLY_ENDPOINTS = frozenset(
     {
         "method_reference_edit",
+        # Data browser shows volunteer names and every table; staff only
+        "data_browser_page",
+        "data_table_page",
+        "data_table_csv",
         "imports_bact_workspace",
         "imports_bact_source_preview",
         "imports_bact_source_preview_page",
