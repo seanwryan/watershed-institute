@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections import Counter, defaultdict
+from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -53,6 +54,9 @@ BIO_COLUMNS = {
     "CPMI": ("cpmi_score", float),
     "FBI": ("fbi", float),
 }
+
+# New sites are active only if sampled since this date (matches existing sites).
+ACTIVE_SINCE = date(2021, 1, 1)
 
 # Master site code -> existing DB code (same site, different case). Applied 2026-11-14.
 SITE_ALIASES = {"ELY": "Ely"}
@@ -250,6 +254,11 @@ def run(path: Path, apply: bool, replace_computed_bio: bool = False) -> dict:
         waterbodies = dict(cur.fetchall())
 
         master_codes = {(_str(c) or "") for c in df["Site"].dropna()}
+        last_sample: Dict[str, object] = {}
+        for _, r in df.iterrows():
+            c, dd = _str(col(r, "Site")), _date(col(r, "Date"))
+            if c and dd and (c not in last_sample or dd > last_sample[c]):
+                last_sample[c] = dd
         new_site_codes = set()
         alias: Dict[str, str] = {k: v for k, v in SITE_ALIASES.items() if v in site_map}
         for code in sorted(master_codes):
@@ -262,10 +271,13 @@ def run(path: Path, apply: bool, replace_computed_bio: bool = False) -> dict:
                 continue
             info = master_sites.get(code, {})
             lat, lon = info.get("Latitude"), info.get("Longitude")
+            # Same convention as existing sites: active means sampled since ACTIVE_SINCE.
+            last = last_sample.get(code)
+            active = bool(last and last >= ACTIVE_SINCE)
             cur.execute(
                 """INSERT INTO site (site_code, is_active, waterbody_id, description, latitude, longitude, notes)
-                   VALUES (%s, true, %s, %s, %s, %s, %s) RETURNING site_id""",
-                (code, waterbodies.get(info.get("Waterbody")), info.get("Description"),
+                   VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING site_id""",
+                (code, active, waterbodies.get(info.get("Waterbody")), info.get("Description"),
                  lat if isinstance(lat, (int, float)) else None,
                  lon if isinstance(lon, (int, float)) else None,
                  "Added 2026-11-14 from All StreamWatch Data SITES sheet" + ("" if info else " (not in SITES sheet)")),

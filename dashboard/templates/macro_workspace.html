@@ -55,6 +55,9 @@
         {% if summary.scores.njis_score is not none %}
         <li><span class="metric-label">NJIS</span> <span class="num">{{ summary.scores.njis_score }}{% if summary.scores.njis_rating %} · {{ summary.scores.njis_rating }}{% endif %}</span></li>
         {% endif %}
+        {% if summary.scores.cpmi_score is not none %}
+        <li><span class="metric-label">CPMI</span> <span class="num">{{ summary.scores.cpmi_score }}{% if summary.scores.cpmi_rating %} · {{ summary.scores.cpmi_rating }}{% endif %}</span></li>
+        {% endif %}
         {% if summary.scores.hbi is not none %}
         <li><span class="metric-label">HBI</span> <span class="num">{{ summary.scores.hbi }}</span></li>
         {% endif %}
@@ -65,7 +68,7 @@
         <li><span class="metric-label">Dominant taxon</span> {{ summary.scores.dominant_taxon }}</li>
         {% endif %}
       </ul>
-      <p class="form-help" style="margin-top:0.75rem;">Scores are system-calculated from organism counts (and historical RBP100 rows when present). They are not edited here.</p>
+      <p class="form-help" style="margin-top:0.75rem;">Scores come from the reviewed All StreamWatch Data workbook; ratings use the 2026 Assessment Framework bands. They are not recalculated from the counts below.</p>
       {% else %}
       <p class="muted">Scores are not yet available for this sample.</p>
       {% endif %}

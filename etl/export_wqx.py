@@ -35,7 +35,7 @@ CHEM_COLUMNS = [
 ]
 PARAM_MAP = {
     "water_temp_c": ("Temperature, water", "deg C"),
-    "nitrate_ug_l": ("Nitrate", "ug/L"),
+    "nitrate_ug_l": ("Nitrate", "mg/L"),  # stored in mg/L as N despite the column name
     "phosphate_mg_l": ("Phosphate", "mg/L"),
     "ph": ("pH", "None"),
     "turbidity_ntu": ("Turbidity", "NTU"),

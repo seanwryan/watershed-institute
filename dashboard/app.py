@@ -228,7 +228,7 @@ def api_qa_summary():
         return err
     try:
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM chemical c JOIN data_condition dc ON dc.data_condition_id = c.data_condition_id WHERE dc.code = 'Flagged'")
+        cur.execute(FLAGGED_CHEMISTRY_SQL)
         flagged = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM result_flag WHERE flag_type_id IN (SELECT flag_type_id FROM flag_type WHERE code = 'Exceedance')")
         exceedance = cur.fetchone()[0]
@@ -260,11 +260,7 @@ def api_home_summary():
         chemistry = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM result_flag")
         qa_flags = cur.fetchone()[0]
-        cur.execute(
-            "SELECT COUNT(*) FROM chemical c "
-            "JOIN data_condition dc ON dc.data_condition_id = c.data_condition_id "
-            "WHERE dc.code = 'Flagged'"
-        )
+        cur.execute(FLAGGED_CHEMISTRY_SQL)
         flagged_chemistry = cur.fetchone()[0]
         cur.execute(
             "SELECT COUNT(*) FROM result_flag WHERE flag_type_id IN "
@@ -408,10 +404,18 @@ def api_flag_types():
         conn.close()
 
 
+# Chemistry whose Data Condition includes "Flagged", alone or combined (e.g. "Flagged; Incomplete").
+FLAGGED_CHEMISTRY_SQL = (
+    "SELECT COUNT(*) FROM chemical c "
+    "LEFT JOIN data_condition dc ON dc.data_condition_id = c.data_condition_id "
+    "WHERE dc.code = 'Flagged' OR c.source_data_condition ~ '(^|; )Flagged(;|$)'"
+)
+
+
 # Regulatory thresholds (DataDictionary / 30-yr analysis) for optional chart lines
 THRESHOLDS = {
     "water_temp_c": 31,
-    "nitrate_ug_l": 10000,  # 10 ppm
+    "nitrate_ug_l": 10,  # 10 ppm; column holds mg/L despite its name
     "phosphate_mg_l": None,
     "ph": None,
     "turbidity_ntu": None,
@@ -550,7 +554,7 @@ def api_parameters():
     """List available parameters for time series dropdown (human labels + units)."""
     return jsonify([
         {"id": "water_temp_c", "label": "Water temperature", "unit": "°C"},
-        {"id": "nitrate_ug_l", "label": "Nitrate", "unit": "µg/L"},
+        {"id": "nitrate_ug_l", "label": "Nitrate", "unit": "mg/L"},
         {"id": "phosphate_mg_l", "label": "Phosphate", "unit": "mg/L"},
         {"id": "ph", "label": "pH", "unit": ""},
         {"id": "turbidity_ntu", "label": "Turbidity", "unit": "NTU"},
@@ -1319,7 +1323,7 @@ _CHEM_FORM_FIELDS = [
     ("water_temp_c", "Water temperature (°C)"),
     ("dissolved_oxygen_ppm", "Dissolved oxygen (mg/L)"),
     ("dissolved_oxygen_pct", "Dissolved oxygen saturation (%)"),
-    ("nitrate_ug_l", "Nitrate (µg/L)"),
+    ("nitrate_ug_l", "Nitrate (mg/L)"),
     ("phosphate_mg_l", "Phosphate (mg/L)"),
     ("ph", "pH"),
     ("turbidity_ntu", "Turbidity (NTU)"),
@@ -1331,7 +1335,7 @@ _CHEM_PARAM_LABELS = {k: label for k, label in _CHEM_FORM_FIELDS}
 
 _CHEM_QA_THRESHOLDS = (
     ("water_temp_c", 31, "Water temperature exceeds 31°C (existing StreamWatch review threshold)."),
-    ("nitrate_ug_l", 10000, "Nitrate exceeds 10,000 µg/L (~10 ppm) (existing StreamWatch review threshold)."),
+    ("nitrate_ug_l", 10, "Nitrate exceeds 10 mg/L (10 ppm drinking-water standard)."),
 )
 
 
@@ -3070,7 +3074,8 @@ def _load_macro_summary(cur, visit_id):
     cur.execute(
         """
         SELECT total_organisms, total_taxa, hgmi_genus, hgmi_family, hgmi_rating,
-               njis_score, njis_rating, hbi, fbi, dominant_taxon, pct_dominance
+               njis_score, njis_rating, hbi, fbi, dominant_taxon, pct_dominance,
+               cpmi_score, cpmi_rating
         FROM macro_analysis
         WHERE visit_id = %s
         """,
@@ -3091,6 +3096,8 @@ def _load_macro_summary(cur, visit_id):
             "fbi": float(m[8]) if m[8] is not None else None,
             "dominant_taxon": m[9],
             "pct_dominance": float(m[10]) if m[10] is not None else None,
+            "cpmi_score": float(m[11]) if m[11] is not None else None,
+            "cpmi_rating": m[12],
         }
     return {
         "has_counts": taxa > 0,
@@ -3933,6 +3940,13 @@ def _qa_review_response(export=False):
         flag_types = [r[0] for r in cur.fetchall()]
         cur.execute("SELECT code FROM data_condition ORDER BY code")
         conditions = [r[0] for r in cur.fetchall()]
+        # Combined workbook conditions such as "Outlier; Incomplete" (stored as text).
+        cur.execute(
+            "SELECT source_data_condition FROM chemical WHERE source_data_condition IS NOT NULL "
+            "UNION SELECT source_data_condition FROM bacteria WHERE source_data_condition IS NOT NULL "
+            "ORDER BY 1"
+        )
+        conditions += [r[0] for r in cur.fetchall()]
         return render_template("qa_review.html", error=None, filters=filters, rows=rows,
                                total=total, page=page, sites=sites, flag_types=flag_types,
                                conditions=conditions, parameters=qr.PARAMETERS,

@@ -246,34 +246,60 @@
       <h2 class="home-panel-title" id="visit-macro-title">Macroinvertebrates</h2>
       <a class="home-panel-action" href="/visits/{{ visit.visit_id }}/macro">Manage counts</a>
     </div>
-    {% if not macro_summary or not macro_summary.has_counts %}
-    <p class="muted">No macroinvertebrate counts recorded for this visit.</p>
-    {% else %}
+    {% set sc = macro_summary.scores if macro_summary else none %}
+    {% if sc %}
     <div class="snapshot-grid">
+      {% if sc.hgmi_genus is not none %}
       <div>
-        <span class="metric-label">Total organisms</span>
-        <span class="snapshot-value">{{ macro_summary.total_organisms }}</span>
-      </div>
-      <div>
-        <span class="metric-label">Taxa</span>
-        <span class="snapshot-value">{{ macro_summary.taxa_count }}</span>
-      </div>
-      {% if macro_summary.scores and macro_summary.scores.hgmi_rating %}
-      <div>
-        <span class="metric-label">HGMI</span>
-        <span class="snapshot-value">{{ macro_summary.scores.hgmi_rating }}</span>
+        <span class="metric-label">HGMI (genus)</span>
+        <span class="snapshot-value">{{ '%.1f'|format(sc.hgmi_genus) }}</span>
+        {% if sc.hgmi_rating %}<span class="muted">{{ sc.hgmi_rating }}</span>{% endif %}
       </div>
       {% endif %}
-      {% if macro_summary.scores and macro_summary.scores.njis_rating %}
+      {% if sc.hgmi_family is not none %}
+      <div>
+        <span class="metric-label">HGMI (family)</span>
+        <span class="snapshot-value">{{ '%.1f'|format(sc.hgmi_family) }}</span>
+        {% if sc.hgmi_genus is none and sc.hgmi_rating %}<span class="muted">{{ sc.hgmi_rating }}</span>{% endif %}
+      </div>
+      {% endif %}
+      {% if sc.njis_score is not none %}
       <div>
         <span class="metric-label">NJIS</span>
-        <span class="snapshot-value">{{ macro_summary.scores.njis_rating }}</span>
+        <span class="snapshot-value">{{ '%.1f'|format(sc.njis_score) }}</span>
+        {% if sc.njis_rating %}<span class="muted">{{ sc.njis_rating }}</span>{% endif %}
+      </div>
+      {% endif %}
+      {% if sc.cpmi_score is not none %}
+      <div>
+        <span class="metric-label">CPMI</span>
+        <span class="snapshot-value">{{ '%.1f'|format(sc.cpmi_score) }}</span>
+        {% if sc.cpmi_rating %}<span class="muted">{{ sc.cpmi_rating }}</span>{% endif %}
+      </div>
+      {% endif %}
+      {% if sc.fbi is not none %}
+      <div>
+        <span class="metric-label">FBI</span>
+        <span class="snapshot-value">{{ '%.2f'|format(sc.fbi) }}</span>
+      </div>
+      {% endif %}
+      {% if sc.total_organisms %}
+      <div>
+        <span class="metric-label">Organisms</span>
+        <span class="snapshot-value">{{ sc.total_organisms }}</span>
       </div>
       {% endif %}
     </div>
-    {% if not macro_summary.scores %}
-    <p class="muted" style="margin-top:0.65rem;">Scores are not yet available for this sample.</p>
+    <p class="muted" style="margin-top:0.65rem;">Scores from the reviewed StreamWatch dataset; ratings use the 2026 Assessment Framework bands.</p>
     {% endif %}
+    {% if macro_summary and macro_summary.has_counts %}
+    <p style="margin-top:0.65rem;">Taxon counts: {{ macro_summary.taxa_count }} taxa, {{ macro_summary.total_organisms }} organisms.</p>
+    {% elif sc %}
+    <p class="muted">No taxon-level counts are stored for this sample.</p>
+    {% else %}
+    <p class="muted">No macroinvertebrate results recorded for this visit.</p>
+    {% endif %}
+    {% if sc or (macro_summary and macro_summary.has_counts) %}
     <p style="margin-top:0.75rem;">
       <a class="btn-secondary" href="/visits/{{ visit.visit_id }}/macro">Manage counts</a>
       <a class="btn-secondary" href="/scores?site_code={{ visit.site_code }}">View Scores</a>
