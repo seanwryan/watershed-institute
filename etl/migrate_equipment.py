@@ -298,20 +298,24 @@ def run():
             equipment_code_to_id[meter_id] = eq_id
             accepted_equipment += 1
 
-        for _, row in sensors_df.iterrows():
-            meter_id = _str(row.get("Meter ID") or row.get("MeterID"))
-            if meter_id:
-                meter_id = meter_id.upper()
-            if not meter_id or meter_id not in equipment_code_to_id:
+        # Sensors: headings are on the sheet's second row, so use the dedicated
+        # reader (etl/load_meter_sensors.py). One DO/pH/EC sensor per meter.
+        from etl.load_meter_sensors import SENSOR_COLUMNS, read_sensor_sheet
+        for rec in read_sensor_sheet(EQUIPMENT_FILE):
+            eq_id = equipment_code_to_id.get(rec["meter"])
+            if not eq_id:
                 continue
-            eq_id = equipment_code_to_id[meter_id]
-            for param, sensor_type in (("DO", "DO"), ("pH", "pH"), ("EC", "EC")):
-                col = _str(row.get(f"Date last changed {param}") or row.get(f"{param}") or row.get("DO sensor") or row.get("pH sensor") or row.get("EC sensor"))
-                date_installed = _date(col) if col else None
-                if date_installed or param in str(row.keys()):
-                    cur.execute("""
-                        INSERT INTO sensor (equipment_id, sensor_type, date_installed) VALUES (%s, %s::sensor_type_enum, %s)
-                        """, (eq_id, param, date_installed))
+            for sensor_type in SENSOR_COLUMNS:
+                cur.execute(
+                    "SELECT 1 FROM sensor WHERE equipment_id = %s AND sensor_type = %s::sensor_type_enum",
+                    (eq_id, sensor_type),
+                )
+                if cur.fetchone():
+                    continue
+                cur.execute(
+                    "INSERT INTO sensor (equipment_id, sensor_type, date_installed) VALUES (%s, %s::sensor_type_enum, %s)",
+                    (eq_id, sensor_type, rec[sensor_type]),
+                )
 
         testing_sheets_found = []
         sessions_created = 0

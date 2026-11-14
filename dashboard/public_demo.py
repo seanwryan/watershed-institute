@@ -21,6 +21,7 @@ STAFF_ONLY_ENDPOINTS = frozenset(
         "data_table_page",
         "data_table_csv",
         "data_ask_page",
+        "data_audit_page",
         "data_ask_csv",
         "data_ask_choices",
         "data_ask_save",
