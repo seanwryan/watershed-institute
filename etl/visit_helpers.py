@@ -82,6 +82,28 @@ def ensure_visit(cur, site_id, sample_date, sample_time=None, sample_code=None, 
     return cur.fetchone()[0]
 
 
+def ensure_method_visit(cur, site_id, sample_date, method_id):
+    """Insert or get the visit for one site, date and method; return visit_id.
+
+    A visit is one team's sampling event, so CAT, BACT, BAT and Salt Watch on
+    the same site and day are separate visits. (ensure_visit matches on site
+    and date only, which merged them; see etl/fill_master_gaps.py.)
+    """
+    cur.execute(
+        "SELECT visit_id FROM visit WHERE site_id = %s AND sample_date = %s "
+        "AND method_id IS NOT DISTINCT FROM %s ORDER BY visit_id LIMIT 1",
+        (site_id, sample_date, method_id),
+    )
+    row = cur.fetchone()
+    if row:
+        return row[0]
+    cur.execute(
+        "INSERT INTO visit (site_id, sample_date, method_id) VALUES (%s, %s, %s) RETURNING visit_id",
+        (site_id, sample_date, method_id),
+    )
+    return cur.fetchone()[0]
+
+
 def insert_chemical(cur, visit_id, data_condition_id=None, method_id=None, **kwargs):
     """Insert one chemical row. kwargs: air_temp_c, water_temp_c, nitrate_ug_l, phosphate_mg_l, ph, turbidity_ntu, dissolved_oxygen_ppm, conductivity_us_cm, chloride_mg_l."""
     cols = ["visit_id", "data_condition_id", "method_id"]

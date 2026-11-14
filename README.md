@@ -22,9 +22,14 @@ Centralized PostgreSQL database, ETL, QA, reporting, and dashboard for the Strea
    python -m etl.migrate_streamwatch_data
    python -m etl.migrate_bact_2025
    python -m etl.migrate_bat
-   python -m etl.biological_indices
+   python -m etl.fill_master_gaps --replace-computed-bio --apply
+   python -m etl.load_bat_habitat --apply
+   python -m etl.fill_site_details --apply
+   python -m etl.backfill_source_conditions --apply
+   python -m etl.rate_bio_scores --apply
    python -m etl.apply_qa_rules
    ```
+   See `docs/OPERATIONS_RUNBOOK.md` section 2 for why each step is there. Tests: `pip install -r requirements-dev.txt && python -m pytest etl dashboard`.
 
 3. **WQX export**
    ```bash

@@ -101,16 +101,25 @@ python -m etl.migrate_equipment
 python -m etl.migrate_streamwatch_data
 python -m etl.migrate_bact_2025
 python -m etl.migrate_bat
-python -m etl.biological_indices
+
+# Full rebuild order (added 2026-11-14). Each script is a dry run without --apply.
+python -m etl.fill_master_gaps --replace-computed-bio --apply   # sites, bug scores, habitat, Notes
+python -m etl.load_bat_habitat --apply                           # RBP habitat form export
+python -m etl.fill_site_details --apply                          # towns, drainage (sq mi -> km2), habitat type
+python -m etl.backfill_source_conditions --apply                 # combined Data Conditions as text
+python -m etl.rate_bio_scores --apply                            # 2026 framework rating bands
 python -m etl.apply_qa_rules
 ```
 
 Order notes:
 
 - Sites must precede visits/results (foreign keys).
+- Visits are one per site + date + method (`ensure_method_visit`), so CAT, BACT, BAT and Salt Watch on the same day stay separate.
 - Chemistry before BACT (Survey123 enrich / IDEXX attach to existing visits).
-- BAT before biological indices.
-- Indices then QA (QA flags chemistry; indices use bug tables).
+- `migrate_bat` (taxon counts) before `fill_master_gaps`, which adds the workbook's bug-index scores to the same BAT visits.
+- **Do not run `etl.biological_indices`** in a rebuild. Its formulas are simplified and unvalidated, and the workbook scores are the reviewed values (see section 10).
+- `backfill_source_conditions` after everything that inserts results; `rate_bio_scores` after scores exist.
+- Every 2026-11-14 script is safe to re-run; a second run changes nothing.
 - Root `README.md` uses this same rebuild sequence.
 
 ### Expected `streamwatch_demo` baselines (final workbook rebuild)
@@ -406,11 +415,11 @@ recalculation.
 
 ## 10. Biological indices
 
-**Command:** `python -m etl.biological_indices`  
-**Script:** `etl/biological_indices.py`  
-**UI:** `/scores` and per-visit macro workspace (recalculate one visit)
+**Stored scores come from All StreamWatch Data** (`etl/fill_master_gaps.py`), with ratings from the 2026 Assessment Framework bands (`etl/rate_bio_scores.py`).
 
-### Behavior
+`etl/biological_indices.py` is a simplified calculation ("match BugCountsInfo formulas in production") that disagrees with the workbook (e.g. NJIS above its 30-point maximum). It is **not** part of the rebuild, and the web app no longer runs it after taxon edits unless `MACRO_AUTO_RECALC=true`. Keep it off until the formulas follow BugCountsInfo and reproduce Watershed's scores.
+
+### Behavior of `etl/biological_indices.py` (not currently used)
 
 - Writes/upserts `macro_analysis` on `visit_id`
 - Prefers `rbp100_bug` when subsample total qualifies (≥ 50); else non-excluded `bug_count`
