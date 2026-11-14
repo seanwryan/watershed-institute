@@ -6,7 +6,9 @@ Populates visit (from sample events), bug_list, bug_count, and rbp100_bug.
 Run migrate_sites first. BugList sheet/table must exist or be provided.
 
 Idempotency (application-level; no new UNIQUE constraints):
-  - visit: ensure_visit on (site_id, sample_date, sample_code)
+  - visit: resolve_bat_visit on (site_id, sample_date, sample_code); visits are
+    tagged method BAT and reuse an existing un-coded BAT visit at the same
+    site/date instead of creating a duplicate
   - bug_list: ON CONFLICT (bug_code) DO NOTHING
   - bug_count: skip when (visit_id, bug_id) already exists
     (source tblBugResults has one row per SampleID+BugID)
@@ -26,8 +28,60 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from etl.config import DATA_DIR
-from etl.db import get_conn
-from etl.visit_helpers import get_site_id_map, ensure_visit, _str, _int, _float, _date
+from etl.db import ensure_lookup, get_conn
+from etl.visit_helpers import get_site_id_map, _str, _int, _float, _date
+
+
+def resolve_bat_visit(cur, bat_method_id, site_id, sample_date, sample_code):
+    """Return (visit_id, created) for a BAT sample.
+
+    Match order:
+      1. A visit with the same site, date and sample_code (re-runs). If it has
+         no method yet, tag it BAT.
+      2. A BAT visit at the same site/date with no sample_code (created from the
+         All-Data workbook): reuse it and record the sample_code.
+      3. Otherwise create a new visit tagged BAT.
+    """
+    cur.execute(
+        """
+        SELECT visit_id, method_id FROM visit
+        WHERE site_id = %s AND sample_date = %s
+          AND (sample_code IS NOT DISTINCT FROM %s)
+        LIMIT 1
+        """,
+        (site_id, sample_date, sample_code),
+    )
+    found = cur.fetchone()
+    if found:
+        if found[1] is None:
+            cur.execute(
+                "UPDATE visit SET method_id = %s WHERE visit_id = %s", (bat_method_id, found[0])
+            )
+        return found[0], False
+
+    cur.execute(
+        """
+        SELECT visit_id FROM visit
+        WHERE site_id = %s AND sample_date = %s
+          AND method_id = %s AND sample_code IS NULL
+        """,
+        (site_id, sample_date, bat_method_id),
+    )
+    unnamed = cur.fetchall()
+    if len(unnamed) == 1:
+        visit_id = unnamed[0][0]
+        if sample_code:
+            cur.execute(
+                "UPDATE visit SET sample_code = %s WHERE visit_id = %s", (sample_code, visit_id)
+            )
+        return visit_id, False
+
+    cur.execute(
+        "INSERT INTO visit (site_id, sample_date, sample_code, method_id) "
+        "VALUES (%s, %s, %s, %s) RETURNING visit_id",
+        (site_id, sample_date, sample_code, bat_method_id),
+    )
+    return cur.fetchone()[0], True
 
 
 def run():
@@ -112,6 +166,8 @@ def run():
         cur.execute("SELECT visit_id, bug_id FROM rbp100_bug")
         existing_rbp100 = {(r[0], r[1]) for r in cur.fetchall()}
 
+        bat_method_id = ensure_lookup(conn, "lst_method", "method_id", "name", "BAT")
+
         # tblSampleDates
         if "tblSampleDates" in xl.sheet_names:
             sample_df = pd.read_excel(tbl_file, sheet_name="tblSampleDates")
@@ -128,24 +184,10 @@ def run():
                     stats["skipped_unresolved_site"] += 1
                     continue
 
-                cur.execute(
-                    """
-                    SELECT visit_id FROM visit
-                    WHERE site_id = %s AND sample_date = %s
-                      AND (sample_code IS NOT DISTINCT FROM %s)
-                    LIMIT 1
-                    """,
-                    (site_id, sample_date, sample_code),
+                visit_id, created = resolve_bat_visit(
+                    cur, bat_method_id, site_id, sample_date, sample_code
                 )
-                found = cur.fetchone()
-                if found:
-                    visit_id = found[0]
-                    stats["visits_existing"] += 1
-                else:
-                    visit_id = ensure_visit(
-                        cur, site_id, sample_date, None, sample_code, None, None
-                    )
-                    stats["visits_created"] += 1
+                stats["visits_created" if created else "visits_existing"] += 1
                 visit_id_by_sample_id[_int(row.get("SampleID"))] = visit_id
 
             # tblBugResults -> bug_count
