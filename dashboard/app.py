@@ -70,12 +70,14 @@ from etl.hab_status import preview_hab_workbook
 import report_queries as rq
 from read_only import register_read_only
 from public_demo import register_public_demo, is_public_demo_mode
+from staff_auth import register_staff_auth
 
 # Strip quotes so pasting 'postgresql://...' in Render Environment still works
 _raw = os.getenv("DATABASE_URL", "postgresql://localhost/streamwatch") or ""
 DATABASE_URL = _raw.strip().strip("'\"").strip()
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
+register_staff_auth(app)  # first, so sign-in is checked before anything else
 register_read_only(app)
 register_public_demo(app)
 # Restarting without a configured SECRET_KEY invalidates open editing forms safely.
@@ -3207,8 +3209,21 @@ def _bug_count_exists(cur, visit_id, bug_id, exclude_bug_count_id=None):
     return cur.fetchone() is not None
 
 
+def macro_auto_recalc_enabled() -> bool:
+    return (os.getenv("MACRO_AUTO_RECALC") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _recalc_visit_macro(conn, visit_id):
-    """Recalculate macro_analysis for one visit; clear if insufficient."""
+    """Recalculate macro_analysis for one visit after a taxon edit.
+
+    Off by default. Stored scores come from the reviewed All StreamWatch Data
+    workbook, while etl.biological_indices is a simplified, unvalidated
+    calculation that would overwrite them (or delete them on visits that have
+    scores but no taxon counts). Set MACRO_AUTO_RECALC=true only once the
+    formulas match BugCountsInfo and have been checked against Watershed scores.
+    """
+    if not macro_auto_recalc_enabled():
+        return False
     return calculate_visit_indices(conn, visit_id, clear_if_empty=True)
 
 
