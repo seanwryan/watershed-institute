@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – {{ info.label }}{% endblock %}
+{% macro page_url(p) -%}{{ url_for('data_table_page', table=table, page=p, **base_args) }}{%- endmacro %}
+{% macro sort_url(col, desc) -%}{% set a = dict(base_args) %}{% set _ = a.update({'sort': ('-' if desc else '') ~ col}) %}{% set _ = a.pop('page', none) %}{{ url_for('data_table_page', table=table, **a) }}{%- endmacro %}
+{% block content %}
+<div class="page-monitoring data-browser">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="{{ url_for('data_browser_page') }}">Data browser</a> <span aria-hidden="true">/</span> {{ group }} <span aria-hidden="true">/</span> {{ info.label }}</nav>
+  <header class="page-header">
+    <h1>{{ info.label }}</h1>
+    <p class="page-subtitle"><strong>Each row:</strong> {{ info.row }}{% if info.about %} {{ info.about }}{% endif %}</p>
+  </header>
+
+  {% if parents or children or referenced_by %}
+  <section class="panel db-links" aria-label="Connected tables">
+    {% if parents %}
+    <div><span class="metric-label">Links to</span>
+      {% for p in parents %}<a class="db-chip" href="{{ url_for('data_table_page', table=p) }}">{{ catalog[p].label }}</a>{% endfor %}
+    </div>
+    {% endif %}
+    {% if children or referenced_by %}
+    <div><span class="metric-label">Linked from</span>
+      {% for c, col, label in children %}<a class="db-chip" href="{{ url_for('data_table_page', table=c) }}">{{ catalog[c].label }}</a>{% endfor %}
+      {% for c in referenced_by %}<a class="db-chip" href="{{ url_for('data_table_page', table=c) }}">{{ catalog[c].label }}</a>{% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <form class="panel toolbar db-toolbar" method="get" action="{{ url_for('data_table_page', table=table) }}">
+    <div class="filter-field">
+      <label for="db-q">Search</label>
+      <input type="search" id="db-q" name="q" value="{{ q }}" placeholder="Any value in the row…" maxlength="100">
+    </div>
+    {% if can_filter_site %}
+    <div class="filter-field">
+      <label for="db-site">Site code</label>
+      <input type="text" id="db-site" name="site" value="{{ site }}" placeholder="e.g. CL2" maxlength="20" autocapitalize="characters">
+    </div>
+    {% endif %}
+    {% for k, v in base_args.items() if k not in ('q', 'site') %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <div class="db-toolbar-actions">
+      <button type="submit" class="btn-primary">Show rows</button>
+      {% if q or site or filters %}<a class="btn-secondary" href="{{ url_for('data_table_page', table=table) }}">Clear</a>{% endif %}
+      <a class="btn-secondary" href="{{ csv_url }}">Download CSV</a>
+    </div>
+  </form>
+
+  <section class="panel">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title">{{ '{:,}'.format(total) }} row{{ '' if total == 1 else 's' }}{% if filters or q %} matching{% endif %}</h2>
+      <span class="muted">{% for f in filters %}{{ f }}{% if not loop.last %} · {% endif %}{% endfor %}{% if q %}{% if filters %} · {% endif %}“{{ q }}”{% endif %}</span>
+    </div>
+    {% if not rows %}
+    <p class="muted">{% if total == 0 and not (q or filters) %}This table is empty so far.{% else %}No rows match.{% endif %}</p>
+    {% else %}
+    <div class="db-table-scroll">
+      <table class="data-table db-table">
+        <thead><tr>
+          {% for m in meta %}
+          {% set is_sorted = (m.name == sort_col) %}
+          <th scope="col" {% if is_sorted %}aria-sort="{{ 'descending' if descending else 'ascending' }}"{% endif %}>
+            <a href="{{ sort_url(m.name, is_sorted and not descending) }}" class="db-sort{% if is_sorted %} is-sorted{% endif %}">{{ m.label }}{% if is_sorted %} {{ '▼' if descending else '▲' }}{% endif %}</a>
+          </th>
+          {% endfor %}
+          {% if info.app or info.related %}<th scope="col">Open</th>{% endif %}
+        </tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            {% for m in meta %}
+            {% set v = r[m.name] %}
+            <td{% if v is number and v is not boolean and not m.parent %} class="num"{% endif %}>
+              {%- if v is none -%}<span class="db-null">—</span>
+              {%- elif m.parent -%}
+                <a class="db-link" href="{{ url_for('data_table_page', table=m.parent, **{parent_pk[m.parent]: v}) }}" title="Open this {{ m.label|lower }}">{{ r[m.name ~ '__label'] if r[m.name ~ '__label'] else v }}</a>
+              {%- elif m.rating -%}<span class="rating rating-{{ v|lower }}">{{ v }}</span>
+              {%- else -%}{% set s = fmt(v) %}{% if s|length > 80 %}<span title="{{ s }}">{{ s[:80] }}…</span>{% else %}{{ s }}{% endif %}
+              {%- endif -%}
+            </td>
+            {% endfor %}
+            {% if info.app or info.related %}
+            <td class="db-open">
+              {% if info.app %}{% set app_url = info.app.format(**r) %}<a href="{{ app_url }}">App page</a>{% endif %}
+              {% if pk %}{% for c, col, label in children %}<a href="{{ url_for('data_table_page', table=c, **{col: r[pk]}) }}">{{ label }}</a>{% endfor %}{% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if pages > 1 %}
+    <nav class="db-pager" aria-label="Pages">
+      {% if page > 1 %}<a class="btn-secondary" href="{{ page_url(page - 1) }}">← Previous</a>{% endif %}
+      <span class="muted">Page {{ page }} of {{ '{:,}'.format(pages) }}</span>
+      {% if page < pages %}<a class="btn-secondary" href="{{ page_url(page + 1) }}">Next →</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

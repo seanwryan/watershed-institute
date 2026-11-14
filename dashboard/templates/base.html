@@ -26,6 +26,7 @@
       <button type="button" class="nav-toggle" id="nav-toggle" aria-controls="site-nav" aria-expanded="false">Menu</button>
       <nav class="site-nav" id="site-nav" aria-label="Primary">
         <a href="/" class="nav-link {% if ep == 'index' %}active{% endif %}">Home</a>
+        {% if not public_demo_mode %}<a href="/data" class="nav-link {% if ep.startswith('data_') and ep != 'data_pipeline_page' %}active{% endif %}">Data</a>{% endif %}
 
         <div class="nav-group {% if monitoring_active %}active{% endif %}" data-nav-group>
           <button type="button" class="nav-group-label" aria-expanded="false" aria-controls="nav-monitoring" id="nav-monitoring-btn">Monitoring</button>

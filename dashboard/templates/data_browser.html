@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Data browser{% endblock %}
+{% block content %}
+<div class="page-monitoring data-browser">
+  <header class="page-header">
+    <h1>Data browser</h1>
+    <p class="page-subtitle">Every table in the StreamWatch database, what it holds, and how the tables connect. Open any table to see its actual rows. Nothing here changes data.</p>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error" role="alert">{{ error }}</div>
+  {% else %}
+
+  <section class="panel db-map-panel" aria-labelledby="db-map-title">
+    <div class="home-panel-head">
+      <h2 class="home-panel-title" id="db-map-title">How the data fits together</h2>
+      <span class="muted">{{ n_tables }} tables · {{ n_links }} links</span>
+    </div>
+    <p class="muted db-map-intro">Read left to right: a <strong>site</strong> belongs to a waterbody, town and subwatershed. Each <strong>visit</strong> is one team sampling one site on one day, and results hang off visits. Volunteers connect to sites through assignments and to their training; meters connect to their test sessions. Click any box to open that table.</p>
+    <div class="db-map-scroll">
+      <svg class="db-map" viewBox="0 0 {{ rel_map.w }} {{ rel_map.h }}" role="img" aria-labelledby="db-map-title db-map-desc">
+        <desc id="db-map-desc">Diagram of the main StreamWatch tables and the links between them.</desc>
+        {% for e in rel_map.edges %}
+        <path d="{{ e.path }}" class="db-edge{% if e.dashed %} db-edge-dashed{% endif %}"/>
+        {% endfor %}
+        {% for n in rel_map.nodes %}
+        <a href="{{ url_for('data_table_page', table=n.table) }}" class="db-node db-node-{{ n.group }}">
+          <title>{{ n.label }}{% if n.count is not none %} · {{ '{:,}'.format(n.count) }} rows{% endif %}</title>
+          <rect x="{{ n.x }}" y="{{ n.y }}" width="{{ rel_map.node_w }}" height="{{ rel_map.node_h }}" rx="10"/>
+          <text x="{{ n.x + 14 }}" y="{{ n.y + 21 }}" class="db-node-label">{{ n.label }}</text>
+          <text x="{{ n.x + 14 }}" y="{{ n.y + 38 }}" class="db-node-count">{% if n.count is not none %}{{ '{:,}'.format(n.count) }} rows{% endif %}</text>
+        </a>
+        {% endfor %}
+      </svg>
+    </div>
+    <ul class="db-legend" aria-label="Map key">
+      <li><span class="db-swatch db-node-places"></span>Places</li>
+      <li><span class="db-swatch db-node-sampling"></span>Visits</li>
+      <li><span class="db-swatch db-node-results"></span>Results</li>
+      <li><span class="db-swatch db-node-biology"></span>Bugs</li>
+      <li><span class="db-swatch db-node-people"></span>Volunteers</li>
+      <li><span class="db-swatch db-node-equipment"></span>Equipment</li>
+      <li><span class="db-swatch db-node-quality"></span>Data quality</li>
+      <li><span class="db-legend-dash"></span>Optional link</li>
+    </ul>
+  </section>
+
+  {% for g in groups if g.tables %}
+  <section class="db-group" aria-labelledby="group-{{ g.key }}">
+    <h2 id="group-{{ g.key }}" class="db-group-title"><span class="db-swatch db-node-{{ g.key }}"></span>{{ g.title }}</h2>
+    <p class="muted db-group-blurb">{{ g.blurb }}</p>
+    <div class="db-cards">
+      {% for t in g.tables %}
+      <a class="db-card{% if not t.count %} db-card-empty{% endif %}" href="{{ url_for('data_table_page', table=t.name) }}">
+        <span class="db-card-head">
+          <span class="db-card-title">{{ t.label }}</span>
+          <span class="db-card-count">{{ '{:,}'.format(t.count) }}</span>
+        </span>
+        <span class="db-card-row">{{ t.row }}</span>
+        {% if t.about %}<span class="db-card-about">{{ t.about }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}
