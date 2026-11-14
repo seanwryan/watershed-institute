@@ -12,11 +12,18 @@
     <h1>Data imports</h1>
     <p class="page-subtitle">
       Review incoming StreamWatch data before adding it to the database.
-      Previews compare a workbook to current records and do not change StreamWatch data.
+      Inspect seasonal sources, preserve review history, or compare a workbook to current monitoring records.
     </p>
   </header>
 
   <div class="reports-directory">
+    {% if not public_demo_mode %}
+    <article class="panel report-card">
+      <h2 class="home-panel-title">Seasonal source workspace</h2>
+      <p>Start with the seasonal BACT and HAB source workbook. Inspect all five data sheets, preserve the original file, and record what staff checked or placed on hold.</p>
+      <a class="btn-primary" href="/imports/bact/workspace">Open seasonal source review</a>
+    </article>
+    {% endif %}
     <article class="panel report-card">
       <h2 class="home-panel-title">BACT season data</h2>
       <p class="muted">

@@ -13,3 +13,5 @@
 \ir 09_qa_views.sql
 \ir 10_reporting_views.sql
 \ir 11_method_reference.sql
+
+\ir 12_source_intake.sql

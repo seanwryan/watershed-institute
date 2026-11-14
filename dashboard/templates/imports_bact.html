@@ -23,6 +23,7 @@
   <div class="alert-error" role="alert">{{ error }}</div>
   {% endif %}
 
+  {% if not public_demo_mode %}<p><a href="/imports/bact/workspace">Review the full seasonal source and save review history</a>. The comparison below covers only Survey123 and IDEXX against existing monitoring records.</p>{% endif %}
   <div class="panel form-panel">
     <form method="post" action="/imports/bact/preview" enctype="multipart/form-data" class="stack-form">
       <div class="filter-field">

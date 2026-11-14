@@ -78,6 +78,8 @@ DATABASE_URL = _raw.strip().strip("'\"").strip()
 app = Flask(__name__, static_folder="static", template_folder="templates")
 register_read_only(app)
 register_public_demo(app)
+from dashboard.bact_workspace import register as register_bact_workspace
+register_bact_workspace(app, lambda: get_db())
 # Restarting without a configured SECRET_KEY invalidates open editing forms safely.
 _method_signer = URLSafeTimedSerializer(os.getenv("SECRET_KEY") or secrets.token_hex(32), salt="method-reference-edit")
 

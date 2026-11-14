@@ -14,6 +14,8 @@ from flask import jsonify, render_template, request
 WRITE_ENDPOINTS = frozenset(
     {
         "method_reference_edit",
+        "imports_bact_source_save",
+        "imports_bact_source_decision",
         "site_new",
         "site_edit",
         "visit_new",
@@ -40,6 +42,7 @@ WRITE_ENDPOINTS = frozenset(
 # POST upload routes that only read workbooks and write ephemeral preview files.
 PREVIEW_POST_ENDPOINTS = frozenset(
     {
+        "imports_bact_source_preview",
         "imports_hab_preview_post",
         "imports_bat_preview_post",
         "imports_bact_preview_post",

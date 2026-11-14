@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}StreamWatch – Review seasonal source{% endblock %}
+{% block content %}
+<div class="page-monitoring page-reporting">
+  <nav class="breadcrumb"><a href="{{ url_for('imports_bact_workspace') }}">Seasonal source review</a> / {{ parsed.filename }}</nav>
+  <header class="page-header"><h1>{{ parsed.filename }}</h1><p class="page-subtitle">{{ parsed.row_count }} source records across five seasonal workflows · {{ parsed.needs_attention }} with source details to investigate</p></header>
+  {% if error %}<p role="status" class="import-preview-banner">{{ error }}</p>{% endif %}
+  <section class="panel"><h2>{% if batch_id %}Saved source{% else %}Check what arrived{% endif %}</h2>
+    <p>Decimal values, limit symbols, original formulas, notes, comments, and cell formatting are retained. No limit substitutions, chloride corrections, scientific scores, visit matches, or monitoring updates are applied here.</p>
+    {% for item in parsed.sheets %}<p><strong>{{ item.label }} — {{ item.sheet }}</strong>: {% if item.present %}{{ item.rows }} source records{% if item.years %}; dates by year: {% for year,count in item.years.items() %}{{ year }} ({{ count }}) {% endfor %}{% endif %}{% else %}sheet not supplied{% endif %}</p>{% endfor %}
+    <p class="muted">Other sheets preserved in the original workbook: {{ parsed.reference_sheets|join(', ') or 'none' }}. Analyzer timestamps are not assumed to be collection dates. Counts do not establish unique samples.</p>
+    {% if batch_id %}
+      <p>{% for state,count in batch.decisions.items() %}<strong>{{ state|capitalize }}:</strong> {{ count }} &nbsp;{% endfor %}</p>
+      <a class="btn-secondary" href="{{ url_for('imports_bact_source_original',batch_id=batch_id) }}">Download original workbook</a>
+    {% elif not read_only_mode %}
+      <form method="post" action="{{ url_for('imports_bact_source_save',token=token) }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn-primary" type="submit">Save source batch for review</button></form>
+    {% else %}<p>Read-only mode: inspect this source without saving a batch.</p>{% endif %}
+    <details><summary>Source identity</summary><p class="mono">SHA-256: {{ parsed.sha256 }}</p><p>Reader version: {{ parsed.parser_version }}</p></details>
+  </section>
+  <section class="panel"><h2>Inspect the source records</h2>
+    <form method="get" class="filter-form"><label for="sheet">Source sheet</label><select id="sheet" name="sheet"><option value="">All sheets</option>{% for item in parsed.sheets if item.present %}<option value="{{ item.sheet }}" {% if sheet==item.sheet %}selected{% endif %}>{{ item.label }}</option>{% endfor %}</select>
+    {% if batch_id %}<label for="decision">Review status</label><select name="decision" id="decision">{% for value,label in [('', 'All statuses'),('pending','Pending'),('reviewed','Reviewed'),('hold','On hold')] %}<option value="{{ value }}" {% if decision==value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% endif %}
+    <button class="btn-secondary" type="submit">Show records</button></form>
+    <p>{{ total }} matching records. {% if batch_id %}Page {{ page }}, up to 50 records per page.{% else %}Showing the first 50; save the source to browse and review all records.{% endif %}</p>
+    {% for row in rows %}
+    <article class="panel"><h3>{{ row.sheet }} · row {{ row.source_row }}</h3>
+      <p><strong>{{ row.site_code or row.sample_identifier or 'Identifier needs review' }}</strong> · {{ row.sample_date or 'Date needs review' }}{% if batch_id %} · {{ row.decision|capitalize }}{% endif %}</p>
+      {% if row.issues %}<ul>{% for issue in row.issues %}<li>{{ issue }}</li>{% endfor %}</ul>{% endif %}
+      {% for label,value in row.annotations.items() %}<p><strong>{{ label }}:</strong> {{ value }}</p>{% endfor %}
+      {% for name,value in row.parameters.items() %}<p><strong>{{ name }}:</strong> {{ value.raw if value.raw is not none else ('Saved result unavailable' if value.formula else 'Not recorded') }} · {{ value.unit }} · {{ value.state|replace('_',' ') }}{% if value.formula %} · calculated source cell{% endif %}</p>{% endfor %}
+      <details><summary>Original cells, formulas, and formatting</summary>
+        {% for coordinate,cell in row.cells.items() %}<p><strong>{{ coordinate }} — {{ cell.header }}</strong><br>Source: {{ cell.original if cell.original is not none else 'blank' }}{% if cell.formula %}<br>Saved result: {{ cell.cached if cell.cached is not none else 'unavailable' }}{% endif %}{% if cell.comment %}<br>Comment: {{ cell.comment }}{% endif %}<br><small>Format: {{ cell.format }} · Font: {{ cell.font_color }} · Fill: {{ cell.fill_color }}</small></p>{% endfor %}
+      </details>
+      {% if batch_id %}
+        {% if row.reviewer %}<p>Latest review by {{ row.reviewer }}: {{ row.reason }} (revision {{ row.revision }})</p>{% endif %}
+        {% if row.history %}<details><summary>Review history</summary>{% for event in row.history %}<p>{{ event.created_at }} · {{ event.reviewer }} · {{ event.decision }}: {{ event.reason }}</p>{% endfor %}</details>{% endif %}
+        {% if not read_only_mode %}<form method="post" action="{{ url_for('imports_bact_source_decision',batch_id=batch_id,observation_id=row.id) }}" class="stack-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="revision" value="{{ row.revision }}">
+          <input type="hidden" name="page" value="{{ page }}"><input type="hidden" name="sheet" value="{{ sheet }}"><input type="hidden" name="filter_decision" value="{{ decision }}">
+          <label for="decision-{{ row.id }}">Source review decision</label><select id="decision-{{ row.id }}" name="decision"><option value="reviewed">Source checked</option><option value="hold">Keep on hold</option></select>
+          <label for="reviewer-{{ row.id }}">Your name (recorded as entered)</label><input id="reviewer-{{ row.id }}" name="reviewer" maxlength="120" required>
+          <label for="reason-{{ row.id }}">What did you check or what needs attention?</label><textarea id="reason-{{ row.id }}" name="reason" maxlength="2000" required></textarea>
+          <button type="submit" class="btn-secondary">Record review</button>
+        </form>{% endif %}
+      {% endif %}
+    </article>{% else %}<p>No matching source records.</p>{% endfor %}
+    {% if batch_id %}<nav aria-label="Source pages">{% if page>1 %}<a class="btn-secondary" href="{{ url_for('imports_bact_source_batch',batch_id=batch_id,sheet=sheet,decision=decision,page=page-1) }}">Previous</a>{% endif %}{% if page*50<total %}<a class="btn-secondary" href="{{ url_for('imports_bact_source_batch',batch_id=batch_id,sheet=sheet,decision=decision,page=page+1) }}">Next</a>{% endif %}</nav>{% endif %}
+  </section>
+</div>
+{% endblock %}
