@@ -29,7 +29,7 @@ LEFT JOIN waterbody w ON w.waterbody_id = s.waterbody_id;
 -- Chemical results (flat for export/reports)
 CREATE OR REPLACE VIEW v_chemical_results AS
 SELECT c.chemical_id, v.visit_id, v.sample_date, v.sample_code, s.site_code, w.name AS waterbody_name,
-       dc.code AS data_condition_code, c.water_temp_c, c.air_temp_c, c.nitrate_ug_l, c.phosphate_mg_l,
+       COALESCE(dc.code, c.source_data_condition) AS data_condition_code, c.water_temp_c, c.air_temp_c, c.nitrate_ug_l, c.phosphate_mg_l,
        c.ph, c.turbidity_ntu, c.dissolved_oxygen_ppm, c.conductivity_us_cm, c.chloride_mg_l
 FROM chemical c
 JOIN visit v ON v.visit_id = c.visit_id

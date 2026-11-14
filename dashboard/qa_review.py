@@ -44,9 +44,9 @@ def _query(filters):
         if filters.get(name):
             clauses.append(clause); params.append(filters[name])
     if filters.get('condition') == '__none__':
-        clauses.append('r.data_condition_id IS NULL')
+        clauses.append('r.data_condition_id IS NULL AND r.source_data_condition IS NULL')
     elif filters.get('condition'):
-        clauses.append('dc.code = %s'); params.append(filters['condition'])
+        clauses.append('(dc.code = %s OR r.source_data_condition = %s)'); params.extend([filters['condition']] * 2)
     if filters.get('flag_type') == '__none__':
         clauses.append("NOT EXISTS (SELECT 1 FROM result_flag rf WHERE rf.result_table=r.family AND rf.result_pk=r.record_id)")
     elif filters.get('flag_type') == '__any__':
@@ -57,19 +57,19 @@ def _query(filters):
         params.append(filters['flag_type'])
     sql = f"""WITH records AS (
         SELECT 'chemical'::text family, c.chemical_id record_id, c.visit_id,
-               c.data_condition_id, c.detection_limit_note, lm.name method,
+               c.data_condition_id, c.source_data_condition, c.detection_limit_note, lm.name method,
                jsonb_strip_nulls(jsonb_build_object({chem_values})) measurements,
                false holding_time_flag, false holding_temp_flag
         FROM chemical c LEFT JOIN lst_method lm ON lm.method_id=c.method_id
         UNION ALL
-        SELECT 'bacteria', b.bacteria_id, b.visit_id, b.data_condition_id,
+        SELECT 'bacteria', b.bacteria_id, b.visit_id, b.data_condition_id, b.source_data_condition,
                b.detection_limit_note, NULL::text,
                jsonb_strip_nulls(jsonb_build_object('e_coli_mpn_100ml', b.e_coli_mpn_100ml,
                                                   'total_coliform_mpn', b.total_coliform_mpn)),
                b.holding_time_flag, b.holding_temp_flag FROM bacteria b
     ), matched AS (
         SELECT r.family, r.record_id, v.visit_id, s.site_code, v.sample_date::text,
-               v.sample_code, r.method, dc.code condition, m.key parameter,
+               v.sample_code, r.method, COALESCE(dc.code, r.source_data_condition) condition, m.key parameter,
                m.value #>> '{{}}' value, r.detection_limit_note, v.notes visit_notes,
                r.holding_time_flag, r.holding_temp_flag
         FROM records r JOIN visit v ON v.visit_id=r.visit_id
