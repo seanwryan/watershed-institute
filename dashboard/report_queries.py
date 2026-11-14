@@ -10,7 +10,7 @@ from datetime import date
 
 REPORT_CHEM_FIELDS = [
     ("water_temp_c", "Water temperature", "°C"),
-    ("nitrate_ug_l", "Nitrate", "µg/L"),
+    ("nitrate_ug_l", "Nitrate", "mg/L"),
     ("phosphate_mg_l", "Phosphate", "mg/L"),
     ("ph", "pH", ""),
     ("turbidity_ntu", "Turbidity", "NTU"),
@@ -176,7 +176,8 @@ def completeness_summary(cur, site_code="", date_start=None, date_end=None):
           COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM bacteria b WHERE b.visit_id = v.visit_id)) AS with_bacteria,
           COUNT(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM bacteria b WHERE b.visit_id = v.visit_id)) AS without_bacteria,
           COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM bug_count bc WHERE bc.visit_id = v.visit_id)) AS with_macro,
-          COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM habitat_assessment h WHERE h.visit_id = v.visit_id)) AS with_habitat
+          COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM habitat_assessment h WHERE h.visit_id = v.visit_id)) AS with_habitat,
+          COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM macro_analysis ma WHERE ma.visit_id = v.visit_id)) AS with_bio_scores
         FROM visit v
         JOIN site s ON s.site_id = v.site_id
         WHERE {where}
@@ -192,6 +193,7 @@ def completeness_summary(cur, site_code="", date_start=None, date_end=None):
         "without_bacteria": int(r[4] or 0),
         "with_macro": int(r[5] or 0),
         "with_habitat": int(r[6] or 0),
+        "with_bio_scores": int(r[7] or 0),
     }
 
 

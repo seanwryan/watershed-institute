@@ -5,7 +5,7 @@ window.StreamWatchParams = (function () {
     water_temp_c: { label: "Water temperature", unit: "°C" },
     dissolved_oxygen_ppm: { label: "Dissolved oxygen", unit: "mg/L" },
     dissolved_oxygen_pct: { label: "Dissolved oxygen saturation", unit: "%" },
-    nitrate_ug_l: { label: "Nitrate", unit: "µg/L" },
+    nitrate_ug_l: { label: "Nitrate", unit: "mg/L" },
     phosphate_mg_l: { label: "Phosphate", unit: "mg/L" },
     ph: { label: "pH", unit: "" },
     turbidity_ntu: { label: "Turbidity", unit: "NTU" },

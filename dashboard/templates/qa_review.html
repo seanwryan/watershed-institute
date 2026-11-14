@@ -35,7 +35,7 @@
       <div class="home-panel-head"><h2 class="home-panel-title">Result values</h2>
         <p class="muted">{{ total }} matching row{{ '' if total == 1 else 's' }} · Page {{ page }}</p></div>
       <p class="muted export-hint">Each row shows one stored value, or a record without measurements. Flags and Data Conditions apply to the whole record; they may not identify a particular parameter. Each chemistry package is kept separate. “Not recorded” does not mean accepted. Only stored notes are available; unresolved source wording may be missing.</p>
-      {% if nitrate_note %}<p class="muted export-hint">Nitrate is shown as stored. The source labels it mg/L while existing application labels use µg/L; confirm units before interpretation. No conversion is applied here.</p>{% endif %}
+      {% if nitrate_note %}<p class="muted export-hint">Nitrate is in mg/L (as nitrogen), as recorded in the StreamWatch workbook.</p>{% endif %}
       <div class="table-tools"><label for="review-search">Search displayed rows</label><input id="review-search" type="search" placeholder="Value, condition, note…" aria-describedby="review-search-help"><span id="review-count" class="muted" aria-live="polite"></span></div>
       <p id="review-search-help" class="muted export-hint">Search and sorting apply to this page only. CSV includes all matching rows using the filters on the left.</p>
       <div class="table-wrap"><table class="data-table" data-enhance="table" data-search="#review-search" data-count="#review-count">

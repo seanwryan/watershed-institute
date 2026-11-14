@@ -24,6 +24,7 @@ SELECT c.chemical_id, c.visit_id, 'water_temp_31c' AS exceedance_type, c.water_t
 FROM chemical c
 WHERE c.water_temp_c > 31
 UNION ALL
-SELECT c.chemical_id, c.visit_id, 'nitrate_10ppm', c.nitrate_ug_l / 1000.0
+-- nitrate_ug_l holds mg/L (as N) despite its name; 10 mg/L = 10 ppm.
+SELECT c.chemical_id, c.visit_id, 'nitrate_10ppm', c.nitrate_ug_l
 FROM chemical c
-WHERE c.nitrate_ug_l IS NOT NULL AND c.nitrate_ug_l > 10000;
+WHERE c.nitrate_ug_l IS NOT NULL AND c.nitrate_ug_l > 10;
