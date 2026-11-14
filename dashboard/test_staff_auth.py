@@ -1,6 +1,7 @@
-"""Staff sign-in and macro recalculation guard. No database needed.
+"""Staff sign-in (page + session, and HTTP Basic for scripts) and the macro
+recalculation guard. No database needed.
 
-Run from the repo root:  python -m unittest dashboard.test_staff_auth
+Run from the repo root:  python -m pytest dashboard/test_staff_auth.py
 """
 from __future__ import annotations
 
@@ -11,12 +12,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
 
 from flask import Flask
 
-from staff_auth import register_staff_auth
+from staff_auth import _safe_next, register_staff_auth
+
+ENV = {"STAFF_PASSWORD": "s3cret", "STAFF_USERNAME": "staff", "SECRET_KEY": "test-key"}
 
 
 def _basic(user, password):
@@ -25,61 +29,130 @@ def _basic(user, password):
 
 
 def _app():
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder=str(HERE / "templates"))
     register_staff_auth(app)
 
     @app.route("/health")
     def health():
         return "ok"
 
+    @app.route("/")
+    def index():
+        return "home"
+
+    @app.route("/sites")
+    def sites():
+        return "sites page"
+
     @app.route("/api/volunteers")
     def volunteers():
         return "private"
 
+    @app.route("/export/csv")
+    def export_csv():
+        return "a,b"
+
     return app
 
 
-class StaffAuthTest(unittest.TestCase):
+class SignedOutTest(unittest.TestCase):
     def setUp(self):
-        self.env = patch.dict(os.environ, {"STAFF_PASSWORD": "s3cret", "STAFF_USERNAME": "staff"})
+        self.env = patch.dict(os.environ, ENV)
         self.env.start()
         self.client = _app().test_client()
 
     def tearDown(self):
         self.env.stop()
 
-    def test_blocks_without_credentials(self):
+    def test_pages_redirect_to_sign_in_with_next(self):
+        r = self.client.get("/sites?site=CL2")
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("/login?next=", r.headers["Location"])
+        self.assertIn("sites", r.headers["Location"])
+
+    def test_api_and_exports_get_401_not_redirect(self):
         r = self.client.get("/api/volunteers")
         self.assertEqual(r.status_code, 401)
-        self.assertIn("Basic", r.headers["WWW-Authenticate"])
         self.assertNotIn(b"private", r.data)
+        self.assertEqual(self.client.get("/export/csv").status_code, 401)
 
-    def test_blocks_wrong_password_and_user(self):
-        self.assertEqual(self.client.get("/api/volunteers", headers=_basic("staff", "nope")).status_code, 401)
-        self.assertEqual(self.client.get("/api/volunteers", headers=_basic("other", "s3cret")).status_code, 401)
+    def test_posts_are_blocked(self):
+        self.assertEqual(self.client.post("/sites").status_code, 401)
 
-    def test_allows_correct_credentials(self):
-        r = self.client.get("/api/volunteers", headers=_basic("staff", "s3cret"))
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.data, b"private")
-
-    def test_health_stays_open(self):
+    def test_open_paths(self):
         self.assertEqual(self.client.get("/health").status_code, 200)
+        r = self.client.get("/login")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b"Sign in", r.data)
 
-    def test_blocks_writes_too(self):
-        self.assertEqual(self.client.post("/api/volunteers").status_code, 401)
+    def test_basic_auth_still_works_for_scripts(self):
+        self.assertEqual(self.client.get("/api/volunteers", headers=_basic("staff", "s3cret")).status_code, 200)
+        self.assertEqual(self.client.get("/api/volunteers", headers=_basic("staff", "nope")).status_code, 401)
+
+
+class SignInFlowTest(unittest.TestCase):
+    def setUp(self):
+        self.env = patch.dict(os.environ, ENV)
+        self.env.start()
+        self.client = _app().test_client()
+
+    def tearDown(self):
+        self.env.stop()
+
+    def test_wrong_password_rejected(self):
+        with patch("staff_auth.time.sleep"):
+            r = self.client.post("/login", data={"username": "staff", "password": "wrong"})
+        self.assertEqual(r.status_code, 401)
+        self.assertIn(b"password didn&#39;t match", r.data)
+        self.assertEqual(self.client.get("/sites").status_code, 302)
+
+    def test_wrong_username_rejected(self):
+        with patch("staff_auth.time.sleep"):
+            r = self.client.post("/login", data={"username": "admin", "password": "s3cret"})
+        self.assertEqual(r.status_code, 401)
+
+    def test_sign_in_then_browse_then_sign_out(self):
+        r = self.client.post("/login", data={"username": "staff", "password": "s3cret", "next": "/sites"})
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(r.headers["Location"].endswith("/sites"))
+        self.assertEqual(self.client.get("/sites").data, b"sites page")
+        self.assertEqual(self.client.get("/api/volunteers").status_code, 200)
+        self.client.get("/logout")
+        self.assertEqual(self.client.get("/sites").status_code, 302)
+        self.assertEqual(self.client.get("/api/volunteers").status_code, 401)
+
+    def test_changing_password_ends_sessions(self):
+        self.client.post("/login", data={"username": "staff", "password": "s3cret"})
+        self.assertEqual(self.client.get("/sites").status_code, 200)
+        with patch.dict(os.environ, {"STAFF_PASSWORD": "new-password"}):
+            self.assertEqual(self.client.get("/sites").status_code, 302)
+
+    def test_session_cookie_is_httponly(self):
+        r = self.client.post("/login", data={"username": "staff", "password": "s3cret"})
+        cookie = r.headers.get("Set-Cookie", "")
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=Lax", cookie)
+
+
+class SafeNextTest(unittest.TestCase):
+    def test_only_same_site_paths(self):
+        self.assertEqual(_safe_next("/sites?x=1"), "/sites?x=1")
+        self.assertEqual(_safe_next("https://evil.example/"), "/")
+        self.assertEqual(_safe_next("//evil.example/"), "/")
+        self.assertEqual(_safe_next("sites"), "/")
+        self.assertEqual(_safe_next(None), "/")
 
 
 class NoPasswordConfiguredTest(unittest.TestCase):
-    def test_open_when_unset(self):
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("STAFF_PASSWORD", None)
-            client = _app().test_client()
-            self.assertEqual(client.get("/api/volunteers").status_code, 200)
-
-    def test_blank_password_counts_as_unset(self):
-        with patch.dict(os.environ, {"STAFF_PASSWORD": "   "}):
-            self.assertEqual(_app().test_client().get("/api/volunteers").status_code, 200)
+    def test_open_when_unset_or_blank(self):
+        for value in (None, "   "):
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("STAFF_PASSWORD", None)
+                if value is not None:
+                    os.environ["STAFF_PASSWORD"] = value
+                client = _app().test_client()
+                self.assertEqual(client.get("/api/volunteers").status_code, 200)
+                self.assertEqual(client.get("/sites").status_code, 200)
 
 
 class MacroRecalcGuardTest(unittest.TestCase):
