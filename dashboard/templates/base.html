@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}StreamWatch{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="/static/css/style.css">
   <script src="/static/js/table_enhance.js" defer></script>
   {% block head %}{% endblock %}
@@ -19,7 +22,7 @@
   {% set data_pipeline_active = ep == 'data_pipeline_page' %}
   <header class="site-header">
     <div class="site-header-inner">
-      <a href="/" class="logo">StreamWatch</a>
+      <a href="/" class="logo" aria-label="StreamWatch home"><span class="logo-name">StreamWatch</span><span class="logo-sub">The Watershed Institute</span></a>
       <button type="button" class="nav-toggle" id="nav-toggle" aria-controls="site-nav" aria-expanded="false">Menu</button>
       <nav class="site-nav" id="site-nav" aria-label="Primary">
         <a href="/" class="nav-link {% if ep == 'index' %}active{% endif %}">Home</a>

@@ -161,7 +161,7 @@
         var map = L.map('site-mini-map', { scrollWheelZoom: false, zoomControl: true })
           .setView([Number(site.latitude), Number(site.longitude)], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap'
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19
         }).addTo(map);
         L.marker([Number(site.latitude), Number(site.longitude)]).addTo(map)
           .bindPopup(esc(site.site_code));

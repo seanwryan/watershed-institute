@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex">
   <title>Sign in – StreamWatch</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="/static/css/style.css">
   <style>
     .login-wrap { max-width: 24rem; margin: 12vh auto 2rem; padding: 0 16px; }
@@ -20,7 +21,8 @@
 <body>
   <main class="login-wrap">
     <h1>StreamWatch</h1>
-    <p class="page-intro">Staff sign-in for The Watershed Institute's monitoring data.</p>
+    <p class="logo-sub" style="margin:-.2rem 0 .9rem">The Watershed Institute</p>
+    <p class="page-intro">Staff sign-in for StreamWatch monitoring data.</p>
     <section class="panel">
       {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
       <form method="post" action="/login">

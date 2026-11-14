@@ -112,7 +112,7 @@
   var chartStatus = document.getElementById('chart-status');
   var scoresData = [];
   var chart = null;
-  var ACCENT = '#1f5c63';
+  var ACCENT = '#117bc5';  /* Watershed blue */
   var qs = new URLSearchParams(location.search);
   var presetSite = qs.get('site_code') || '';
 
@@ -136,11 +136,11 @@
   function ratingBadge(rating) {
     if (!rating) return '—';
     var r = String(rating);
-    var cls = 'badge';
     var lower = r.toLowerCase();
-    if (lower.indexOf('excellent') !== -1 || lower.indexOf('good') !== -1) cls += ' badge-success';
-    else if (lower.indexOf('fair') !== -1) cls += ' badge-warning';
-    else if (lower.indexOf('poor') !== -1) cls += ' badge-danger';
+    var cls = 'badge';
+    ['excellent', 'good', 'fair', 'poor'].forEach(function (k) {
+      if (lower.indexOf(k) !== -1 && cls === 'badge') cls = 'rating rating-' + k;
+    });
     return '<span class="' + cls + '">' + esc(r) + '</span>';
   }
 
